@@ -1,0 +1,284 @@
+xvec[g_] := 
+  Function[l, ToExpression[StringJoin["x", ToString[l]]]] /@ VertexList[g];
+   
+bdry[g_, A_] := 
+ Length[Select[Function[e, {e[[1]], e[[2]]}] /@ EdgeList[g],
+   Length[Intersection[A, #]] == 1 &]]
+   
+gg[verts_, edges_] := 
+ Graph[Function[v, 
+    Labeled[v, Placed[Style[v, Black, Small], Center]]] /@ verts, 
+  Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+  VertexSize -> 0.5, VertexStyle -> White, VertexLabelStyle -> 14]
+ 
+   
+randreg[n_, r_] := Module[{p, edges, done = False, i},
+  While[done == False,
+   done = True;
+   p = PermutationReplace[Range[n r], RandomPermutation[n r]];
+   edges = 
+    Sort /@ Function[e, Mod[e, n] + 1] /@ 
+      Function[i, {p[[2 i - 1]], p[[2 i]]}] /@ Range[Floor[n r/2]];
+   For[i = 1, i <= Length[edges], i++, 
+    If[edges[[i]][[1]] == edges[[i]][[2]], done = False, Nothing]];
+   If[done == True && Length[DeleteDuplicates[edges]] < Length[edges],
+     done = False, Nothing];
+   ];
+  gg[Range[n], edges]
+  ]
+  
+cheeger[g_] := Module[{verts, sets, conds, x},
+  x = xvec[g];
+  verts = VertexList[g];
+  sets = Subsets[verts, {1, Length[verts]/2}];
+  Min @@ Function[A, bdry[g, A]/Length[A]] /@ sets
+  ]
+  
+int[A_] := 
+  Module[{res}, res = {}; 
+  For[i = 1, i <= m + n, i++, 
+   If[Length[Intersection[A, edges[[i]]]] == 2, res = Append[res, i], 
+    res = res]]; res]
+    
+bdry[A_] := 
+  Module[{res}, res = {}; 
+  For[i = 1, i <= m + n, i++, 
+   If[Length[Intersection[A, edges[[i]]]] == 1, res = Append[res, i], 
+    res = res]]; res]
+    
+ext[v_, A_, y_] := Module[{bd, gp},
+  bd = Select[bdry[A], MemberQ[edges[[#]], v] &];
+  Total[y[[bd]]]
+ ]
+   
+vol[A_, y_] := Module[{res}, res = {};
+  res = Total[
+    Function[v, 
+      Total[y[[Select[Range[n + m], MemberQ[edges[[#]], v] &]]]]^
+       sig] /@ A];
+  res
+  ]
+
+
+(* scoring metrics *)
+invdist[g_, s_, t_, A_] := Module[{sg, vsg, d},
+  sg = Graph[VertexList[g], A];
+  1/GraphDistance[sg, s, t]
+  ]
+between[g_, s_, t_, A_] := Module[{sps, spsA, d},
+  d = GraphDistance[g, s, t];
+  sps = FindPath[g, s, t, {d}, All];
+  spsA = Select[sps, IntersectingQ[A, pathedges[#]] &];
+  If[Length[sps] == 0, 0, Length[spsA]/Length[sps]]
+  ]
+betweens[g_, s_, t_, A_] := Module[{d , sps, spsA},
+  d = GraphDistance[g, s, t];
+  sps = FindPath[g, s, t, {d}, All];
+  spsA = Select[sps, SubsetQ[A, pathedges[#]] &];
+  If[Length[sps] == 0, 0, Length[spsA]/Length[sps]]
+  ]
+
+(* choose scoring metric *)
+thetag[g_, phi_] := Module[{val, sh, verts, edges},
+  verts = VertexList[g];
+  edges = Function[e, {e[[1]], e[[2]]}] /@ EdgeList[g];
+  val[A_] := 
+   Total[Function[p, 
+      Sqrt[phi[[p[[1]]]] phi[[p[[2]]]]] between[g, p[[1]], p[[2]], 
+        A]] /@ Subsets[verts, {2}]];
+  sh[e_] := 
+   Expand[Simplify[
+     Total[Function[
+         A, (val[Union[A, {e}]] - val[A])/
+          Binomial[Length[edges] - 1, Length[A]]] /@ 
+        Subsets[Complement[edges, {e}]]]/Length[edges]]];
+  nu[g, sh /@ edges]
+  ]
+
+(* how phi evolves given a sequence of edges, phi_0[v] = 1 if v=1 and \
+0 otherwise  *)
+evolvei[seq_] := 
+ Module[{verts = Range[5], edges = {}, g, phi, G, G0, i},
+  G0 = Graph[verts, 
+    Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ seq, 
+    VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+  phi = Function[v, If[v == 1, 1, 0]] /@ verts;
+  For[i = 1, i <= Length[seq], i++,
+   AppendTo[edges, seq[[i]] ];
+   g = Graph[verts, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+   phi = thetag[g, phi];
+   G = Graph[G0, VertexWeight -> N[phi, 3], 
+     VertexLabels -> Placed["VertexWeight", Center], 
+     VertexLabelStyle -> Directive[Red, Bold, 15], Options[G0]];
+   Print[
+    HighlightGraph[G, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     GraphHighlightStyle -> "Thick"]]
+   ];
+  ]
+evolve[graph_, phi0_, seq_] := Module[{verts, edges, g, phi, G, G0, i},
+  verts = VertexList[graph];
+  edges = Function[e, {e[[1]], e[[2]]}] /@ EdgeList[graph];
+  G0 = Graph[verts, 
+    Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ Union[edges, seq],
+     VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+  phi = phi0;
+  Print[Graph[G0, VertexWeight -> N[phi, 3], 
+    VertexLabels -> Placed["VertexWeight", Center], 
+    VertexLabelStyle -> Directive[Red, Bold, 15], Options[G0]]];
+  For[i = 1, i <= Length[seq], i++,
+   AppendTo[edges, seq[[i]] ];
+   g = Graph[verts, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+   phi = thetag[g, phi];
+   G = Graph[G0, VertexWeight -> N[phi, 3], 
+     VertexLabels -> Placed["VertexWeight", Center], 
+     VertexLabelStyle -> Directive[Red, Bold, 15], Options[G0]];
+   Print[
+    HighlightGraph[G, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     GraphHighlightStyle -> "Thick"]]
+   ];
+  ]
+  
+  
+(*findfps of theta with cords < B using step size d*)
+
+findfps1[g_, B_, d_] := 
+ Select[Function[alpha, theta1[g, alpha]] /@ 
+   Flatten[Table @@ 
+     Prepend[Function[x, {x, d, B, d}] /@ xvec[g], xvec[g]], 
+    Length[VertexList[g]] - 1], theta1[g, #] == # &]
+
+dev2[g_, alpha_, delta_] := Module[{vol, verts, sets},
+  verts = VertexList[g];
+  vol = Total[alpha];
+  sets = Select[Subsets[verts], Total[alpha[[#]]] <= vol/2 &];
+  Max @@ (Function[S, Abs[1 - L1[g, S, alpha]] delta^Length[S]] /@ 
+     sets)
+  ]
+
+dev1[g_, alpha_, delta_] := Module[{vol, verts, sets},
+  verts = VertexList[g];
+  vol = Total[alpha];
+  sets = Select[Subsets[verts], Total[alpha[[#]]] <= vol/2 &];
+  Max @@ (Function[S, Abs[1 - 1/L1[g, S, alpha]] delta^Length[S]] /@ 
+     sets)
+  ]
+
+
+F[g_, alpha_] := Module[{verts, vol, S},
+  verts = VertexList[g];
+  vol = Total[alpha];
+  S = Select[Subsets[verts], Total[alpha[[#]]] <= vol/2 &];
+  Max @@ 
+   Function[v, 
+     Abs[alpha[[v]] - 
+       Min @@ (Function[A, 
+           If[MemberQ[A, v], bdry[g, A]/Length[A], Infinity]] /@ 
+          S)]] /@ verts
+  ]
+
+algo1[graph_] := 
+ Module[{verts = VertexList[graph], sg = Subgraph[graph, {1, 2}], 
+   alpha = {1, 1}, i},         
+  Print[HighlightGraph[wg[graph, alpha], sg, 
+    GraphHighlightStyle -> "Thick"]];
+  For[i = 3, i <= Length[verts], i++,
+   sg = Subgraph[graph, Range[i]];
+   alpha = theta[sg, Append[alpha, 0]];
+   Print[
+    HighlightGraph[wg[graph, alpha], sg, 
+     GraphHighlightStyle -> "Thick"]];
+   ];
+  ]
+
+algo2[graph_] := 
+ Module[{verts = VertexList[graph], sg = Subgraph[graph, {1, 2}], 
+   alpha = {1, 1}, i},         
+  Print[HighlightGraph[wg[graph, alpha], sg, 
+    GraphHighlightStyle -> "Thick"]];
+  For[i = 3, i <= Length[verts], i++,
+   sg = Subgraph[graph, Range[i]];
+   alpha = theta[sg, theta[sg, Append[alpha, 0]]];
+   Print[
+    HighlightGraph[wg[graph, alpha], sg, 
+     GraphHighlightStyle -> "Thick"]];
+   ];
+  ]
+ 
+ theta[g_, alpha_] := Module[{verts, vol, sets},
+  verts = VertexList[g];
+  vol = Total[alpha];
+  sets = Select[Subsets[verts], Total[alpha[[#]]] <= vol/2 &];
+  Function[v, 
+    alpha[[v]] + 
+     Min @@ (Function[A, 
+         If[MemberQ[A, v], (bdry[g, A] - Total[alpha[[A]]])/Length[A],
+           Infinity]] /@ sets)] /@ verts
+  ]
+
+theta1[g_, alpha_] := Module[{verts, vol, sets},
+  verts = VertexList[g];
+  vol = Total[alpha];
+  sets = Select[Subsets[verts], Total[alpha[[#]]] <= vol/2 &];
+  Function[v, 
+    Min @@ (Function[A, 
+        If[MemberQ[A, v], bdry[g, A]/Length[A], Infinity]] /@ sets)] /@
+    verts
+  ]
+
+theta2[g_, alpha_] := 
+ Function[v, 
+   K1[g, Complement[VertexList[NeighborhoodGraph[g, v]], {v}], 
+    alpha]] /@ VertexList[g]
+thetak[g_, alpha_, n_] := 
+ Module[{i, res = alpha}, 
+  For[i = 1, i <= n, i++, res = theta[g, res]; Print[res]]]
+
+  
+  
+(* graphs operations *)
+gg[verts_, edges_] := 
+ Graph[Function[v, 
+    Labeled[v, Placed[Style[v, Black, Small], Center]]] /@ verts, 
+  Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+  VertexSize -> 0.5, VertexStyle -> White, VertexLabelStyle -> 14]
+wg[graph_, alpha_] := Module[{phi, verts, edges, G, G0, i},
+  verts = VertexList[graph];
+  phi = PadRight[alpha, Length[verts]];
+  edges = Function[e, {e[[1]], e[[2]]}] /@ EdgeList[graph];
+  Graph[Function[v, 
+     Labeled[v, 
+      Placed[{Style[v, Black, Small], 
+        Style[N[phi[[v]], 3], Red, Bold]}, {Center, Above}]]] /@ 
+    verts, Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+   VertexSize -> 0.5, VertexStyle -> White, VertexLabelStyle -> 14]
+  ]
+per[g_, order_] := Module[{verts, edges, p, newedges},
+  verts = VertexList[g];
+  edges = Function[e, {e[[1]], e[[2]]}] /@ EdgeList[g];
+  p = FindPermutation[order, verts];
+  newedges = Function[e, PermutationReplace[e, p]] /@ edges;
+  Graph[order, 
+   Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ newedges, 
+   VertexSize -> Medium, VertexLabels -> Placed["Name", Center]]
+  ]
+
+randreg[n_, r_] := Module[{p, edges, done = False, i},
+  While[done == False,
+   done = True;
+   p = PermutationReplace[Range[n r], RandomPermutation[n r]];
+   edges = 
+    Sort /@ Function[e, Mod[e, n] + 1] /@ 
+      Function[i, {p[[2 i - 1]], p[[2 i]]}] /@ Range[Floor[n r/2]];
+   For[i = 1, i <= Length[edges], i++, 
+    If[edges[[i]][[1]] == edges[[i]][[2]], done = False, Nothing]];
+   If[done == True && Length[DeleteDuplicates[edges]] < Length[edges],
+     done = False, Nothing];
+   ];
+  gg[Range[n], edges]
+  ]
