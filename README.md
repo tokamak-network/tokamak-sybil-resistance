@@ -10,9 +10,9 @@ The way the 'scoring algorithm' works is by starting with a set of subsets of th
 
 ### Example:
 
-
+<center>
 ![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/graph-example.png?raw=true)
-
+</center>
 
 In this example, let us suppose the set of subsets we are using is all subsets with three or less nodes. Then, to compute the score for node 5, we look at all subsets with three or less elements, that contain node 5:
 
