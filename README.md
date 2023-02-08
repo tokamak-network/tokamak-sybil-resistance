@@ -18,23 +18,13 @@ In this example, let us suppose the set of subsets we are using is all subsets w
 Then for each of these subsets, we compute the sum of the weights of the links leaving the subset. For example, for the subset ```{1,3,5}``` the sum of the links leaving it is ```7+1+1+1+2=12```. Then we divide this by the number of elements in the subset we get ```12/3=4```. If we do this for each subset we get a list of values, and then if we take the minimum of this list of values we get the score for node 5.
 
 
-This algorithm is implemented in the file [scoring_algorithm.circom](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom). It is implemented as a circom circuit so that the rollup sequencer can compute the scores on chain and send a proof to convince the L1 contract that the score have been computed correctly.
+This algorithm is implemented in the file [scoring_algorithm.circom](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom). It is implemented as a circom circuit so that the rollup sequencer can compute the scores on chain and send a proof to convince the L1 contract that the scores have been computed correctly.
 
 To test this code first install circom and snarkjs: https://docs.circom.io/getting-started/installation/.
 
-https://docs.circom.io/getting-started/installation/
-https://docs.circom.io/getting-started/installation/
+The first step is to run ```circom scoring_circuit.circom --r1cs --wasm --sym --c```. This compiles the circuit and generates the constraints for the circuit. It also generates a directory ```scoring_circuit_js``` that contains the Wasm code and other files needed to generate the witness. We then need to provide the data of a weighted graph for the circuit to run on. The data for the example given above is available in the file ```test_input1.json```, save this file in the ```scoring_circuit_js``` directory.
 
-```scoring_algorithm.circom```. To test this code
-(circom and snarkjs are both required for this test), first run 
-
-circom scoring_circuit.circom --r1cs --wasm --sym --c
-
-This compiles the circuit and generates the constraints for the circuit. We then need to provide the data of a weighted graph for the circuit to run on, an example is given in the file test_input.json.
-
-Then next step is to calculate values for all wires from input wires (using js program generated when circuit was compiled):
-
-node generate_witness.js scoring_circuit.wasm input.json witness.wtns
+Then next step is to calculate values for all wires from the input wires: ```node generate_witness.js scoring_circuit.wasm test_input1.json witness.wtns```
 
 To create a proof, circom requires a trusted setup. This is done using the powers of tau ceremony as follows:
 
