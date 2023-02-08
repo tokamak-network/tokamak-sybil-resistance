@@ -20,13 +20,13 @@ template Num2Bits(n) {
         lc1 += out[i] * e2;
         e2 = e2+e2;
     }
-
     lc1 === in;
 }
 template LessThan(n) {
     assert(n <= 252);
     signal input in[2];
     signal output out;
+
 
 
     component n2b = Num2Bits(n+1);
@@ -41,7 +41,8 @@ template ScoringAlgorithm (num_verts , num_subsets) {
 	signal input weights[num_verts][num_verts];
 	signal output scores[num_verts];
 
-	signal bdry[num_subsets];
+    signal bdry[num_subsets];
+    signal bdry_checks[num_subsets];
 	signal scaled_bdry[num_subsets];
 	signal subset_indicator[num_subsets][num_verts][num_verts];
 	signal weighted_subset_indicator[num_subsets][num_verts][num_verts];
@@ -52,6 +53,7 @@ template ScoringAlgorithm (num_verts , num_subsets) {
 
     var sum = 0;
     var size = 0;
+    var rem = 0;
 
 	for (var a = 0; a<num_subsets; a+=1){  
 
@@ -73,23 +75,24 @@ template ScoringAlgorithm (num_verts , num_subsets) {
 
 
         bdry[a] <== sum;
-        scaled_bdry[a] <-- bdry[a]/size;
-        scaled_bdry[a]*size === bdry[a];
+        scaled_bdry[a] <-- bdry[a]\size;
+        rem = sum - (size*scaled_bdry[a]);
+        bdry_checks[a] <== sum - rem;
+        scaled_bdry[a]*size === bdry_checks[a];
     }
 
 
     for(var k = 0; k<num_verts; k+=1){
-
-        lt[k][0] = LessThan(3);
-        lt[k][0].in[1] <== 9;
+        lt[k][0] = LessThan(5);
+        lt[k][0].in[1] <== 31;
         lt[k][0].in[0] <== scaled_bdry[0];
         selector[k][0] <== lt[k][0].out * subsets[k][0];
-        minimizing_vector[k][0] <== (scaled_bdry[0]-9)*selector[k][0] + 9;
+        minimizing_vector[k][0] <== (scaled_bdry[0]-31)*selector[k][0] + 31;
 
 
 
         for(var b = 1; b<num_subsets; b+=1){
-           lt[k][b] = LessThan(3);
+           lt[k][b] = LessThan(5);
            lt[k][b].in[1] <== minimizing_vector[k][b-1];
            lt[k][b].in[0] <== scaled_bdry[b];
            selector[k][b] <== lt[k][b].out * subsets[k][b];
@@ -97,14 +100,10 @@ template ScoringAlgorithm (num_verts , num_subsets) {
         }
 
         scores[k] <== minimizing_vector[k][num_subsets-1];
+        log(scores[k]);
     }
+    
 
 }
 
-component main = ScoringAlgorithm(4,4);
-
-
-
-
-
-
+component main = ScoringAlgorithm(7,63);
