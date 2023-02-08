@@ -20,7 +20,7 @@ Then for each of these subsets, we compute the sum of the weights of the links l
 
 This algorithm is implemented in the file [scoring_algorithm.circom](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom). It is implemented as a circom circuit so that the rollup sequencer can compute the scores on chain and send a proof to convince the L1 contract that the score have been computed correctly.
 
-To test this code first install circom (https://docs.circom.io/getting-started/installation/)
+To test this code first install circom https://docs.circom.io/getting-started/installation/.
 
 https://docs.circom.io/getting-started/installation/
 https://docs.circom.io/getting-started/installation/
