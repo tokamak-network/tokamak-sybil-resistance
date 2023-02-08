@@ -36,7 +36,7 @@ To create a proof, we need to use a trusted setup. This is done using the powers
 
 ```snarkjs powersoftau contribute pot15_0000.ptau pot15_0001.ptau --name="First contribution" -v```
 
-```snarkjs powersoftau prepare phase2 pot15_0001.ptau pot15_final.ptau -v``` (This 
+```snarkjs powersoftau prepare phase2 pot15_0001.ptau pot15_final.ptau -v``` (This step in the setup ceremony takes about 10 mins).
 
 ```snarkjs plonk setup scoring_circuit.r1cs pot15_final.ptau scoring_circuit_final.zkey```
 
