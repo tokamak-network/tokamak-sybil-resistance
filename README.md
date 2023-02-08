@@ -6,7 +6,7 @@ The system allows account to deposit TON and 'stake' part of that TON on differe
 The way the 'scoring algorithm' works is by starting with a set of subsets of the nodes (usually these are the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values.
 
 Example:
-
+![diagram](graph (3).png)
 
 The code for this is in the file scoring_algorithm.circom. To test this code
 (circom and snarkjs are both required for this test), first run 
