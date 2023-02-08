@@ -30,17 +30,16 @@ The first step is to run ```circom scoring_circuit.circom --r1cs --wasm --sym --
 
 Then next step is to calculate values for all wires from the input wires: ```node generate_witness.js scoring_circuit.wasm test_input1.json witness.wtns```
 
-To create a proof, circom requires a trusted setup. This is done using the powers of tau ceremony as follows:
+To create a proof, we need to use a trusted setup. This is done using the powers of tau ceremony which can be run using ```snarkjs`` as follows (see https://docs.circom.io/getting-started/proving-circuits/):
 
+```snarkjs powersoftau new bn128 12 pot12_0000.ptau -v```
+```snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau --name="First contribution" -v```
+```snarkjs powersoftau prepare phase2 pot12_0001.ptau pot12_final.ptau -v```
+```snarkjs plonk setup scoring_circuit.r1cs pot12_final.ptau scoring_circuit_final.zkey```
 
-snarkjs powersoftau new bn128 12 pot12_0000.ptau -v
-snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau --name="First contribution" -v
-snarkjs powersoftau prepare phase2 pot12_0001.ptau pot12_final.ptau -v
-snarkjs plonk setup scoring_circuit.r1cs pot12_final.ptau scoring_circuit_final.zkey 
+Next we export the verification key for our circuit: ```snarkjs zkey export verificationkey scoring_circuit_final.zkey verification_key.json```
 
-Next we export the verification key: snarkjs zkey export verificationkey scoring_circuit_final.zkey verification_key.json 
-
-And now finally we create a PLonk proof for the witness: snarkjs plonk prove scoring_circuit_final.zkey witness.wtns proof.json public.json  
+And now finally we create a Plonk proof for the witness: ```snarkjs plonk prove scoring_circuit_final.zkey witness.wtns proof.json public.json```  
 
 
 To verify the proof run the command: snarkjs plonk verify verification_key.json public.json proof.json   
