@@ -1,14 +1,14 @@
-#Tokamak Sybil Resistence
+# Tokamak Sybil Resistence
 
 This project is to create a zk-rollup for proof-of-uniqueness. This is a system where users can register an Ethereum address in a Sybil resistant way. This register can be used for many things such as doing an airdrop that can’t be cheated and even things like voting systems. Furthermore, with this register, users can also do things like make a proof that they own an Ethereum address that is on the register without revealing which one, which allows things like private voting.
 
 
 The system allows account to deposit TON and 'stake' part of that TON on different accounts. This results in the data of a weighted graph. Next an algorithm is run on this weighted graph to compute a 'score' for each account. This algorithm is computationally expensive so is encoded as a circuit and run off chain and then a proof of correctness is sent to the L1 contract. 
 
-##Scoring algorithm
+## Scoring algorithm
 The way the 'scoring algorithm' works is by starting with a set of subsets of the nodes (usually these are the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values.
 
-###Example:
+### Example:
 
 
 ![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/graph-example.png?raw=true)
@@ -23,7 +23,7 @@ Then for each of these subsets, we compute the sum of the weights of the links l
 
 This algorithm is implemented in the file [scoring_algorithm.circom](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom). It is implemented as a circom circuit so that the rollup sequencer can compute the scores on chain and send a proof to convince the L1 contract that the scores have been computed correctly.
 
-###Running the program
+### Running the program
 To test this code first install circom and snarkjs: https://docs.circom.io/getting-started/installation/.
 
 The first step is to run ```circom scoring_circuit.circom --r1cs --wasm --sym --c```. This compiles the circuit and generates the constraints for the circuit. It also generates a directory ```scoring_circuit_js``` that contains the Wasm code and other files needed to generate the witness. We then need to provide the data of a weighted graph for the circuit to run on. The data for the example given above is available in the file ```test_input1.json```, save this file in the ```scoring_circuit_js``` directory.
