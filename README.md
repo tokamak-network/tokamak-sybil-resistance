@@ -44,5 +44,6 @@ Next we export the verification key for our circuit: ```snarkjs zkey export veri
 
 And now finally we create a Plonk proof for the witness: ```snarkjs plonk prove scoring_circuit_final.zkey witness.wtns proof.json public.json```  
 
+This step creates a file ```public.json``` containing the values for the scores for the nodes, and also ```proof.json``` proving that these scores have been calculated correctly.
 
 To verify the proof run the command: snarkjs plonk verify verification_key.json public.json proof.json   
