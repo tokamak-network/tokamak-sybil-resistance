@@ -18,7 +18,11 @@ In this example, let us suppose the set of subsets we are using is all subsets w
 Then for each of these subsets, we compute the sum of the weights of the links leaving the subset. For example, for the subset ```{1,3,5}``` the sum of the links leaving it is ```7+1+1+1+2=12```. Then we divide this by the number of elements in the subset we get ```12/3=4```. If we do this for each subset we get a list of values, and then if we take the minimum of this list of values we get the score for node 5.
 
 
-The code for this is in the file scoring_algorithm.circom. To test this code
+This algorithm is implemented in the file 
+
+[a link](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom)
+
+```scoring_algorithm.circom```. To test this code
 (circom and snarkjs are both required for this test), first run 
 
 circom scoring_circuit.circom --r1cs --wasm --sym --c
