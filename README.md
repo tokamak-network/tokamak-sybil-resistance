@@ -11,6 +11,10 @@ Example:
 ![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/graph-example.png?raw=true)
 
 
+In this example, let us suppose the set of subsets we are using is all subsets with three or less nodes. Then, to compute the score for node 5, we look at all subsets with three or less elements, that contain node 5:
+
+```{1}```
+
 The code for this is in the file scoring_algorithm.circom. To test this code
 (circom and snarkjs are both required for this test), first run 
 
