@@ -29,7 +29,7 @@ The first step is to run ```circom scoring_circuit.circom --r1cs --wasm --sym --
 
 Then next step is to calculate values for all wires from the input wires: ```node generate_witness.js scoring_circuit.wasm test_input1.json witness.wtns```
 
-To create a proof, we need to use a trusted setup. This is done using the powers of tau ceremony which can be run using ```snarkjs`` as follows (see https://docs.circom.io/getting-started/proving-circuits/):
+To create a proof, we need to use a trusted setup. This is done using the powers of tau ceremony which can be run using ```snarkjs``` as follows (see https://docs.circom.io/getting-started/proving-circuits/):
 
 ```snarkjs powersoftau new bn128 15 pot15_0000.ptau -v```
 
