@@ -33,8 +33,11 @@ Then next step is to calculate values for all wires from the input wires: ```nod
 To create a proof, we need to use a trusted setup. This is done using the powers of tau ceremony which can be run using ```snarkjs`` as follows (see https://docs.circom.io/getting-started/proving-circuits/):
 
 ```snarkjs powersoftau new bn128 12 pot12_0000.ptau -v```
+
 ```snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau --name="First contribution" -v```
+
 ```snarkjs powersoftau prepare phase2 pot12_0001.ptau pot12_final.ptau -v```
+
 ```snarkjs plonk setup scoring_circuit.r1cs pot12_final.ptau scoring_circuit_final.zkey```
 
 Next we export the verification key for our circuit: ```snarkjs zkey export verificationkey scoring_circuit_final.zkey verification_key.json```
