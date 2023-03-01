@@ -61,3 +61,4 @@ To verify the proof run the command: ```snarkjs plonk verify verification_key.js
 
 ## Contract design
 
+The contract will keep a record of the id, owner, deposit and score for each node, as well as how much each node has staked on each other node. This data will be organized into a Merkle tree with a subtree for each leaf. For this tree will use the MiMC hash function.
