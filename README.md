@@ -64,7 +64,7 @@ To verify the proof run the command: ```snarkjs plonk verify verification_key.js
 The contract will keep a record of the id, owner, deposit and score for each node, as well as how much each node has staked on each other node. This data will be organized into a Merkle tree with a subtree for each leaf. For this tree will use the MiMC hash function.
 
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img4.png?raw=true)
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img4.jpg?raw=true)
 
 Each leaf in the main accounts tree stores the ETH address associated with the account, how much TON that account has deposited into the rollup, the “uniqueness” score for that account, and the root hash of a subtree of link data. The link subtree stores the amount that has been staked by that account on a particular other account in the system, (using the account’s id in the account tree). For example if the first account has staked 0.5 TON on the account with id 3, then the third leaf of the subtree for the first leaf of the account tree will store the value 0.5. 
 
