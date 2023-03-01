@@ -9,9 +9,7 @@ From this weighted graph, a score is calculated for each address. The score is a
 Applications can integrate with this project to obtain sybil-resistence, for example for an airdrop or for a voting application. Users can also use this register in a privacy preserving way by creating a proof that they own an address in the register with a score above a certain threshold.
 
 ## Scoring algorithm
-The way the scoring algorithm works is by starting with a set of subsets of the nodes (in practice, these will be the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values. More precisely, the scoring function f is defined by:
-
-![eq1](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img1.png?raw=true)
+The way the scoring algorithm works is by starting with a set of subsets of the nodes (in practice, these will be the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values. More precisely, the scoring function **_f_** is defined by:![eq1](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img1.png?raw=true)
 
 ### Example:
 
