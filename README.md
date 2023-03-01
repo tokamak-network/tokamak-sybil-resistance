@@ -62,3 +62,16 @@ To verify the proof run the command: ```snarkjs plonk verify verification_key.js
 ## Contract design
 
 The contract will keep a record of the id, owner, deposit and score for each node, as well as how much each node has staked on each other node. This data will be organized into a Merkle tree with a subtree for each leaf. For this tree will use the MiMC hash function.
+
+
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img4.png?raw=true)
+
+Each leaf in the main accounts tree stores the ETH address associated with the account, how much TON that account has deposited into the rollup, the “uniqueness” score for that account, and the root hash of a subtree of link data. The link subtree stores the amount that has been staked by that account on a particular other account in the system, (using the account’s id in the account tree). For example if the first account has staked 0.5 TON on the account with id 3, then the third leaf of the subtree for the first leaf of the account tree will store the value 0.5. 
+
+The amounts staked on a particular account are used in the scoring algorithm to compute it’s uniqueness score. To prevent this from being manipulatable, we need to ensure that the total amount that an account can stake on other accounts is limited by how much TON they have deposited into the rollup. Hence we make the rule that a valid instance of the state tree must satisfy
+
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img5.png?raw=true)
+
+for each leaf of the account tree.
+
+The contract will accept transactions that update this tree, and store them in a queue. Then anyone can create a batch of these transactions, compute the update of the state tree and provide a proof of correctness. At any time, there is only one possibility for the next block, namely the next N txns in the queue (if the size of the queue is less than N, then the contract wont accept a proposed block). This means we dont need any leader selection process, its just the first valid proof from any user which creates the next block. 
