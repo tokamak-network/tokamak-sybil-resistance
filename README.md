@@ -31,10 +31,10 @@ In this example, let us suppose the set of subsets we are using is all subsets w
 
 Then for each of these subsets, we compute the sum of the weights of the links leaving the subset. For example, for the subset ```{1,3,5}``` the sum of the links leaving it is ```7+1+1+1+2=12```. Then we divide this by the number of elements in the subset we get ```12/3=4```. If we do this for each subset we get a list of values, and then if we take the minimum of this list of values we get the score for node 5.
 
-
+### Scoring circuit
 This algorithm is implemented in the file [scoring_algorithm.circom](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom). It is implemented as a circom circuit so that the rollup sequencer can compute the scores off chain and send a proof to convince the L1 contract that the scores have been computed correctly.
 
-### Running the program
+
 To test this code first install circom and snarkjs: https://docs.circom.io/getting-started/installation/.
 
 The first step is to run ```circom scoring_circuit.circom --r1cs --wasm --sym --c```. This compiles the circuit and generates the constraints for the circuit. It also generates a directory ```scoring_circuit_js``` that contains the Wasm code and other files needed to generate the witness. We then need to provide the data of a weighted graph for the circuit to run on. The data for the example given above is available in the file ```test_input1.json```, save this file in the ```scoring_circuit_js``` directory. (The data of the set of subsets is encoded as a ```0/1``` matrix where the subsets are given by the columns).
