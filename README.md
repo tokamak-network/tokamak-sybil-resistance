@@ -75,3 +75,6 @@ The amounts staked on a particular account are used in the scoring algorithm to 
 for each leaf of the account tree.
 
 The contract will accept transactions that update this tree, and store them in a queue. Then anyone can create a batch of these transactions, compute the update of the state tree and provide a proof of correctness. At any time, there is only one possibility for the next block, namely the next N txns in the queue (if the size of the queue is less than N, then the contract wont accept a proposed block). This means we dont need any leader selection process, its just the first valid proof from any user which creates the next block. 
+
+## Ownership proofs
+Given the current state root, a user can make a proof of ownership of a leaf with score above a certain threshold. A different proof circuit is needed depending on the threshold. Also, any contract that wishes to intergrate with this system and check ownership proofs would need its own verifier contract and also a mapping to record nullifiers to ensure each user can only prove once.
