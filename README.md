@@ -58,3 +58,6 @@ And now finally we create a Plonk proof for the witness: ```snarkjs plonk prove 
 This step creates a file ```public.json``` containing the values for the scores for the nodes, and also ```proof.json``` proving that these scores have been calculated correctly.
 
 To verify the proof run the command: ```snarkjs plonk verify verification_key.json public.json proof.json```  
+
+## Contract design
+
