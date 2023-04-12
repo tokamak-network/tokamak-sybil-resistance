@@ -1,0 +1,70 @@
+<< IGraphM`
+rg1 = IGWattsStrogatzGame[20, 0.2]; g1 = 
+ CreateGraph[VertexList[rg1], EdgeList[rg1], 
+  RandomInteger[{1, 5}, Length[EdgeList[rg1]]]] 
+
+CreateGraph[verts_, edges_, wts_] := 
+ Graph[Function[v, 
+    Labeled[v, Placed[Style[v, Black, Small], Center]]] /@ verts, 
+  Function[i, 
+    Labeled[edges[[i]][[1]] \[UndirectedEdge] edges[[i]][[2]], 
+     wts[[i]]]] /@ Range[Length[edges]], VertexSize -> 0.5, 
+  VertexStyle -> White, VertexLabelStyle -> 14, EdgeWeight -> wts]
+  
+  GenerateRandomGraph[n_, r_, k_] := 
+ Module[{p, edges, done = False, i, wts},
+  While[done == False,
+   done = True;
+   p = PermutationReplace[Range[n r], RandomPermutation[n r]];
+   edges = 
+    Sort /@ Function[e, Mod[e, n] + 1] /@ 
+      Function[i, {p[[2 i - 1]], p[[2 i]]}] /@ Range[Floor[n r/2]];
+   For[i = 1, i <= Length[edges], i++, 
+    If[edges[[i]][[1]] == edges[[i]][[2]], done = False, Nothing]];
+   If[done == True && Length[DeleteDuplicates[edges]] < Length[edges],
+     done = False, Nothing];
+   ];
+  wts = RandomInteger[{1, k}, Length[edges]];
+  CreateGraph[Range[n], edges, wts]
+  ]
+  
+  g = GenerateRandomGraph[40, 4, 5]
+  W = Normal[WeightedAdjacencyMatrix[g]]
+  
+  
+  RunDiffusionProcess[W_, v_, epsilon_, p_] := 
+ Module[{mass, rank, queue, node, val, rem, prev, s},
+  mass = ConstantArray[0, Length[W]];
+  rank = ConstantArray[0, Length[W]];
+  mass[[v]] = 1;
+  queue = 
+   Select[Range[Length[W]], mass[[#]] >= epsilon Total[W[[v]]] &];
+  s = 0;
+  While[s < 1000 && Length[queue] > 0,
+   node = queue[[1]];
+   val = mass[[node]];
+   rank[[node]] += p val;
+   mass[[node]] = 0.5 (1 - p) val;
+   mass += 0.5 (1 - p) val W[[node]]/Total[W[[node]]];
+   queue = 
+    Select[Range[Length[W]], mass[[#]] >= epsilon Total[W[[v]]] &];
+   s += 1;
+   ];
+  Print[s];
+  SortBy[Range[Length[W]], -rank[[#]] &]
+  ]
+  
+  
+  SubsetIndicator[A_] := 
+ Total[Function[i, UnitVector[Length[W], i]] /@ A]
+ 
+ 
+ Score[epsilon_, p_] := Module[{result},
+  result = RunDiffusionProcess[W, 1, epsilon, p];
+  Min[Function[
+     k, (SubsetIndicator[result[[1 ;; k]]] . W . 
+          SubsetIndicator[result[[k + 1 ;; Length[W]]]])/k] /@ 
+    Range[Floor[Length[W]/2]]]
+  ]
+  
+  
