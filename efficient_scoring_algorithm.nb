@@ -68,3 +68,53 @@ CreateGraph[verts_, edges_, wts_] :=
   ]
   
   
+  
+  (* scoring metrics *)
+  
+invdist[g_, s_, t_, A_] := Module[{sg, vsg, d},
+  sg = Graph[VertexList[g], A];
+  1/GraphDistance[sg, s, t]
+  ]
+  
+between[g_, s_, t_, A_] := Module[{sps, spsA, d},
+  d = GraphDistance[g, s, t];
+  sps = FindPath[g, s, t, {d}, All];
+  spsA = Select[sps, IntersectingQ[A, pathedges[#]] &];
+  If[Length[sps] == 0, 0, Length[spsA]/Length[sps]]
+  ]
+  
+betweens[g_, s_, t_, A_] := Module[{d , sps, spsA},
+  d = GraphDistance[g, s, t];
+  sps = FindPath[g, s, t, {d}, All];
+  spsA = Select[sps, SubsetQ[A, pathedges[#]] &];
+  If[Length[sps] == 0, 0, Length[spsA]/Length[sps]]
+  ]
+
+
+
+algoy[graph_, verts_, k_] := 
+ Module[{v, sg, alpha, i, tau, j, test = Range[0, 7, 0.1], 
+   res},                                                                                                                     \
+  alpha = ConstantArray[0, Length[verts]];
+  v = verts[[1]];
+  alpha[[v]] = 1;
+  sg = Subgraph[graph, {v}];
+  Print[HighlightGraph[wg[graph, alpha], sg, 
+    GraphHighlightStyle -> "Thick"]];
+  For[i = 2, i <= Length[verts], i++,
+   v = verts[[i]];
+   sg = Subgraph[graph, verts[[Range[i]]]];
+   res = 0;
+   For[j = 1, j <= Length[test], j++,
+    tau = alpha;
+    tau[[v]] = test[[j]];
+    res = If[L[sg, tau] <= k, test[[j]], res];
+    Print[L[sg, tau]];
+    ];
+   alpha[[v]] = res;
+   Print[
+    HighlightGraph[wg[graph, alpha], sg, 
+     GraphHighlightStyle -> "Thick"]];
+   ];
+  ]
+
