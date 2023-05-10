@@ -118,3 +118,52 @@ algoy[graph_, verts_, k_] :=
    ];
   ]
 
+
+(* how phi evolves given a sequence of edges, phi_0[v] = 1 if v=1 and \
+0 otherwise  *)
+evolvei[seq_] := 
+ Module[{verts = Range[5], edges = {}, g, phi, G, G0, i},
+  G0 = Graph[verts, 
+    Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ seq, 
+    VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+  phi = Function[v, If[v == 1, 1, 0]] /@ verts;
+  For[i = 1, i <= Length[seq], i++,
+   AppendTo[edges, seq[[i]] ];
+   g = Graph[verts, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+   phi = thetag[g, phi];
+   G = Graph[G0, VertexWeight -> N[phi, 3], 
+     VertexLabels -> Placed["VertexWeight", Center], 
+     VertexLabelStyle -> Directive[Red, Bold, 15], Options[G0]];
+   Print[
+    HighlightGraph[G, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     GraphHighlightStyle -> "Thick"]]
+   ];
+  ]
+evolve[graph_, phi0_, seq_] := Module[{verts, edges, g, phi, G, G0, i},
+  verts = VertexList[graph];
+  edges = Function[e, {e[[1]], e[[2]]}] /@ EdgeList[graph];
+  G0 = Graph[verts, 
+    Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ Union[edges, seq],
+     VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+  phi = phi0;
+  Print[Graph[G0, VertexWeight -> N[phi, 3], 
+    VertexLabels -> Placed["VertexWeight", Center], 
+    VertexLabelStyle -> Directive[Red, Bold, 15], Options[G0]]];
+  For[i = 1, i <= Length[seq], i++,
+   AppendTo[edges, seq[[i]] ];
+   g = Graph[verts, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     VertexSize -> Medium, VertexLabels -> Placed["Name", Center]];
+   phi = thetag[g, phi];
+   G = Graph[G0, VertexWeight -> N[phi, 3], 
+     VertexLabels -> Placed["VertexWeight", Center], 
+     VertexLabelStyle -> Directive[Red, Bold, 15], Options[G0]];
+   Print[
+    HighlightGraph[G, 
+     Function[e, e[[1]] \[UndirectedEdge] e[[2]]] /@ edges, 
+     GraphHighlightStyle -> "Thick"]]
+   ];
+  ]
