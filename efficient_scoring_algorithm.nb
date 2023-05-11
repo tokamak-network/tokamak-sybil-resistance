@@ -167,3 +167,21 @@ evolve[graph_, phi0_, seq_] := Module[{verts, edges, g, phi, G, G0, i},
      GraphHighlightStyle -> "Thick"]]
    ];
   ]
+
+
+(* choose scoring metric *)
+thetag[g_, phi_] := Module[{val, sh, verts, edges},
+  verts = VertexList[g];
+  edges = Function[e, {e[[1]], e[[2]]}] /@ EdgeList[g];
+  val[A_] := 
+   Total[Function[p, 
+      Sqrt[phi[[p[[1]]]] phi[[p[[2]]]]] between[g, p[[1]], p[[2]], 
+        A]] /@ Subsets[verts, {2}]];
+  sh[e_] := 
+   Expand[Simplify[
+     Total[Function[
+         A, (val[Union[A, {e}]] - val[A])/
+          Binomial[Length[edges] - 1, Length[A]]] /@ 
+        Subsets[Complement[edges, {e}]]]/Length[edges]]];
+  nu[g, sh /@ edges]
+  ]
