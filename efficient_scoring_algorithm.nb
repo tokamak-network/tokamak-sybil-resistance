@@ -185,3 +185,29 @@ thetag[g_, phi_] := Module[{val, sh, verts, edges},
         Subsets[Complement[edges, {e}]]]/Length[edges]]];
   nu[g, sh /@ edges]
   ]
+
+
+
+
+
+des[g_, x0_] := 
+ Module[{stepsize, steps, verts, sets, x, i, B, grad, res = {x0}},
+  stepsize = 0.1;
+  steps = 100;
+  verts = VertexList[g];
+  sets = Select[Subsets[verts], 1 <= Length[#] <= Length[verts] - 1 &];
+  x = x0 + proj[g, RandomReal[{-0.1, 0.1}, Length[verts]]];
+  For[i = 1, i <= steps, i++,
+   B = SortBy[
+       Function[
+         A, {A, Total[x[[A]]] (1 - Total[x[[A]]])/bdry[g, A]^3}] /@ 
+        sets, Last][[-1]][[1]];
+   grad = 
+    Function[v, 
+      If[MemberQ[B, v], 1 - Total[x[[B]]], Total[x[[B]]]]/
+       bdry[g, B]] /@ verts;
+   x = x - stepsize proj[g, grad];
+   AppendTo[res, x];
+   ];
+  Round[res, 0.001]
+  ]
