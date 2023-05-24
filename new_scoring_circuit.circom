@@ -53,29 +53,49 @@ template NewScoringAlgorithm (num_verts , num_subsets, p, epsilon, num_steps) {
     signal rank[num_verts][num_verts][num_steps];
     signal queue[num_verts][num_verts][num_steps];
 
-
-
     for(var k = 0; k<num_verts; k+=1){
+
         for(var v = 0; v<num_verts; v+=1){
             rank[k][v][0] <== 0;
             mass[k][v][0] <== 0;
         }
-        mass[k][k][0] <== 1;
 
+        mass[k][k][0] <== 1;
         queue[k][k][0] <== 1;
 
 
         for(var step = 0; step<num_steps; step+=1){
+
             rank[k][k][step+1] <== rank[k][k][step] + p*mass[k][k][step];
             mass[k][k][step+1] <== 0.5*(1-p)*mass[k][k][step];
-        }
+
+            for(var j = 0; j<num_verts; j+=1){
+
+                  mass[k][j][step+1] <== mass[k][j][step] + 0.5*(1-p)*weights[k][j]
+
+            }
+
+            for(var i = 0; i<num_verts; i+=1){
+                
+                lt[k][i] = LessThan(5);
+                lt[k][i].in[1] <== mass[k][j][step+1];
+                lt[k][i].in[0] <== epsilon*weights[k][i]; 
+
+                queue[k][j][step+1] <== lt[k][i].out
+
+            }
             
+        }  
 
     }
-
-   
-	
 
 }
 
 component main = ScoringAlgorithm(7,63);
+
+
+
+
+
+
+
