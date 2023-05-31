@@ -52,6 +52,13 @@ template NewScoringAlgorithm (num_verts , num_subsets, p, epsilon, num_steps) {
     signal mass[num_verts][num_verts][num_steps];
     signal rank[num_verts][num_verts][num_steps];
     signal queue[num_verts][num_verts][num_steps];
+    signal path[num_verts][num_verts];
+    signal minimizing_sweep[num_verts][num_verts];
+
+
+    component lt[num_verts][num_verts];
+    component lt2[num_verts][num_verts];
+
 
     for(var k = 0; k<num_verts; k+=1){
 
@@ -71,28 +78,36 @@ template NewScoringAlgorithm (num_verts , num_subsets, p, epsilon, num_steps) {
 
             for(var j = 0; j<num_verts; j+=1){
 
-                  mass[k][j][step+1] <== mass[k][j][step] + 0.5*(1-p)*weights[k][j]
+                mass[k][j][step+1] <== mass[k][j][step] + 0.5*(1-p)*weights[k][j]
 
-            }
-
-            for(var i = 0; i<num_verts; i+=1){
+                for(var i = 0; i<num_verts; i+=1){
                 
-                lt[k][i] = LessThan(5);
-                lt[k][i].in[1] <== mass[k][j][step+1];
-                lt[k][i].in[0] <== epsilon*weights[k][i]; 
+                   lt[k][i] = LessThan(5);
+                   lt[k][i].in[1] <== mass[k][j][step+1];
+                   lt[k][i].in[0] <== epsilon*weights[k][i]; 
 
-                queue[k][j][step+1] <== lt[k][i].out
+                   queue[k][j][step+1] <== lt[k][i].out
+
+                }
 
             }
             
-        }  
+        } 
+
+        for(var b = 0; b<num_verts; b+=1){
+            lt2[k][b] = LessThan(5);
+            lt2[k][b].in[1] <== rank[k][b][num_step-1];
+            lt2[k][b].in[0] <== minimizing_sweep[k][b]; 
+
+            path[k][b] <== lt2[k][i].out
+
+        }
 
     }
 
 }
 
 component main = ScoringAlgorithm(7,63);
-
 
 
 
