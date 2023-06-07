@@ -187,6 +187,46 @@ thetag[g_, phi_] := Module[{val, sh, verts, edges},
   ]
 
 
+(*find fixed points of theta with cords < B using step size d*)
+
+findfps[g_, B_, d_] := Module[{verts, vol, grid, cands},
+  verts = VertexList[g];
+  grid = 
+   Flatten[Table @@ 
+     Prepend[Function[x, {x, d, B, d}] /@ xvec[g], xvec[g]], 
+    Length[verts] - 1];
+  cands = Function[alpha, theta[g, alpha]] /@ grid;
+  DeleteDuplicates[Select[cands, theta[g, #] == # &]]
+  ]
+findfps1[g_, B_, d_] := 
+ DeleteDuplicates[
+  Select[Function[alpha, theta1[g, alpha]] /@ 
+    Flatten[Table @@ 
+      Prepend[Function[x, {x, d, B, d}] /@ xvec[g], xvec[g]], 
+     Length[VertexList[g]] - 1], theta1[g, #] == # &]]
+findfps2[g_, B_, d_] := Module[{verts, vol, grid, cands},
+  verts = VertexList[g];
+  grid = 
+   Flatten[Table @@ 
+     Prepend[Function[x, {x, d, B, d}] /@ xvec[g], xvec[g]], 
+    Length[verts] - 1];
+  cands = Function[alpha, theta1[g, alpha]] /@ grid;
+  DeleteDuplicates[Select[cands, theta1[g, #] == # &]]
+  ]
+
+dev[g_, alpha_, delta_] := Module[{verts, vol, sets},
+  verts = VertexList[g];
+  vol = Total[alpha];
+  sets = 
+   Select[Subsets[verts], 
+    Length[#] > 0 && Total[alpha[[#]]] <= vol/2 &];
+  Max @@ 
+   Function[S, 
+     delta^Length[S] (Min @@ 
+        Function[A, 
+          If[SubsetQ[A, S], bdry[g, A]^2 - Total[alpha[[A]]], 
+           Infinity]] /@ sets)] /@ sets
+  ]
 
 
 
@@ -210,4 +250,35 @@ des[g_, x0_] :=
    AppendTo[res, x];
    ];
   Round[res, 0.001]
+  ]
+
+
+pts[g_] := 
+ Module[{verts, x, sets, bdrys, vecs, inp, pp, i, v, res = {}, 
+   reg = {}},
+  verts = VertexList[g];
+  x = xvec[g];
+  sets = Subsets[verts, {1, Length[x] - 1}];
+  bdrys = Function[A, bdry[g, A]^2] /@ sets;
+  vecs = Function[A, Total[x[[A]]]] /@ sets;
+  inp = And @@ Function[xi, xi >= 0] /@ x && 
+    And @@ Function[A, 
+       Total[x[[A]]] > Total[x[[Complement[verts, A]]]] || 
+        Total[x[[A]]] <= bdry[g, A]^2] /@ sets;
+  pp = DeleteDuplicates[
+    Flatten[Function[eqs, Solve[And @@ eqs, x]] /@ 
+      Subsets[Function[A, bdry[g, A]^2 == Total[x[[A]]]] /@ 
+        sets, {Length[x]}], 1]];
+  For[i = 1, i <= Length[pp], i++, v = Simplify[inp /. pp[[i]]]; 
+   If[BooleanQ[v] == True , 
+    If[v == True, AppendTo[res, x /. pp[[i]]], Nothing], 
+    AppendTo[reg, {pp[[i]], v}]]];
+  {res, reg}
+  ]
+isor[g_] := Module[{verts},
+  verts = VertexList[g];
+  ListPlot[
+   Function[A, {Length[A], bdry[g, A]}] /@ 
+    Table[RandomSample[verts, RandomInteger[{1, Length[verts]}]], 
+     300], PlotRange -> Full]
   ]
