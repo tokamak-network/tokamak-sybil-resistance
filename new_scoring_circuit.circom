@@ -55,13 +55,13 @@ template NewScoringAlgorithm (num_verts , num_subsets, p, epsilon, num_steps) {
     signal path[num_verts][num_verts];
     signal minimizing_sweep[num_verts][num_verts];
 
+    signal subset_indicator[num_subsets][num_verts][num_verts];
 
     component lt[num_verts][num_verts];
     component lt2[num_verts][num_verts];
 
 
     for(var k = 0; k<num_verts; k+=1){
-
         for(var v = 0; v<num_verts; v+=1){
             rank[k][v][0] <== 0;
             mass[k][v][0] <== 0;
@@ -70,18 +70,15 @@ template NewScoringAlgorithm (num_verts , num_subsets, p, epsilon, num_steps) {
         mass[k][k][0] <== 1;
         queue[k][k][0] <== 1;
 
-
         for(var step = 0; step<num_steps; step+=1){
 
             rank[k][k][step+1] <== rank[k][k][step] + p*mass[k][k][step];
             mass[k][k][step+1] <== 0.5*(1-p)*mass[k][k][step];
 
             for(var j = 0; j<num_verts; j+=1){
-
                 mass[k][j][step+1] <== mass[k][j][step] + 0.5*(1-p)*weights[k][j]
-
                 for(var i = 0; i<num_verts; i+=1){
-                
+          
                    lt[k][i] = LessThan(5);
                    lt[k][i].in[1] <== mass[k][j][step+1];
                    lt[k][i].in[0] <== epsilon*weights[k][i]; 
@@ -102,6 +99,29 @@ template NewScoringAlgorithm (num_verts , num_subsets, p, epsilon, num_steps) {
             path[k][b] <== lt2[k][i].out
 
         }
+
+        //convert path to subset indicator
+
+        sum = 0;
+        size = 0;
+
+        for (var c = 0; c<num_verts; c+=1){
+
+            for (var d = 0; d<num_verts; d+=1){
+
+              subset_indicator[a][c][d] <== subsets[c][a]*(1-subsets[d][a]);
+              weighted_subset_indicator[a][c][d] <== subset_indicator[a][c][d]*weights[c][d];
+              sum = sum + weighted_subset_indicator[a][c][d];
+            
+            }
+
+            size = size + subsets[c][a];
+        }
+        bdry[a] <== sum;
+        scaled_bdry[a] <-- bdry[a]\size;
+        rem = sum - (size*scaled_bdry[a]);
+        bdry_checks[a] <== sum - rem;
+        scaled_bdry[a]*size === bdry_checks[a];
 
     }
 
