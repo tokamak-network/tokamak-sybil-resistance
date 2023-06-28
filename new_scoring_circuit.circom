@@ -36,98 +36,70 @@ template LessThan(n) {
     out <== 1-n2b.out[n];
 }
 
-template NewScoringAlgorithm (num_verts , num_subsets, p, epsilon, num_steps) {
-	signal input subsets[num_verts][num_subsets];
+template NewScoringAlgorithm (num_verts , p, q, num_steps) {
 	signal input weights[num_verts][num_verts];
 	signal output scores[num_verts];
 
-    signal bdry[num_subsets];
-    signal bdry_checks[num_subsets];
-	signal scaled_bdry[num_subsets];
-	signal subset_indicator[num_subsets][num_verts][num_verts];
-	signal weighted_subset_indicator[num_subsets][num_verts][num_verts];
-	signal selector[num_verts][num_subsets];
-    signal minimizing_vector[num_verts][num_subsets];
+   
+    signal residual[num_verts][num_steps][num_verts];
+    signal rank[num_verts][num_steps][num_verts];
 
-    signal mass[num_verts][num_verts][num_steps];
-    signal rank[num_verts][num_verts][num_steps];
-    signal queue[num_verts][num_verts][num_steps];
-    signal path[num_verts][num_verts];
-    signal minimizing_sweep[num_verts][num_verts];
 
-    signal subset_indicator[num_subsets][num_verts][num_verts];
 
-    component lt[num_verts][num_verts];
-    component lt2[num_verts][num_verts];
+
+    signal deg[num_verts];
+
+
+    signal sort[num_verts][num_verts-1][num_verts];
+
+
+
+   
+    component comp[num_verts][num_steps][num_verts];
+
+
+    var sum = 0;
+    for(var k = 0; k<num_verts; k+=1){
+        sum = 0;
+        for(var j = 0; j<num_verts; j+=1){
+            sum = sum + weights[k][j];
+        }   
+        deg[k] <== sum;
+    }
 
 
     for(var k = 0; k<num_verts; k+=1){
-        for(var v = 0; v<num_verts; v+=1){
-            rank[k][v][0] <== 0;
-            mass[k][v][0] <== 0;
+
+        for(var v = 0; v<k; v+=1){
+            rank[k][0][v] <== 0;
+            residual[k][0][v] <== 0;
         }
 
-        mass[k][k][0] <== 1;
-        queue[k][k][0] <== 1;
+        residual[k][0][k] <== 1000;
+        rank[k][0][k] <== 0;
 
-        for(var step = 0; step<num_steps; step+=1){
+        for(var v = k+1; v<num_verts; v+=1){
+            rank[k][0][v] <== 0;
+            residual[k][0][v] <== 0;
+        }
 
-            rank[k][k][step+1] <== rank[k][k][step] + p*mass[k][k][step];
-            mass[k][k][step+1] <== 0.5*(1-p)*mass[k][k][step];
-
+        for(var step = 0; step<num_steps-1; step+=1){
             for(var j = 0; j<num_verts; j+=1){
-                mass[k][j][step+1] <== mass[k][j][step] + 0.5*(1-p)*weights[k][j]
-                for(var i = 0; i<num_verts; i+=1){
-          
-                   lt[k][i] = LessThan(5);
-                   lt[k][i].in[1] <== mass[k][j][step+1];
-                   lt[k][i].in[0] <== epsilon*weights[k][i]; 
+                comp[k][step][j] = LessThan(5);
+                comp[k][step][j].in[1] <== residual[k][step][j];
+                comp[k][step][j].in[0] <== q * deg[j];
 
-                   queue[k][j][step+1] <== lt[k][i].out
-
-                }
-
-            }
-            
-        } 
-
-        for(var b = 0; b<num_verts; b+=1){
-            lt2[k][b] = LessThan(5);
-            lt2[k][b].in[1] <== rank[k][b][num_step-1];
-            lt2[k][b].in[0] <== minimizing_sweep[k][b]; 
-
-            path[k][b] <== lt2[k][i].out
-
-        }
-
-        //convert path to subset indicator
-
-        sum = 0;
-        size = 0;
-
-        for (var c = 0; c<num_verts; c+=1){
-
-            for (var d = 0; d<num_verts; d+=1){
-
-              subset_indicator[a][c][d] <== subsets[c][a]*(1-subsets[d][a]);
-              weighted_subset_indicator[a][c][d] <== subset_indicator[a][c][d]*weights[c][d];
-              sum = sum + weighted_subset_indicator[a][c][d];
-            
+                rank[k][step+1][j] <== rank[k][step][j] + p * comp[k][step][j].out * residual[k][step][j];
+                residual[k][step+1][j] <== residual[k][step][j] - (1+p)*residual[k][step][j]*comp[k][step][j].out \ 2;
             }
 
-            size = size + subsets[c][a];
         }
-        bdry[a] <== sum;
-        scaled_bdry[a] <-- bdry[a]\size;
-        rem = sum - (size*scaled_bdry[a]);
-        bdry_checks[a] <== sum - rem;
-        scaled_bdry[a]*size === bdry_checks[a];
-
-    }
+            
+    } 
 
 }
 
-component main = ScoringAlgorithm(7,63);
+component main = NewScoringAlgorithm(7,1,1,10);
 
 
 
