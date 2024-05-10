@@ -9,20 +9,20 @@ From this weighted graph, a score is calculated for each address. The score is a
 Applications can integrate with this project to obtain sybil-resistence, for example for an airdrop or for a voting application. Users can also use this register in a privacy preserving way by creating a proof that they own an address in the register with a score above a certain threshold.
 
 ## Scoring algorithm
-The way the scoring algorithm works is by starting with a set (denoted by a calligraphic A) of subsets of the nodes (in practice, these will be the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values. More precisely, the scoring function **_f_** is defined by:![eq1](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img1.png?raw=true) 
+The way the scoring algorithm works is by starting with a set (denoted by a calligraphic A) of subsets of the nodes (in practice, these will be the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values. More precisely, the scoring function **_f_** is defined by:![eq1](imgs/img1.png) 
 
 where 
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img3.png?raw=true)
+![graph](imgs/img3.png)
 
 and
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img2.png?raw=true)
+![graph](imgs/img2.png)
 
 
 ### Example:
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/graph-example.png?raw=true)
+![graph](imgs/graph-example.png)
 
 
 In this example, let us suppose the set of subsets we are using is all subsets with three or less nodes. Then, to compute the score for node 5, we look at all subsets with three or less elements, that contain node 5:
@@ -32,7 +32,7 @@ In this example, let us suppose the set of subsets we are using is all subsets w
 Then for each of these subsets, we compute the sum of the weights of the links leaving the subset. For example, for the subset ```{1,3,5}``` the sum of the links leaving it is ```7+1+1+1+2=12```. Then we divide this by the number of elements in the subset we get ```12/3=4```. If we do this for each subset we get a list of values, and then if we take the minimum of this list of values we get the score for node 5.
 
 ### Scoring circuit
-This algorithm is implemented in the file [scoring_algorithm.circom](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom). It is implemented as a circom circuit so that the scores can be computed off chain and the proof sent to convince the L1 contract that the scores have been computed correctly.
+This algorithm is implemented in the file [scoring_algorithm.circom](scoring_algorithm.circom). It is implemented as a circom circuit so that the scores can be computed off chain and the proof sent to convince the L1 contract that the scores have been computed correctly.
 
 
 To test this code first install circom and snarkjs: https://docs.circom.io/getting-started/installation/.
@@ -64,13 +64,13 @@ To verify the proof run the command: ```snarkjs plonk verify verification_key.js
 The contract will keep a record of the id, owner, deposit and score for each node, as well as how much each node has staked on each other node. This data will be organized into a Merkle tree with a subtree for each leaf. For this tree will use the MiMC hash function.
 
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img4.jpg?raw=true)
+![graph](imgs/img4.jpg)
 
 Each leaf in the main accounts tree stores the ETH address associated with the account, how much TON that account has deposited into the rollup, the “uniqueness” score for that account, and the root hash of a subtree of link data. The link subtree stores the amount that has been staked by that account on a particular other account in the system, (using the account’s id in the account tree). For example if the first account has staked 0.5 TON on the account with id 3, then the third leaf of the subtree for the first leaf of the account tree will store the value 0.5. 
 
 The amounts staked on a particular account are used in the scoring algorithm to compute it’s uniqueness score. To prevent this from being manipulatable, we need to ensure that the total amount that an account can stake on other accounts is limited by how much TON they have deposited into the rollup. Hence we make the rule that a valid instance of the state tree must satisfy
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img5.png?raw=true)
+![graph](imgs/img5.png)
 
 for each leaf of the account tree.
 
