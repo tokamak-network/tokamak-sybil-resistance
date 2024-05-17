@@ -1,4 +1,4 @@
-pragma circom 2.0.0;
+pragma circom 2.1.6;
 
 /**
 * all inputs are scaled up 10^6 since circom only accepts integers as inputs 
@@ -27,8 +27,6 @@ template LessThan(n) {
     signal input in[2];
     signal output out;
 
-
-
     component n2b = Num2Bits(n+1);
 
     n2b.in <== in[0]+ (1<<n) - in[1];
@@ -55,24 +53,18 @@ template ScoringAlgorithm (num_verts , num_subsets) {
     var size = 0;
     var rem = 0;
 
-	for (var a = 0; a<num_subsets; a+=1){  
-
+	for (var a = 0; a < num_subsets; a += 1){  
 	    sum = 0;
 	    size = 0;
 
 	    for (var i = 0; i<num_verts; i+=1){
-
 		    for (var j = 0; j<num_verts; j+=1){
-
 		      subset_indicator[a][i][j] <== subsets[i][a]*(1-subsets[j][a]);
 		      weighted_subset_indicator[a][i][j] <== subset_indicator[a][i][j]*weights[i][j];
 		      sum = sum + weighted_subset_indicator[a][i][j];
-	        
 	        }
-
 	        size = size + subsets[i][a];
         }
-
 
         bdry[a] <== sum;
         scaled_bdry[a] <-- bdry[a]\size;
@@ -89,8 +81,6 @@ template ScoringAlgorithm (num_verts , num_subsets) {
         selector[k][0] <== lt[k][0].out * subsets[k][0];
         minimizing_vector[k][0] <== (scaled_bdry[0]-31)*selector[k][0] + 31;
 
-
-
         for(var b = 1; b<num_subsets; b+=1){
            lt[k][b] = LessThan(5);
            lt[k][b].in[1] <== minimizing_vector[k][b-1];
@@ -105,4 +95,4 @@ template ScoringAlgorithm (num_verts , num_subsets) {
     
 
 }
-component main = ScoringAlgorithm(7,63);
+component main {public [subsets, weights]} = ScoringAlgorithm(7,63);

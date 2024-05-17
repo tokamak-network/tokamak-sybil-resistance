@@ -1,0 +1,15 @@
+#scoring_algorithm_js
+scoring_algorithm_js/
+
+#circom
+*.r1cs
+*.sym
+
+#zkey
+*.zkey
+verification_key.json
+
+#proof
+proof.json
+public.json
+*.wtns
