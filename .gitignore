@@ -8,6 +8,7 @@ scoring_algorithm_js/
 #zkey
 *.zkey
 verification_key.json
+verifier.sol
 
 #proof
 proof.json
