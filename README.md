@@ -9,20 +9,20 @@ From this weighted graph, a score is calculated for each address. The score is a
 Applications can integrate with this project to obtain sybil-resistence, for example for an airdrop or for a voting application. Users can also use this register in a privacy preserving way by creating a proof that they own an address in the register with a score above a certain threshold.
 
 ## Scoring algorithm
-The way the scoring algorithm works is by starting with a set (denoted by a calligraphic A) of subsets of the nodes (in practice, these will be the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values. More precisely, the scoring function **_f_** is defined by:![eq1](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img1.png?raw=true) 
+The way the scoring algorithm works is by starting with a set (denoted by a calligraphic A) of subsets of the nodes (in practice, these will be the subsets that are smaller than a certain threshold). Then to compute the score for a node, we look at each of these subsets that contains the node and compute the sum of the weights of the links that are leaving this subset and divide it by the number of elements in the subset. The score is then defined to be minimum of these values. More precisely, the scoring function **_f_** is defined by:![eq1](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/imgs/img1.png?raw=true) 
 
 where 
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img3.png?raw=true)
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/imgs/img3.png?raw=true)
 
 and
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img2.png?raw=true)
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/imgs/img2.png?raw=true)
 
 
 ### Example:
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/graph-example.png?raw=true)
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/imgs/graph-example.png?raw=true)
 
 
 In this example, let us suppose the set of subsets we are using is all subsets with three or less nodes. Then, to compute the score for node 5, we look at all subsets with three or less elements, that contain node 5:
@@ -64,13 +64,13 @@ To verify the proof run the command: ```snarkjs plonk verify verification_key.js
 The contract will keep a record of the id, owner, deposit and score for each node, as well as how much each node has staked on each other node. This data will be organized into a Merkle tree with a subtree for each leaf. For this tree will use the MiMC hash function.
 
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img4.jpg?raw=true)
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/imgs/img4.jpg?raw=true)
 
 Each leaf in the main accounts tree stores the ETH address associated with the account, how much TON that account has deposited into the rollup, the “uniqueness” score for that account, and the root hash of a subtree of link data. The link subtree stores the amount that has been staked by that account on a particular other account in the system, (using the account’s id in the account tree). For example if the first account has staked 0.5 TON on the account with id 3, then the third leaf of the subtree for the first leaf of the account tree will store the value 0.5. 
 
 The amounts staked on a particular account are used in the scoring algorithm to compute it’s uniqueness score. To prevent this from being manipulatable, we need to ensure that the total amount that an account can stake on other accounts is limited by how much TON they have deposited into the rollup. Hence we make the rule that a valid instance of the state tree must satisfy
 
-![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/img5.png?raw=true)
+![graph](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/imgs/img5.png?raw=true)
 
 for each leaf of the account tree.
 
