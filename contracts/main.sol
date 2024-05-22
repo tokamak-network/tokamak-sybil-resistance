@@ -1,4 +1,9 @@
-// Last account index created inside the rollup
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity >=0.8.2 <0.9.0;
+
+contract Sybil { 
+    // Last account index created inside the rollup
     uint48 public lastIdx;
 
     // Last batch forged
