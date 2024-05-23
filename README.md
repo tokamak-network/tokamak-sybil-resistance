@@ -35,29 +35,97 @@ Then for each of these subsets, we compute the sum of the weights of the links l
 This algorithm is implemented in the file [scoring_algorithm.circom](https://github.com/tokamak-network/proof-of-uniqueness/blob/main/scoring_algorithm.circom). It is implemented as a circom circuit so that the scores can be computed off chain and the proof sent to convince the L1 contract that the scores have been computed correctly.
 
 
+## Usage
 To test this code first install circom and snarkjs: https://docs.circom.io/getting-started/installation/.
 
-The first step is to run ```circom scoring_circuit.circom --r1cs --wasm --sym --c```. This compiles the circuit and generates the constraints for the circuit. It also generates a directory ```scoring_circuit_js``` that contains the Wasm code and other files needed to generate the witness. We then need to provide the data of a weighted graph for the circuit to run on. The data for the example given above is available in the file ```test_input1.json```, save this file in the ```scoring_circuit_js``` directory. (The data of the set of subsets is encoded as a ```0/1``` matrix where the subsets are given by the columns).
+Our circuit can use both the Groth16 and Plonk zk-SNARK schemes. Groth16 has a smaller proof size compared to Plonk, but it requires a specific setup for each individual circuit. On the other hand, Plonk has a larger proof size but only requires a universal setup that can be used across different circuits without needing a new setup for each one.
 
-Then next step is to calculate values for all wires from the input wires: ```node generate_witness.js scoring_circuit.wasm test_input1.json witness.wtns```
+Since we use Circom to write our circuits, the constraints are expressed in R1CS format. However, Plonk uses its own constraint format, which results in an increased number of constraints when converting the same circuit into Plonk’s format.
 
-To create a proof, we need to use a trusted setup. This is done using the powers of tau ceremony which can be run using ```snarkjs``` as follows (see https://docs.circom.io/getting-started/proving-circuits/):
+The following example will use a pre-prepared universal setup file. By downloading the setup file provided by [the snarkjs repo](https://github.com/iden3/snarkjs?tab=readme-ov-file#7-prepare-phase-2), you can skip the setup process. In our case, we need a setup with a power of at least 15. Note that as the power increases, the file size grows exponentially, so be cautious when downloading larger setup files.
 
-```snarkjs powersoftau new bn128 15 pot15_0000.ptau -v```
+Our example uses a universal setup file provided by snarkjs with a power of 15(`powersOfTau28_hez_final_15.ptau`).
+If you want to start the setup by own, refer to [this section](https://github.com/iden3/snarkjs?tab=readme-ov-file#1-start-a-new-powers-of-tau-ceremony) in snarkjs.
 
-```snarkjs powersoftau contribute pot15_0000.ptau pot15_0001.ptau --name="First contribution" -v```
+The overall flow is as follows: **circuit compile -> setup -> proof -> verify**
 
-```snarkjs powersoftau prepare phase2 pot15_0001.ptau pot15_final.ptau -v``` (This step in the setup ceremony takes about 10 mins).
 
-```snarkjs plonk setup scoring_circuit.r1cs pot15_final.ptau scoring_circuit_final.zkey```
+### 1. Cicuit compile
 
-Next we export the verification key for our circuit: ```snarkjs zkey export verificationkey scoring_circuit_final.zkey verification_key.json```
+```bash
+cd circuits
+circom scoring_algorithm.circom --r1cs --wasm
+```
+The circom command takes one input (the circuit to compile, in our case circuit.circom) and three options:
+- r1cs: generates circuit.r1cs (the r1cs constraint system of the circuit in binary format).
+- wasm: generates circuit.wasm (the wasm code to generate the witness).
 
-And now finally we create a Plonk proof for the witness: ```snarkjs plonk prove scoring_circuit_final.zkey witness.wtns proof.json public.json```  
+Next, you need to create the input for this circuit. A test input is currently provided: `test_input1.json`.
 
-This step creates a file ```public.json``` containing the values for the scores for the nodes, and also ```proof.json``` proving that these scores have been calculated correctly.
+Once the input is ready, you can use the Javascript/wasm program generated in the previous step to create a witness (values of all the wires) for our input:
+```bash
+scoring_algorithm_js$ node generate_witness.js scoring_algorithm.wasm ../test_input1.json ../witness.wtns
+```
+You can verify that the witness was generated correctly with the following command:
+```bash
+snarkjs wtns check scoring_algorithm.r1cs witness.wtns
+```
 
-To verify the proof run the command: ```snarkjs plonk verify verification_key.json public.json proof.json```  
+### 2. Setup
+
+#### Plonk
+```bash
+snarkjs plonk setup scoring_algorithm.r1cs powersOfTau28_hez_final_15.ptau circuit_final.zkey
+```
+
+
+#### groth16
+As mentioned earlier, Groth16 requires an additional setup step for each individual circuit. If you want to proceed with Groth16, follow the snarkjs [groth16 setup documentation](https://github.com/iden3/snarkjs?tab=readme-ov-file#groth16).
+
+
+### 3. Proof
+
+#### Export the verification key
+```bash
+snarkjs zkey export verificationkey circuit_final.zkey verification_key.json
+```
+
+### Create the proof
+
+#### Plonk
+```bash
+snarkjs plonk prove circuit_final.zkey witness.wtns proof.json public.json
+```
+
+
+#### Groth16
+```bash
+snarkjs groth16 prove circuit_final.zkey witness.wtns proof.json public.json
+```
+Note: The circuit_final.zkey for Groth16 is different from that for Plonk and requires the additional Groth16 setup mentioned above.
+
+### 4. Verify
+
+#### Plonk
+```bash
+snarkjs plonk verify verification_key.json public.json proof.json
+```
+
+
+#### Groth16
+```bash
+snarkjs groth16 verify verification_key.json public.json proof.json
+```
+
+
+
+### Extra: Turn the verifier into a smart contract
+```bash
+snarkjs zkey export solidityverifier circuit_final.zkey verifier.sol
+```
+
+
+
 
 ## Contract design
 
