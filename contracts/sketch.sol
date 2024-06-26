@@ -1,4 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0
 
+pragma solidity >=0.8.2 <0.9.0;
+
+contract Sybil { 
     
     // [65 bytes] compressedSignature + [32 bytes] fromBjj-compressed + [4 bytes] tokenId
     uint256 constant _L1_COORDINATOR_TOTALBYTES = 101;
