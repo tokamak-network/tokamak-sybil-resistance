@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
+var Db *gorm.DB
 var err error
 
 /*
@@ -33,14 +33,14 @@ var modelsToMigrate = []interface{}{
 func InitDB() {
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	Db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failure to connect db")
 		log.Fatal(err)
 	}
 	fmt.Println("Database connected!")
 
-	err = db.AutoMigrate(modelsToMigrate...)
+	err = Db.AutoMigrate(modelsToMigrate...)
 	if err != nil {
 		log.Fatalf("Failure to migrate db")
 		log.Fatal(err)
