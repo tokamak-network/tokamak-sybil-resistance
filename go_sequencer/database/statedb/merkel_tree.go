@@ -5,6 +5,16 @@ import (
 	"fmt"
 )
 
+type enum string
+
+const (
+	AccountTree enum = "Account"
+	LinkTree    enum = "Link"
+)
+
+type TreeNodeHash interface {
+}
+
 // buildMerkleTree constructs a Merkle tree from a list of leaf nodes.
 func buildMerkleTree(leaves []*TreeNode) *TreeNode {
 	if len(leaves) == 1 {
@@ -87,13 +97,17 @@ func VerifyMerklePath(tree *MerkleTree, leafHash string) (string, bool) {
 }
 
 // GetRootForLeaf retrieves the root hash for a provided leaf node hash.
-func (sdb *StateDB) GetRootForLeaf(leafHash string) (string, bool) {
-	return VerifyMerklePath(sdb.Tree, leafHash)
+func (sdb *StateDB) GetRootForLeaf(leafHash string, treeType enum, key string) (string, bool) {
+	if treeType == AccountTree {
+		return VerifyMerklePath(sdb.AccountTree, leafHash)
+	} else {
+		return VerifyMerklePath(sdb.LinkTree[key[:len(key)/2]], leafHash)
+	}
 }
 
-func GetRootHash(s *StateDB, key string) string {
-	leafHash, _ := s.GetTreeNodeHash(key)
-	rootHash, verified := s.GetRootForLeaf(leafHash)
+func GetRootHash(s *StateDB, key string, treeType enum) string {
+	leafHash, _ := s.GetTreeNodeHash(key, treeType)
+	rootHash, verified := s.GetRootForLeaf(leafHash, treeType, key)
 	if verified {
 		fmt.Printf("Root hash for leaf %s: %s\n", leafHash, rootHash)
 	} else {
@@ -102,24 +116,38 @@ func GetRootHash(s *StateDB, key string) string {
 	return rootHash
 }
 
-func GetMerkelTreePath(s *StateDB, key string) ([]string, error) {
-	nodeHash, _ := s.GetTreeNodeHash(key)
-	path, found := FindPathToRoot(s.Tree.Root, nodeHash)
+func GetMerkelTreePath(s *StateDB, key string, treeType enum) ([]string, error) {
+	nodeHash, _ := s.GetTreeNodeHash(key, treeType)
+	var path []string
+	var found bool
+	if treeType == AccountTree {
+		path, found = FindPathToRoot(s.AccountTree.Root, nodeHash)
+	} else {
+		path, found = FindPathToRoot(s.LinkTree[key[:len(key)/2]].Root, nodeHash)
+	}
 	if !found {
 		return nil, fmt.Errorf("path not found for key: %s", key)
 	}
-	fmt.Printf("Merkle path: %v\n", path)
 	return path, nil
 }
 
-func (s *StateDB) GetTreeNodeHash(key string) (string, error) {
-	account, err := s.GetAccount(key)
+func (s *StateDB) GetTreeNodeHash(key string, treeType enum) (string, error) {
+	var (
+		data interface{}
+		err  error
+	)
+	if treeType == AccountTree {
+		data, err = s.GetAccount(key)
+	} else {
+		data, err = s.GetLink(key)
+	}
+
 	if err != nil {
 		return "", err
 	}
-	accountBytes, err := json.Marshal(account)
+	bytes, err := json.Marshal(data)
 	if err != nil {
 		return "", err
 	}
-	return hashData(string(accountBytes)), nil
+	return hashData(string(bytes)), nil
 }

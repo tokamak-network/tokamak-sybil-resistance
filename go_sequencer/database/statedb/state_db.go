@@ -22,19 +22,21 @@ type MerkleTree struct {
 	Root *TreeNode
 }
 
-// Account represents an account with a link subtree.
+// Account represents an account with specified fields.
 type Account struct {
-	Address  string
-	Deposit  int
-	Nonce    int
-	Score    int
-	LinkRoot string // Root hash of the Links Subtree
+	Idx     string
+	EthAddr string
+	Sign    bool
+	Ay      string
+	Balance int
+	Score   int
+	Nonce   int
 }
 
 // Link represents a link structure.
 type Link struct {
-	TargetID string
-	Stake    int
+	LinkIdx string
+	Value   int
 }
 
 // hashData computes the SHA-256 hash of the input data.
@@ -59,8 +61,9 @@ func closeDB(db *pebble.DB) error {
 
 // StateDB represents the state database with an integrated Merkle tree.
 type StateDB struct {
-	DB   *pebble.DB
-	Tree *MerkleTree
+	DB          *pebble.DB
+	AccountTree *MerkleTree
+	LinkTree    map[string]*MerkleTree
 }
 
 // NewStateDB initializes a new StateDB.
@@ -70,8 +73,9 @@ func NewStateDB(dbPath string) (*StateDB, error) {
 		return nil, err
 	}
 	return &StateDB{
-		DB:   db,
-		Tree: &MerkleTree{},
+		DB:          db,
+		AccountTree: &MerkleTree{},
+		LinkTree:    make(map[string]*MerkleTree),
 	}, nil
 }
 
@@ -87,24 +91,24 @@ func (sdb *StateDB) PutAccount(account *Account) error {
 		return err
 	}
 
-	err = sdb.DB.Set([]byte(account.Address), accountBytes, nil)
+	err = sdb.DB.Set([]byte(account.Idx), accountBytes, nil)
 	if err != nil {
 		return err
 	}
 
 	leaf := &TreeNode{Hash: hashData(string(accountBytes))}
-	if sdb.Tree.Root == nil {
-		sdb.Tree.Root = leaf
+	if sdb.AccountTree.Root == nil {
+		sdb.AccountTree.Root = leaf
 	} else {
-		updateMerkleTree(sdb.Tree, leaf)
+		updateMerkleTree(sdb.AccountTree, leaf)
 	}
 
 	return nil
 }
 
-// Get retrieves an account for a given address from the database.
-func (sdb *StateDB) GetAccount(address string) (*Account, error) {
-	value, closer, err := sdb.DB.Get([]byte(address))
+// Get retrieves an account for a given idx from the database.
+func (sdb *StateDB) GetAccount(idx string) (*Account, error) {
+	value, closer, err := sdb.DB.Get([]byte(idx))
 	if err != nil {
 		return nil, err
 	}
@@ -119,107 +123,174 @@ func (sdb *StateDB) GetAccount(address string) (*Account, error) {
 	return &account, nil
 }
 
-// UpdateLink updates the link tree for an account and updates the account's link root in the database.
-func (sdb *StateDB) UpdateLink(address string, link *Link) error {
-	account, err := sdb.GetAccount(address)
-	if err != nil {
-		return err
-	}
-
-	// Deserialize the existing link tree if it exists
-	var linkTree MerkleTree
-	if account.LinkRoot != "" {
-		linkTree.Root = &TreeNode{Hash: account.LinkRoot}
-	}
-
+// PutLink stores a link in the database and updates the Link Merkle tree.
+func (sdb *StateDB) PutLink(link *Link) error {
 	linkBytes, err := json.Marshal(link)
 	if err != nil {
 		return err
 	}
 
-	linkLeaf := &TreeNode{Hash: hashData(string(linkBytes))}
-	updateMerkleTree(&linkTree, linkLeaf)
-
-	account.LinkRoot = linkTree.Root.Hash
-
-	return sdb.PutAccount(account)
-}
-
-// GetMerklePath retrieves the Merkle path for a given key-value pair.
-func (sdb *StateDB) GetMerklePath(key, value string) ([]string, error) {
-	targetHash := hashData(key + value)
-	path, found := FindPathToRoot(sdb.Tree.Root, targetHash)
-	if !found {
-		return nil, fmt.Errorf("path not found for key: %s", key)
+	err = sdb.DB.Set([]byte(link.LinkIdx), linkBytes, nil)
+	if err != nil {
+		return err
 	}
-	return path, nil
+
+	linkTree, exists := sdb.LinkTree[link.LinkIdx[:len(link.LinkIdx)/2]]
+	if !exists {
+		linkTree = &MerkleTree{}
+		sdb.LinkTree[link.LinkIdx[:len(link.LinkIdx)/2]] = linkTree
+	}
+
+	leaf := &TreeNode{Hash: hashData(string(linkBytes))}
+	updateMerkleTree(linkTree, leaf)
+
+	return nil
 }
 
-func performActionsAccount(a *Account, s *StateDB) {
+// GetLink retrieves a link for a given linkIdx from the database.
+func (sdb *StateDB) GetLink(linkIdx string) (*Link, error) {
+	value, closer, err := sdb.DB.Get([]byte(linkIdx))
+	if err != nil {
+		return nil, err
+	}
+	defer closer.Close()
+
+	var link Link
+	err = json.Unmarshal(value, &link)
+	if err != nil {
+		return nil, err
+	}
+
+	return &link, nil
+}
+
+func performActionsAccount(a *Account, s *StateDB, treeType enum) {
 	err := s.PutAccount(a)
 	if err != nil {
 		log.Fatalf("Failed to store key-value pair: %v", err)
 	}
 
 	// Retrieve and print a value
-	value, err := s.GetAccount(a.Address)
+	value, err := s.GetAccount(a.Idx)
 	if err != nil {
 		log.Fatalf("Failed to retrieve value: %v", err)
 	}
 	fmt.Printf("Retrieved account: %+v\n", value)
 
 	// Print Merkle path
-	path, _ := GetMerkelTreePath(s, a.Address)
+	path, _ := GetMerkelTreePath(s, a.Idx, treeType)
 	fmt.Printf("Merkle path: %v\n", path)
 
 	// Get and print root hash for leaf
-	GetRootHash(s, a.Address)
+	GetRootHash(s, a.Idx, treeType)
+}
 
+func performActionsLink(l *Link, s *StateDB, treeType enum) {
+	err := s.PutLink(l)
+	if err != nil {
+		log.Fatalf("Failed to store key-value pair: %v", err)
+	}
+
+	// Retrieve and print a value
+	value, err := s.GetLink(l.LinkIdx)
+	if err != nil {
+		log.Fatalf("Failed to retrieve value: %v", err)
+	}
+	fmt.Printf("Retrieved account: %+v\n", value)
+
+	// Print Merkle path
+	path, _ := GetMerkelTreePath(s, l.LinkIdx, treeType)
+	fmt.Printf("Merkle path: %v\n", path)
+
+	// Get and print root hash for leaf
+	GetRootHash(s, l.LinkIdx, treeType)
 }
 
 func printExamples(s *StateDB) {
 	// Example accounts
 	accountA := &Account{
-		Address: "account_0xA",
-		Deposit: 10,
-		Nonce:   1,
-		Score:   0,
+		Idx:     "011",
+		EthAddr: "0xA",
+		Sign:    true,
+		Ay:      "ay_value",
+		Balance: 10,
+		Score:   1,
+		Nonce:   0,
 	}
 
 	accountB := &Account{
-		Address: "account_0xB",
-		Deposit: 5,
-		Nonce:   2,
-		Score:   0,
+		Idx:     "001",
+		EthAddr: "0xB",
+		Sign:    true,
+		Ay:      "ay_value",
+		Balance: 10,
+		Score:   1,
+		Nonce:   0,
 	}
 
 	accountC := &Account{
-		Address: "account_0xC",
-		Deposit: 5,
-		Nonce:   2,
-		Score:   0,
+		Idx:     "101",
+		EthAddr: "0xC",
+		Sign:    true,
+		Ay:      "ay_value",
+		Balance: 10,
+		Score:   1,
+		Nonce:   0,
 	}
 
 	accountD := &Account{
-		Address: "account_0xD",
-		Deposit: 5,
-		Nonce:   2,
-		Score:   0,
+		Idx:     "111",
+		EthAddr: "0xD",
+		Sign:    true,
+		Ay:      "ay_value",
+		Balance: 10,
+		Score:   1,
+		Nonce:   0,
+	}
+
+	linkAB := &Link{
+		LinkIdx: "011001",
+		Value:   1,
+	}
+
+	linkAC := &Link{
+		LinkIdx: "011101",
+		Value:   1,
+	}
+	linkCD := &Link{
+		LinkIdx: "101111",
+		Value:   1,
+	}
+	linkCA := &Link{
+		LinkIdx: "101011",
+		Value:   1,
+	}
+	linkCB := &Link{
+		LinkIdx: "101001",
+		Value:   1,
 	}
 	// Add Account A
-	performActionsAccount(accountA, s)
+	performActionsAccount(accountA, s, AccountTree)
 
 	// Add Account B
-	performActionsAccount(accountB, s)
+	performActionsAccount(accountB, s, AccountTree)
 
 	//Add Account C
-	performActionsAccount(accountC, s)
+	performActionsAccount(accountC, s, AccountTree)
 
 	//Add Account D
-	performActionsAccount(accountD, s)
+	performActionsAccount(accountD, s, AccountTree)
+
+	//Add Link AB
+	performActionsLink(linkAB, s, LinkTree)
+
+	performActionsLink(linkAC, s, LinkTree)
+	performActionsLink(linkCD, s, LinkTree)
+	performActionsLink(linkCA, s, LinkTree)
+	performActionsLink(linkCB, s, LinkTree)
 
 	// Print Merkle tree root
-	fmt.Printf("Merkle Tree Root: %s\n", s.Tree.Root.Hash)
+	fmt.Printf("Merkle Account Tree Root: %s\n", s.AccountTree.Root.Hash)
 }
 
 func InitNewStateDB() *StateDB {
