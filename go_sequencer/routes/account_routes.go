@@ -7,7 +7,7 @@ import (
 )
 
 func Account(router *gin.Engine) {
-	router.POST("/account", account.CreateAccount)
+	// router.POST("/account", account.CreateAccount)
 	router.GET("/account/:id", account.GetAccountById)
 	router.GET("/account", account.GetAllAccount)
 	router.PUT("/account/:id", account.UpdateAccount)

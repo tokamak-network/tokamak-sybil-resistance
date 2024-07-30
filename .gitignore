@@ -17,3 +17,6 @@ verifier.sol
 proof.json
 public.json
 *.wtns
+
+#stateDB
+stateDB

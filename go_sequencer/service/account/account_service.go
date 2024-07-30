@@ -3,25 +3,37 @@ package account
 import (
 	"net/http"
 	"strconv"
+	"tokamak-sybil-resistance/database"
+	"tokamak-sybil-resistance/database/statedb"
 	"tokamak-sybil-resistance/lib/response_messages"
 	"tokamak-sybil-resistance/models"
 	"tokamak-sybil-resistance/utils"
-	"tokamak-sybil-resistance/utils/database"
 
 	"github.com/gin-gonic/gin"
 )
 
-func CreateAccount(c *gin.Context) {
+type Account struct {
+	stateDB *statedb.StateDB
+}
+
+func NewAccount(stateDB *statedb.StateDB) Account {
+	return Account{
+		stateDB: stateDB,
+	}
+}
+
+func (a *Account) CreateAccount(c *gin.Context) {
 	var account models.Account
 	err := c.ShouldBind(&account)
 	if utils.CheckError(nil, c, http.StatusBadRequest, response_messages.ErrorCreatingAccount, err) {
 		return
 	}
-	res := database.Db.Create(&account)
-	if utils.CheckError(res, c, http.StatusBadRequest, response_messages.ErrorCreatingAccount, err) {
-		return
-	}
-	utils.SuccessResponseHandler(c, http.StatusOK, response_messages.AccountCreationSuccess, account)
+	// a.stateDB.Put()
+	// res := database.Db.Create(&account)
+	// if utils.CheckError(res, c, http.StatusBadRequest, response_messages.ErrorCreatingAccount, err) {
+	// 	return
+	// }
+	// utils.SuccessResponseHandler(c, http.StatusOK, response_messages.AccountCreationSuccess, account)
 }
 
 func GetAccountById(c *gin.Context) {

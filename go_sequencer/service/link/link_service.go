@@ -3,10 +3,10 @@ package link
 import (
 	"net/http"
 	"strconv"
+	"tokamak-sybil-resistance/database"
 	"tokamak-sybil-resistance/lib/response_messages"
 	"tokamak-sybil-resistance/models"
 	"tokamak-sybil-resistance/utils"
-	"tokamak-sybil-resistance/utils/database"
 
 	"github.com/gin-gonic/gin"
 )
