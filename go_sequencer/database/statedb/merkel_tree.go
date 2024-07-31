@@ -32,7 +32,7 @@ func buildMerkleTree(leaves []*TreeNode) *TreeNode {
 			right = &TreeNode{Hash: ""}
 		}
 
-		combinedHash := hashData(left.Hash + right.Hash)
+		combinedHash := HashData(left.Hash + right.Hash)
 		parentNode := &TreeNode{
 			Hash:  combinedHash,
 			Left:  left,
@@ -45,7 +45,7 @@ func buildMerkleTree(leaves []*TreeNode) *TreeNode {
 }
 
 // updateMerkleTree updates the Merkle tree with a new leaf node.
-func updateMerkleTree(tree *MerkleTree, newLeaf *TreeNode) {
+func UpdateMerkleTree(tree *MerkleTree, newLeaf *TreeNode) {
 	leaves := collectLeaves(tree.Root)
 	leaves = append(leaves, newLeaf)
 	tree.Root = buildMerkleTree(leaves)
@@ -149,5 +149,5 @@ func (s *StateDB) GetTreeNodeHash(key string, treeType enum) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return hashData(string(bytes)), nil
+	return HashData(string(bytes)), nil
 }

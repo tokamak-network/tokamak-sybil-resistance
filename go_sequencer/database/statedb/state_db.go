@@ -3,7 +3,6 @@ package statedb
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
 	"tokamak-sybil-resistance/models"
@@ -24,7 +23,7 @@ type MerkleTree struct {
 }
 
 // hashData computes the SHA-256 hash of the input data.
-func hashData(data string) string {
+func HashData(data string) string {
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
 }
@@ -68,86 +67,8 @@ func (sdb *StateDB) Close() error {
 	return closeDB(sdb.DB)
 }
 
-// Put stores an account in the database and updates the Merkle tree.
-func (sdb *StateDB) PutAccount(account *models.Account) error {
-	accountBytes, err := json.Marshal(account)
-	if err != nil {
-		return err
-	}
-
-	err = sdb.DB.Set([]byte(account.Idx), accountBytes, nil)
-	if err != nil {
-		return err
-	}
-
-	leaf := &TreeNode{Hash: hashData(string(accountBytes))}
-	if sdb.AccountTree.Root == nil {
-		sdb.AccountTree.Root = leaf
-	} else {
-		updateMerkleTree(sdb.AccountTree, leaf)
-	}
-
-	return nil
-}
-
-// Get retrieves an account for a given idx from the database.
-func (sdb *StateDB) GetAccount(idx string) (*models.Account, error) {
-	value, closer, err := sdb.DB.Get([]byte(idx))
-	if err != nil {
-		return nil, err
-	}
-	defer closer.Close()
-
-	var account models.Account
-	err = json.Unmarshal(value, &account)
-	if err != nil {
-		return nil, err
-	}
-
-	return &account, nil
-}
-
-// PutLink stores a link in the database and updates the Link Merkle tree.
-func (sdb *StateDB) PutLink(link *models.Link) error {
-	linkBytes, err := json.Marshal(link)
-	if err != nil {
-		return err
-	}
-
-	err = sdb.DB.Set([]byte(link.LinkIdx), linkBytes, nil)
-	if err != nil {
-		return err
-	}
-
-	linkTree, exists := sdb.LinkTree[link.LinkIdx[:len(link.LinkIdx)/2]]
-	if !exists {
-		linkTree = &MerkleTree{}
-		sdb.LinkTree[link.LinkIdx[:len(link.LinkIdx)/2]] = linkTree
-	}
-
-	leaf := &TreeNode{Hash: hashData(string(linkBytes))}
-	updateMerkleTree(linkTree, leaf)
-
-	return nil
-}
-
-// GetLink retrieves a link for a given linkIdx from the database.
-func (sdb *StateDB) GetLink(linkIdx string) (*models.Link, error) {
-	value, closer, err := sdb.DB.Get([]byte(linkIdx))
-	if err != nil {
-		return nil, err
-	}
-	defer closer.Close()
-
-	var link models.Link
-	err = json.Unmarshal(value, &link)
-	if err != nil {
-		return nil, err
-	}
-
-	return &link, nil
-}
-
+// performActions function for Account and Link are to test the db setup and
+// it's mapping with merkel tree
 func performActionsAccount(a *models.Account, s *StateDB, treeType enum) {
 	err := s.PutAccount(a)
 	if err != nil {
