@@ -10,9 +10,9 @@ import (
 )
 
 func main() {
+	database.InitDB()
 	stateDB := statedb.InitNewStateDB()
 	account.NewAccount(stateDB)
-	database.InitDB()
 	router := gin.Default()
 	routes.Account(router)
 	routes.Link(router)

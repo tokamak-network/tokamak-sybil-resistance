@@ -8,8 +8,8 @@ import (
 type enum string
 
 const (
-	AccountTree enum = "Account"
-	LinkTree    enum = "Link"
+	Account enum = "Account"
+	Link    enum = "Link"
 )
 
 type TreeNodeHash interface {
@@ -98,7 +98,7 @@ func VerifyMerklePath(tree *MerkleTree, leafHash string) (string, bool) {
 
 // GetRootForLeaf retrieves the root hash for a provided leaf node hash.
 func (sdb *StateDB) GetRootForLeaf(leafHash string, treeType enum, key string) (string, bool) {
-	if treeType == AccountTree {
+	if treeType == Account {
 		return VerifyMerklePath(sdb.AccountTree, leafHash)
 	} else {
 		return VerifyMerklePath(sdb.LinkTree[key[:len(key)/2]], leafHash)
@@ -120,7 +120,7 @@ func GetMerkelTreePath(s *StateDB, key string, treeType enum) ([]string, error) 
 	nodeHash, _ := s.GetTreeNodeHash(key, treeType)
 	var path []string
 	var found bool
-	if treeType == AccountTree {
+	if treeType == Account {
 		path, found = FindPathToRoot(s.AccountTree.Root, nodeHash)
 	} else {
 		path, found = FindPathToRoot(s.LinkTree[key[:len(key)/2]].Root, nodeHash)
@@ -136,7 +136,7 @@ func (s *StateDB) GetTreeNodeHash(key string, treeType enum) (string, error) {
 		data interface{}
 		err  error
 	)
-	if treeType == AccountTree {
+	if treeType == Account {
 		data, err = s.GetAccount(key)
 	} else {
 		data, err = s.GetLink(key)

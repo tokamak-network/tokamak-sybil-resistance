@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"tokamak-sybil-resistance/models"
 
 	"github.com/cockroachdb/pebble"
 )
@@ -20,23 +21,6 @@ type TreeNode struct {
 // MerkleTree represents a Merkle tree.
 type MerkleTree struct {
 	Root *TreeNode
-}
-
-// Account represents an account with specified fields.
-type Account struct {
-	Idx     string
-	EthAddr string
-	Sign    bool
-	Ay      string
-	Balance int
-	Score   int
-	Nonce   int
-}
-
-// Link represents a link structure.
-type Link struct {
-	LinkIdx string
-	Value   int
 }
 
 // hashData computes the SHA-256 hash of the input data.
@@ -85,7 +69,7 @@ func (sdb *StateDB) Close() error {
 }
 
 // Put stores an account in the database and updates the Merkle tree.
-func (sdb *StateDB) PutAccount(account *Account) error {
+func (sdb *StateDB) PutAccount(account *models.Account) error {
 	accountBytes, err := json.Marshal(account)
 	if err != nil {
 		return err
@@ -107,14 +91,14 @@ func (sdb *StateDB) PutAccount(account *Account) error {
 }
 
 // Get retrieves an account for a given idx from the database.
-func (sdb *StateDB) GetAccount(idx string) (*Account, error) {
+func (sdb *StateDB) GetAccount(idx string) (*models.Account, error) {
 	value, closer, err := sdb.DB.Get([]byte(idx))
 	if err != nil {
 		return nil, err
 	}
 	defer closer.Close()
 
-	var account Account
+	var account models.Account
 	err = json.Unmarshal(value, &account)
 	if err != nil {
 		return nil, err
@@ -124,7 +108,7 @@ func (sdb *StateDB) GetAccount(idx string) (*Account, error) {
 }
 
 // PutLink stores a link in the database and updates the Link Merkle tree.
-func (sdb *StateDB) PutLink(link *Link) error {
+func (sdb *StateDB) PutLink(link *models.Link) error {
 	linkBytes, err := json.Marshal(link)
 	if err != nil {
 		return err
@@ -148,14 +132,14 @@ func (sdb *StateDB) PutLink(link *Link) error {
 }
 
 // GetLink retrieves a link for a given linkIdx from the database.
-func (sdb *StateDB) GetLink(linkIdx string) (*Link, error) {
+func (sdb *StateDB) GetLink(linkIdx string) (*models.Link, error) {
 	value, closer, err := sdb.DB.Get([]byte(linkIdx))
 	if err != nil {
 		return nil, err
 	}
 	defer closer.Close()
 
-	var link Link
+	var link models.Link
 	err = json.Unmarshal(value, &link)
 	if err != nil {
 		return nil, err
@@ -164,7 +148,7 @@ func (sdb *StateDB) GetLink(linkIdx string) (*Link, error) {
 	return &link, nil
 }
 
-func performActionsAccount(a *Account, s *StateDB, treeType enum) {
+func performActionsAccount(a *models.Account, s *StateDB, treeType enum) {
 	err := s.PutAccount(a)
 	if err != nil {
 		log.Fatalf("Failed to store key-value pair: %v", err)
@@ -185,7 +169,7 @@ func performActionsAccount(a *Account, s *StateDB, treeType enum) {
 	GetRootHash(s, a.Idx, treeType)
 }
 
-func performActionsLink(l *Link, s *StateDB, treeType enum) {
+func performActionsLink(l *models.Link, s *StateDB, treeType enum) {
 	err := s.PutLink(l)
 	if err != nil {
 		log.Fatalf("Failed to store key-value pair: %v", err)
@@ -208,7 +192,7 @@ func performActionsLink(l *Link, s *StateDB, treeType enum) {
 
 func printExamples(s *StateDB) {
 	// Example accounts
-	accountA := &Account{
+	accountA := &models.Account{
 		Idx:     "011",
 		EthAddr: "0xA",
 		Sign:    true,
@@ -218,7 +202,7 @@ func printExamples(s *StateDB) {
 		Nonce:   0,
 	}
 
-	accountB := &Account{
+	accountB := &models.Account{
 		Idx:     "001",
 		EthAddr: "0xB",
 		Sign:    true,
@@ -228,7 +212,7 @@ func printExamples(s *StateDB) {
 		Nonce:   0,
 	}
 
-	accountC := &Account{
+	accountC := &models.Account{
 		Idx:     "101",
 		EthAddr: "0xC",
 		Sign:    true,
@@ -238,7 +222,7 @@ func printExamples(s *StateDB) {
 		Nonce:   0,
 	}
 
-	accountD := &Account{
+	accountD := &models.Account{
 		Idx:     "111",
 		EthAddr: "0xD",
 		Sign:    true,
@@ -248,46 +232,46 @@ func printExamples(s *StateDB) {
 		Nonce:   0,
 	}
 
-	linkAB := &Link{
+	linkAB := &models.Link{
 		LinkIdx: "011001",
 		Value:   1,
 	}
 
-	linkAC := &Link{
+	linkAC := &models.Link{
 		LinkIdx: "011101",
 		Value:   1,
 	}
-	linkCD := &Link{
+	linkCD := &models.Link{
 		LinkIdx: "101111",
 		Value:   1,
 	}
-	linkCA := &Link{
+	linkCA := &models.Link{
 		LinkIdx: "101011",
 		Value:   1,
 	}
-	linkCB := &Link{
+	linkCB := &models.Link{
 		LinkIdx: "101001",
 		Value:   1,
 	}
 	// Add Account A
-	performActionsAccount(accountA, s, AccountTree)
+	performActionsAccount(accountA, s, Account)
 
 	// Add Account B
-	performActionsAccount(accountB, s, AccountTree)
+	performActionsAccount(accountB, s, Account)
 
 	//Add Account C
-	performActionsAccount(accountC, s, AccountTree)
+	performActionsAccount(accountC, s, Account)
 
 	//Add Account D
-	performActionsAccount(accountD, s, AccountTree)
+	performActionsAccount(accountD, s, Account)
 
 	//Add Link AB
-	performActionsLink(linkAB, s, LinkTree)
+	performActionsLink(linkAB, s, Link)
 
-	performActionsLink(linkAC, s, LinkTree)
-	performActionsLink(linkCD, s, LinkTree)
-	performActionsLink(linkCA, s, LinkTree)
-	performActionsLink(linkCB, s, LinkTree)
+	performActionsLink(linkAC, s, Link)
+	performActionsLink(linkCD, s, Link)
+	performActionsLink(linkCA, s, Link)
+	performActionsLink(linkCB, s, Link)
 
 	// Print Merkle tree root
 	fmt.Printf("Merkle Account Tree Root: %s\n", s.AccountTree.Root.Hash)

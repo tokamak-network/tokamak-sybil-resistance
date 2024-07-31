@@ -1,11 +1,12 @@
 package models
 
+// Account represents an account with specified fields.
 type Account struct {
-	ID      int `gorm:"primaryKey"`
-	Path    string
+	Idx     string
 	EthAddr string
 	Sign    bool
 	Ay      string
-	Balance string
+	Balance int
 	Score   int
+	Nonce   int
 }

@@ -1,8 +1,7 @@
 package models
 
+// Link represents a link structure.
 type Link struct {
-	ID      int `gorm:"primaryKey"`
-	LinkIdx int
-	FromIdx int
-	ToIdx   int
+	LinkIdx string
+	Value   int
 }
