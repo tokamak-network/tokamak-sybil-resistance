@@ -22,7 +22,7 @@ func (sdb *StateDB) PutLink(link *models.Link) error {
 		linkTree = &MerkleTree{}
 		sdb.LinkTree[link.LinkIdx[:len(link.LinkIdx)/2]] = linkTree
 	}
-
+	PoseidonHashLink(link)
 	leaf := &TreeNode{Hash: HashData(string(linkBytes))}
 	UpdateMerkleTree(linkTree, leaf)
 

@@ -16,7 +16,7 @@ func (sdb *StateDB) PutAccount(account *models.Account) error {
 	if err != nil {
 		return err
 	}
-
+	PoseidonHashAccount(account)
 	leaf := &TreeNode{Hash: HashData(string(accountBytes))}
 	if sdb.AccountTree.Root == nil {
 		sdb.AccountTree.Root = leaf

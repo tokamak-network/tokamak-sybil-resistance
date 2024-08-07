@@ -4,6 +4,8 @@ go 1.22.5
 
 require gorm.io/driver/postgres v1.5.9
 
+require github.com/iden3/go-iden3-crypto v0.0.16 // indirect
+
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

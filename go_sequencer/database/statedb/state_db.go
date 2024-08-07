@@ -5,9 +5,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math/big"
 	"tokamak-sybil-resistance/models"
 
 	"github.com/cockroachdb/pebble"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 // TreeNode represents a node in the Merkle tree.
@@ -20,6 +22,70 @@ type TreeNode struct {
 // MerkleTree represents a Merkle tree.
 type MerkleTree struct {
 	Root *TreeNode
+}
+
+//TODO: Need to create a comman function to calculate poseidon hash
+//Update this implementation to save the same
+
+// // Calculates poseidonHash for zk-Snark rollup Proof
+// // TODO: Need to integrate it with merkleTree Implementation
+func PoseidonHashAccount(a *models.Account) {
+	var bigInts []*big.Int
+
+	// Convert Idx
+	if idx, ok := new(big.Int).SetString(a.Idx, 16); ok {
+		bigInts = append(bigInts, idx)
+	}
+
+	// Convert EthAddr
+	if ethAddr, ok := new(big.Int).SetString(a.EthAddr, 16); ok {
+		bigInts = append(bigInts, ethAddr)
+	}
+
+	// Convert Sign
+	sign := big.NewInt(0)
+	if a.Sign {
+		sign = big.NewInt(1)
+	}
+	bigInts = append(bigInts, sign)
+
+	// Convert Ay
+	if ay, ok := new(big.Int).SetString(a.Ay, 16); ok {
+		bigInts = append(bigInts, ay)
+	}
+
+	// Convert Balance
+	balance := big.NewInt(int64(a.Balance))
+	bigInts = append(bigInts, balance)
+
+	// Convert Score
+	score := big.NewInt(int64(a.Score))
+	bigInts = append(bigInts, score)
+
+	// Convert Nonce
+	nonce := big.NewInt(int64(a.Nonce))
+	bigInts = append(bigInts, nonce)
+
+	poseidonHash, _ := poseidon.Hash(bigInts)
+	fmt.Println(poseidonHash, "---------------  Poseidon Hash Account ---------------")
+}
+
+// // Calculates poseidonHash for zk-Snark rollup Proof
+// // TODO: Need to integrate it with merkleTree Implementation
+func PoseidonHashLink(l *models.Link) {
+	var bigInts []*big.Int
+
+	// Convert LinkIdx
+	if linkIdx, ok := new(big.Int).SetString(l.LinkIdx, 16); ok {
+		bigInts = append(bigInts, linkIdx)
+	}
+
+	// Convert Value
+	value := big.NewInt(int64(l.Value))
+	bigInts = append(bigInts, value)
+
+	poseidonHash, _ := poseidon.Hash(bigInts)
+	fmt.Println(poseidonHash, "---------------  Poseidon Hash Link ---------------")
 }
 
 // hashData computes the SHA-256 hash of the input data.
