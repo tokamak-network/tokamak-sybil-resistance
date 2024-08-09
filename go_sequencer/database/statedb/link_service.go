@@ -2,43 +2,96 @@ package statedb
 
 import (
 	"encoding/json"
+	"fmt"
+	"math/big"
+	"strconv"
 	"tokamak-sybil-resistance/models"
+
+	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/iden3/go-merkletree"
 )
 
-// PutLink stores a link in the database and updates the Link Merkle tree.
-func (sdb *StateDB) PutLink(link *models.Link) error {
-	linkBytes, err := json.Marshal(link)
-	if err != nil {
-		return err
-	}
+// Calculates poseidonHash for zk-Snark rollup Proof
+func PoseidonHashLink(l *models.Link) (*big.Int, error) {
+	var bigInts []*big.Int
 
-	err = sdb.DB.Set([]byte(link.LinkIdx), linkBytes, nil)
-	if err != nil {
-		return err
-	}
+	// Convert LinkIdx
+	linkIdx := big.NewInt(int64(l.LinkIdx))
+	bigInts = append(bigInts, linkIdx)
 
-	linkTree, exists := sdb.LinkTree[link.LinkIdx[:len(link.LinkIdx)/2]]
-	if !exists {
-		linkTree = &MerkleTree{}
-		sdb.LinkTree[link.LinkIdx[:len(link.LinkIdx)/2]] = linkTree
-	}
-	PoseidonHashLink(link)
-	leaf := &TreeNode{Hash: HashData(string(linkBytes))}
-	UpdateMerkleTree(linkTree, leaf)
+	// Convert Value
+	value := big.NewInt(int64(l.Value))
+	bigInts = append(bigInts, value)
 
-	return nil
+	return poseidon.Hash(bigInts)
 }
 
-// GetLink retrieves a link for a given linkIdx from the database.
-func (sdb *StateDB) GetLink(linkIdx string) (*models.Link, error) {
-	value, closer, err := sdb.DB.Get([]byte(linkIdx))
+// Get Account Idx
+func getAccountIdx(n int) int {
+	numStr := strconv.Itoa(n)
+	length := len(numStr)
+	accountStr := numStr[:length/2]
+	accountIdx, _ := strconv.Atoi(accountStr)
+	return accountIdx
+}
+
+// PutLink stores a link in the database and updates the Link Merkle tree.
+func (sdb *StateDB) PutLink(l *models.Link) (*merkletree.CircomProcessorProof, error) {
+	linkBytes, err := json.Marshal(l)
 	if err != nil {
 		return nil, err
 	}
-	defer closer.Close()
+	idxBytes, err := json.Marshal(l.LinkIdx)
+	if err != nil {
+		return nil, err
+	}
+	linkHash, _ := PoseidonHashLink(l)
+	fmt.Println(linkHash, "---------------  Poseidon Hash Account ---------------")
+
+	tx, err := sdb.DB.NewTx()
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Put(append(PrefixKeyLinkHash, linkHash.Bytes()...), linkBytes[:])
+	if err != nil {
+		return nil, err
+	}
+	err = tx.Put(append(PrefixKeyLinkIdx, idxBytes[:]...), linkHash.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	_, exists := sdb.LinkTree[getAccountIdx(l.LinkIdx)]
+	if !exists {
+		linkTree, _ := merkletree.NewMerkleTree(sdb.DB, 14)
+		sdb.LinkTree[getAccountIdx(l.LinkIdx)] = linkTree
+	}
+	return sdb.LinkTree[getAccountIdx(l.LinkIdx)].AddAndGetCircomProof(BigInt(l.LinkIdx), linkHash)
+}
+
+// GetLink retrieves a link for a given linkIdx from the database.
+func (sdb *StateDB) GetLink(linkIdx int) (*models.Link, error) {
+	linkIdxBytes, err := json.Marshal(linkIdx)
+	if err != nil {
+		return nil, err
+	}
+
+	linkHashBytes, err := sdb.DB.Get(append(PrefixKeyLinkIdx, linkIdxBytes[:]...))
+	if err != nil {
+		return nil, err
+	}
+
+	linkBytes, err := sdb.DB.Get(append(PrefixKeyLinkHash, linkHashBytes...))
+	if err != nil {
+		return nil, err
+	}
 
 	var link models.Link
-	err = json.Unmarshal(value, &link)
+	err = json.Unmarshal(linkBytes, &link)
 	if err != nil {
 		return nil, err
 	}
