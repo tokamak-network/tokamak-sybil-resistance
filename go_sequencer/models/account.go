@@ -2,7 +2,7 @@ package models
 
 // Account represents an account with specified fields.
 type Account struct {
-	Idx     string
+	Idx     int
 	EthAddr string
 	Sign    bool
 	Ay      string

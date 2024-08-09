@@ -5,11 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"math/big"
 	"tokamak-sybil-resistance/models"
 
-	"github.com/cockroachdb/pebble"
-	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/iden3/go-merkletree"
+	"github.com/iden3/go-merkletree/db/pebble"
 )
 
 // TreeNode represents a node in the Merkle tree.
@@ -24,68 +23,18 @@ type MerkleTree struct {
 	Root *TreeNode
 }
 
-//TODO: Need to create a comman function to calculate poseidon hash
-//Update this implementation to save the same
+var (
+	PrefixKeyAccHash    = []byte("accHash:")
+	PrefixKeyLinkHash   = []byte("linkHash:")
+	PrefixKeyAccountIdx = []byte("accIdx:")
+	PrefixKeyLinkIdx    = []byte("linkIdx:")
+)
 
-// // Calculates poseidonHash for zk-Snark rollup Proof
-// // TODO: Need to integrate it with merkleTree Implementation
-func PoseidonHashAccount(a *models.Account) {
-	var bigInts []*big.Int
-
-	// Convert Idx
-	if idx, ok := new(big.Int).SetString(a.Idx, 16); ok {
-		bigInts = append(bigInts, idx)
-	}
-
-	// Convert EthAddr
-	if ethAddr, ok := new(big.Int).SetString(a.EthAddr, 16); ok {
-		bigInts = append(bigInts, ethAddr)
-	}
-
-	// Convert Sign
-	sign := big.NewInt(0)
-	if a.Sign {
-		sign = big.NewInt(1)
-	}
-	bigInts = append(bigInts, sign)
-
-	// Convert Ay
-	if ay, ok := new(big.Int).SetString(a.Ay, 16); ok {
-		bigInts = append(bigInts, ay)
-	}
-
-	// Convert Balance
-	balance := big.NewInt(int64(a.Balance))
-	bigInts = append(bigInts, balance)
-
-	// Convert Score
-	score := big.NewInt(int64(a.Score))
-	bigInts = append(bigInts, score)
-
-	// Convert Nonce
-	nonce := big.NewInt(int64(a.Nonce))
-	bigInts = append(bigInts, nonce)
-
-	poseidonHash, _ := poseidon.Hash(bigInts)
-	fmt.Println(poseidonHash, "---------------  Poseidon Hash Account ---------------")
-}
-
-// // Calculates poseidonHash for zk-Snark rollup Proof
-// // TODO: Need to integrate it with merkleTree Implementation
-func PoseidonHashLink(l *models.Link) {
-	var bigInts []*big.Int
-
-	// Convert LinkIdx
-	if linkIdx, ok := new(big.Int).SetString(l.LinkIdx, 16); ok {
-		bigInts = append(bigInts, linkIdx)
-	}
-
-	// Convert Value
-	value := big.NewInt(int64(l.Value))
-	bigInts = append(bigInts, value)
-
-	poseidonHash, _ := poseidon.Hash(bigInts)
-	fmt.Println(poseidonHash, "---------------  Poseidon Hash Link ---------------")
+// StateDB represents the state database with an integrated Merkle tree.
+type StateDB struct {
+	DB          *pebble.Storage
+	AccountTree *merkletree.MerkleTree
+	LinkTree    map[int]*merkletree.MerkleTree
 }
 
 // hashData computes the SHA-256 hash of the input data.
@@ -95,24 +44,12 @@ func HashData(data string) string {
 }
 
 // initializeDB initializes and returns a Pebble DB instance.
-func initializeDB(path string) (*pebble.DB, error) {
-	db, err := pebble.Open(path, &pebble.Options{})
+func initializeDB(path string) (*pebble.Storage, error) {
+	db, err := pebble.NewPebbleStorage(path, false)
 	if err != nil {
 		return nil, err
 	}
 	return db, nil
-}
-
-// closeDB closes the Pebble DB instance.
-func closeDB(db *pebble.DB) error {
-	return db.Close()
-}
-
-// StateDB represents the state database with an integrated Merkle tree.
-type StateDB struct {
-	DB          *pebble.DB
-	AccountTree *MerkleTree
-	LinkTree    map[string]*MerkleTree
 }
 
 // NewStateDB initializes a new StateDB.
@@ -121,25 +58,28 @@ func NewStateDB(dbPath string) (*StateDB, error) {
 	if err != nil {
 		return nil, err
 	}
+	mt, _ := merkletree.NewMerkleTree(db, 14)
+	fmt.Println(mt)
 	return &StateDB{
 		DB:          db,
-		AccountTree: &MerkleTree{},
-		LinkTree:    make(map[string]*MerkleTree),
+		AccountTree: mt,
+		LinkTree:    make(map[int]*merkletree.MerkleTree),
 	}, nil
 }
 
 // Close closes the StateDB.
-func (sdb *StateDB) Close() error {
-	return closeDB(sdb.DB)
+func (sdb *StateDB) Close() {
+	sdb.DB.Close()
 }
 
 // performActions function for Account and Link are to test the db setup and
 // it's mapping with merkel tree
 func performActionsAccount(a *models.Account, s *StateDB, treeType enum) {
-	err := s.PutAccount(a)
+	proof, err := s.PutAccount(a)
 	if err != nil {
 		log.Fatalf("Failed to store key-value pair: %v", err)
 	}
+	fmt.Println(proof, "----------------------- Circom Processor Proof ---------------------")
 
 	// Retrieve and print a value
 	value, err := s.GetAccount(a.Idx)
@@ -148,20 +88,17 @@ func performActionsAccount(a *models.Account, s *StateDB, treeType enum) {
 	}
 	fmt.Printf("Retrieved account: %+v\n", value)
 
-	// Print Merkle path
-	path, _ := GetMerkelTreePath(s, a.Idx, treeType)
-	fmt.Printf("Merkle path: %v\n", path)
-
 	// Get and print root hash for leaf
-	GetRootHash(s, a.Idx, treeType)
+	root := s.GetMTRoot(a.Idx, treeType)
+	fmt.Println(root, "MT root")
 }
 
 func performActionsLink(l *models.Link, s *StateDB, treeType enum) {
-	err := s.PutLink(l)
+	proof, err := s.PutLink(l)
 	if err != nil {
 		log.Fatalf("Failed to store key-value pair: %v", err)
 	}
-
+	fmt.Println(proof, "----------------------- Circom Processor Proof ---------------------")
 	// Retrieve and print a value
 	value, err := s.GetLink(l.LinkIdx)
 	if err != nil {
@@ -169,18 +106,15 @@ func performActionsLink(l *models.Link, s *StateDB, treeType enum) {
 	}
 	fmt.Printf("Retrieved account: %+v\n", value)
 
-	// Print Merkle path
-	path, _ := GetMerkelTreePath(s, l.LinkIdx, treeType)
-	fmt.Printf("Merkle path: %v\n", path)
-
 	// Get and print root hash for leaf
-	GetRootHash(s, l.LinkIdx, treeType)
+	root := s.GetMTRoot(l.LinkIdx, treeType)
+	fmt.Println(root, "MT root")
 }
 
 func printExamples(s *StateDB) {
 	// Example accounts
 	accountA := &models.Account{
-		Idx:     "011",
+		Idx:     10,
 		EthAddr: "0xA",
 		Sign:    true,
 		Ay:      "ay_value",
@@ -190,7 +124,7 @@ func printExamples(s *StateDB) {
 	}
 
 	accountB := &models.Account{
-		Idx:     "001",
+		Idx:     20,
 		EthAddr: "0xB",
 		Sign:    true,
 		Ay:      "ay_value",
@@ -200,7 +134,7 @@ func printExamples(s *StateDB) {
 	}
 
 	accountC := &models.Account{
-		Idx:     "101",
+		Idx:     30,
 		EthAddr: "0xC",
 		Sign:    true,
 		Ay:      "ay_value",
@@ -210,7 +144,7 @@ func printExamples(s *StateDB) {
 	}
 
 	accountD := &models.Account{
-		Idx:     "111",
+		Idx:     40,
 		EthAddr: "0xD",
 		Sign:    true,
 		Ay:      "ay_value",
@@ -220,24 +154,24 @@ func printExamples(s *StateDB) {
 	}
 
 	linkAB := &models.Link{
-		LinkIdx: "011001",
+		LinkIdx: 1010,
 		Value:   1,
 	}
 
 	linkAC := &models.Link{
-		LinkIdx: "011101",
+		LinkIdx: 1030,
 		Value:   1,
 	}
 	linkCD := &models.Link{
-		LinkIdx: "101111",
+		LinkIdx: 3040,
 		Value:   1,
 	}
 	linkCA := &models.Link{
-		LinkIdx: "101011",
+		LinkIdx: 3010,
 		Value:   1,
 	}
 	linkCB := &models.Link{
-		LinkIdx: "101001",
+		LinkIdx: 3020,
 		Value:   1,
 	}
 	// Add Account A
@@ -261,7 +195,7 @@ func printExamples(s *StateDB) {
 	performActionsLink(linkCB, s, Link)
 
 	// Print Merkle tree root
-	fmt.Printf("Merkle Account Tree Root: %s\n", s.AccountTree.Root.Hash)
+	// fmt.Printf("Merkle Account Tree Root: %s\n", s.AccountTree.Root.Hash)
 }
 
 func InitNewStateDB() *StateDB {
