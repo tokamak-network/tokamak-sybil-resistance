@@ -1,8 +1,6 @@
 package statedb
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"tokamak-sybil-resistance/models"
@@ -10,18 +8,6 @@ import (
 	"github.com/iden3/go-merkletree"
 	"github.com/iden3/go-merkletree/db/pebble"
 )
-
-// TreeNode represents a node in the Merkle tree.
-type TreeNode struct {
-	Hash  string
-	Left  *TreeNode
-	Right *TreeNode
-}
-
-// MerkleTree represents a Merkle tree.
-type MerkleTree struct {
-	Root *TreeNode
-}
 
 var (
 	PrefixKeyAccHash    = []byte("accHash:")
@@ -34,13 +20,7 @@ var (
 type StateDB struct {
 	DB          *pebble.Storage
 	AccountTree *merkletree.MerkleTree
-	LinkTree    map[int]*merkletree.MerkleTree
-}
-
-// hashData computes the SHA-256 hash of the input data.
-func HashData(data string) string {
-	hash := sha256.Sum256([]byte(data))
-	return hex.EncodeToString(hash[:])
+	LinkTree    *merkletree.MerkleTree
 }
 
 // initializeDB initializes and returns a Pebble DB instance.
@@ -58,12 +38,12 @@ func NewStateDB(dbPath string) (*StateDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	mt, _ := merkletree.NewMerkleTree(db, 14)
-	fmt.Println(mt)
+	mtAccount, _ := merkletree.NewMerkleTree(db, 14)
+	mtLink, _ := merkletree.NewMerkleTree(db, 14)
 	return &StateDB{
 		DB:          db,
-		AccountTree: mt,
-		LinkTree:    make(map[int]*merkletree.MerkleTree),
+		AccountTree: mtAccount,
+		LinkTree:    mtLink,
 	}, nil
 }
 
@@ -74,7 +54,7 @@ func (sdb *StateDB) Close() {
 
 // performActions function for Account and Link are to test the db setup and
 // it's mapping with merkel tree
-func performActionsAccount(a *models.Account, s *StateDB, treeType enum) {
+func performActionsAccount(a *models.Account, s *StateDB) {
 	proof, err := s.PutAccount(a)
 	if err != nil {
 		log.Fatalf("Failed to store key-value pair: %v", err)
@@ -89,11 +69,11 @@ func performActionsAccount(a *models.Account, s *StateDB, treeType enum) {
 	fmt.Printf("Retrieved account: %+v\n", value)
 
 	// Get and print root hash for leaf
-	root := s.GetMTRoot(a.Idx, treeType)
+	root := s.GetMTRoot(Account)
 	fmt.Println(root, "MT root")
 }
 
-func performActionsLink(l *models.Link, s *StateDB, treeType enum) {
+func performActionsLink(l *models.Link, s *StateDB) {
 	proof, err := s.PutLink(l)
 	if err != nil {
 		log.Fatalf("Failed to store key-value pair: %v", err)
@@ -107,92 +87,88 @@ func performActionsLink(l *models.Link, s *StateDB, treeType enum) {
 	fmt.Printf("Retrieved account: %+v\n", value)
 
 	// Get and print root hash for leaf
-	root := s.GetMTRoot(l.LinkIdx, treeType)
+	root := s.GetMTRoot(Link)
 	fmt.Println(root, "MT root")
 }
 
 func printExamples(s *StateDB) {
 	// Example accounts
 	accountA := &models.Account{
-		Idx:     10,
+		Idx:     1,
 		EthAddr: "0xA",
-		Sign:    true,
-		Ay:      "ay_value",
+		BJJ:     "ay_value",
 		Balance: 10,
 		Score:   1,
 		Nonce:   0,
 	}
 
 	accountB := &models.Account{
-		Idx:     20,
+		Idx:     2,
 		EthAddr: "0xB",
-		Sign:    true,
-		Ay:      "ay_value",
+		BJJ:     "ay_value",
 		Balance: 10,
 		Score:   1,
 		Nonce:   0,
 	}
 
 	accountC := &models.Account{
-		Idx:     30,
+		Idx:     3,
 		EthAddr: "0xC",
-		Sign:    true,
-		Ay:      "ay_value",
+		BJJ:     "ay_value",
 		Balance: 10,
 		Score:   1,
 		Nonce:   0,
 	}
 
 	accountD := &models.Account{
-		Idx:     40,
+		Idx:     4,
 		EthAddr: "0xD",
-		Sign:    true,
-		Ay:      "ay_value",
+		BJJ:     "ay_value",
 		Balance: 10,
 		Score:   1,
 		Nonce:   0,
 	}
 
 	linkAB := &models.Link{
-		LinkIdx: 1010,
-		Value:   1,
+		LinkIdx: 11,
+		Value:   true,
 	}
 
 	linkAC := &models.Link{
-		LinkIdx: 1030,
-		Value:   1,
+		LinkIdx: 13,
+		Value:   true,
 	}
 	linkCD := &models.Link{
-		LinkIdx: 3040,
-		Value:   1,
+		LinkIdx: 34,
+		Value:   true,
 	}
 	linkCA := &models.Link{
-		LinkIdx: 3010,
-		Value:   1,
+		LinkIdx: 31,
+		Value:   true,
 	}
 	linkCB := &models.Link{
-		LinkIdx: 3020,
-		Value:   1,
+		LinkIdx: 32,
+		Value:   true,
 	}
 	// Add Account A
-	performActionsAccount(accountA, s, Account)
+	performActionsAccount(accountA, s)
 
 	// Add Account B
-	performActionsAccount(accountB, s, Account)
+	performActionsAccount(accountB, s)
 
 	//Add Account C
-	performActionsAccount(accountC, s, Account)
+	performActionsAccount(accountC, s)
 
 	//Add Account D
-	performActionsAccount(accountD, s, Account)
+	performActionsAccount(accountD, s)
 
 	//Add Link AB
-	performActionsLink(linkAB, s, Link)
+	performActionsLink(linkAB, s)
 
-	performActionsLink(linkAC, s, Link)
-	performActionsLink(linkCD, s, Link)
-	performActionsLink(linkCA, s, Link)
-	performActionsLink(linkCB, s, Link)
+	performActionsLink(linkAC, s)
+	performActionsLink(linkCD, s)
+	performActionsLink(linkCA, s)
+	performActionsLink(linkCB, s)
 
 	// Print Merkle tree root
 	// fmt.Printf("Merkle Account Tree Root: %s\n", s.AccountTree.Root.Hash)

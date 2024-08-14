@@ -1,50 +1,59 @@
 package statedb
 
 import (
-	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"math/big"
-	"strconv"
 	"tokamak-sybil-resistance/models"
 
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree"
 )
 
-// Calculates poseidonHash for zk-Snark rollup Proof
-func PoseidonHashLink(l *models.Link) (*big.Int, error) {
-	var bigInts []*big.Int
+func BytesLink(l *models.Link) [5]byte {
+	var b [5]byte
 
-	// Convert LinkIdx
-	linkIdx := big.NewInt(int64(l.LinkIdx))
-	bigInts = append(bigInts, linkIdx)
+	// Convert linkIdx into [4]byte
+	binary.LittleEndian.PutUint32(b[0:4], uint32(l.LinkIdx))
 
-	// Convert Value
-	value := big.NewInt(int64(l.Value))
-	bigInts = append(bigInts, value)
+	if l.Value {
+		b[4] = 1
+	} else {
+		b[4] = 0
+	}
 
-	return poseidon.Hash(bigInts)
+	return b
 }
 
-// Get Account Idx
-func getAccountIdx(n int) int {
-	numStr := strconv.Itoa(n)
-	length := len(numStr)
-	accountStr := numStr[:length/2]
-	accountIdx, _ := strconv.Atoi(accountStr)
-	return accountIdx
+func LinkFromBytes(b [5]byte) models.Link {
+	var l models.Link
+
+	// Extract Idx from [0:4]
+	l.LinkIdx = int(binary.LittleEndian.Uint32(b[0:4]))
+
+	l.Value = b[4] == 1
+
+	return l
+}
+
+// Calculates poseidonHash for zk-Snark rollup Proof
+func PoseidonHashLink(l *models.Link) (*big.Int, error) {
+	bigInt := make([]*big.Int, 3)
+
+	b := BytesLink(l)
+
+	bigInt[0] = new(big.Int).SetBytes(b[0:2])
+	bigInt[1] = new(big.Int).SetBytes(b[2:4])
+	bigInt[2] = new(big.Int).SetBytes(b[4:4])
+
+	return poseidon.Hash(bigInt)
 }
 
 // PutLink stores a link in the database and updates the Link Merkle tree.
 func (sdb *StateDB) PutLink(l *models.Link) (*merkletree.CircomProcessorProof, error) {
-	linkBytes, err := json.Marshal(l)
-	if err != nil {
-		return nil, err
-	}
-	idxBytes, err := json.Marshal(l.LinkIdx)
-	if err != nil {
-		return nil, err
-	}
+	var idxBytes [4]byte
+	linkBytes := BytesLink(l)
+	binary.LittleEndian.PutUint32(idxBytes[:], uint32(l.LinkIdx))
 	linkHash, _ := PoseidonHashLink(l)
 	fmt.Println(linkHash, "---------------  Poseidon Hash Account ---------------")
 
@@ -65,20 +74,14 @@ func (sdb *StateDB) PutLink(l *models.Link) (*merkletree.CircomProcessorProof, e
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	_, exists := sdb.LinkTree[getAccountIdx(l.LinkIdx)]
-	if !exists {
-		linkTree, _ := merkletree.NewMerkleTree(sdb.DB, 14)
-		sdb.LinkTree[getAccountIdx(l.LinkIdx)] = linkTree
-	}
-	return sdb.LinkTree[getAccountIdx(l.LinkIdx)].AddAndGetCircomProof(BigInt(l.LinkIdx), linkHash)
+	return sdb.LinkTree.AddAndGetCircomProof(BigInt(l.LinkIdx), linkHash)
 }
 
 // GetLink retrieves a link for a given linkIdx from the database.
 func (sdb *StateDB) GetLink(linkIdx int) (*models.Link, error) {
-	linkIdxBytes, err := json.Marshal(linkIdx)
-	if err != nil {
-		return nil, err
-	}
+	var linkIdxBytes [4]byte
+	// Convert Idx into [2]byte
+	binary.LittleEndian.PutUint32(linkIdxBytes[0:4], uint32(linkIdx))
 
 	linkHashBytes, err := sdb.DB.Get(append(PrefixKeyLinkIdx, linkIdxBytes[:]...))
 	if err != nil {
@@ -90,11 +93,7 @@ func (sdb *StateDB) GetLink(linkIdx int) (*models.Link, error) {
 		return nil, err
 	}
 
-	var link models.Link
-	err = json.Unmarshal(linkBytes, &link)
-	if err != nil {
-		return nil, err
-	}
+	link := LinkFromBytes([5]byte(linkBytes))
 
 	return &link, nil
 }

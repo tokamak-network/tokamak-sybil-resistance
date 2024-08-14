@@ -4,8 +4,7 @@ package models
 type Account struct {
 	Idx     int
 	EthAddr string
-	Sign    bool
-	Ay      string
+	BJJ     string
 	Balance int
 	Score   int
 	Nonce   int

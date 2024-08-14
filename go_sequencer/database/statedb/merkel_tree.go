@@ -20,12 +20,12 @@ func BigInt(idx int) *big.Int {
 }
 
 // GetMTRoot returns the root of the Merkle Tree
-func (s *StateDB) GetMTRoot(idx int, treeType enum) *big.Int {
+func (s *StateDB) GetMTRoot(treeType enum) *big.Int {
 	var root *big.Int
 	if treeType == Account {
 		root = s.AccountTree.Root().BigInt()
 	} else {
-		root = s.LinkTree[getAccountIdx(idx)].Root().BigInt()
+		root = s.LinkTree.Root().BigInt()
 	}
 	return root
 }
