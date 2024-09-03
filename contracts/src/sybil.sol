@@ -9,19 +9,31 @@ import "./interfaces/ISybil.sol";
 
 contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
     using SafeERC20 for IERC20;
-
     // Constants
-    uint8 public constant ABSOLUTE_MAX_L1L2BATCHTIMEOUT = 240;
+
     uint48 constant _RESERVED_IDX = 255;
     uint256 constant _LIMIT_LOAD_AMOUNT = (1 << 128);
     uint256 constant _LIMIT_L2TRANSFER_AMOUNT = (1 << 192);
+    uint8 public constant ABSOLUTE_MAX_L1L2BATCHTIMEOUT = 240;
+    uint8 constant DEPOSIT = 1;
+    uint8 constant WITHDRAWAL = 2;
+    uint8 constant TRANSFER = 3;
 
-    // Struct definition: DO WE NEED THIS?
+    // Struct definition
     struct VerifierRollup {
         address verifierInterface;
         uint256 maxTx;
         uint256 nLevels;
     }
+
+    // Struct for account data
+    struct AccountData {
+        uint256 uniquenessScore;
+        uint48 accountIndex;
+    }
+
+
+
     // State variables
     VerifierRollup[] public rollupVerifiers;
     address public withdrawVerifier;
@@ -41,64 +53,42 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
     mapping(uint32 => bytes32) public l1L2TxsDataHashMap;
     mapping(uint32 => mapping(uint48 => bool)) public exitNullifierMap;
     mapping(uint32 => bytes) public mapL1TxQueue;
+    mapping(address => AccountData) public accountData; // Mapping for account data
 
     address[] public tokenList;
     mapping(address => uint256) public tokenMap;
 
-    // Events (as per interface)
-    event L1TransactionAdded(
-        address indexed sender,
-        uint48 indexed fromIdx,
-        uint48 toIdx,
-        uint32 tokenID,
-        uint40 amount,
-        uint8 transactionType
-    );
-
-    event QueueCleared(uint32 queueIndex, uint16 numTransactionsCleared);
-    event BatchForged(
-        uint32 indexed batchNum,
-        uint48 newLastIdx,
-        uint256 newStateRoot,
-        uint256 newExitRoot,
-        uint8 batchType
-    );
-
-    event InitializeSybilVerifierEvent(
-        uint8 forgeL1L2BatchTimeout,
-        uint256 feeAddToken,
-        uint64 withdrawalDelay
-    );
 
     // Initialization function
-    function initializeSybilVerifier(
-        address[] memory _verifiers,
-        uint256[] memory _verifiersParams,
-        address _withdrawVerifier,
-        address _tokenHEZ,
-        uint8 _forgeL1L2BatchTimeout,
-        uint256 _feeAddToken,
-        address _poseidon2Elements,
-        address _poseidon3Elements,
-        address _poseidon4Elements,
-        address _sybilGovernanceAddress,
-        uint64 _withdrawalDelay,
-        address _withdrawDelayerContract
-    ) external override initializer {
-        __Ownable_init();
+ function initializeSybilVerifier(
+    address[] memory _verifiers,
+    uint256[] memory _verifiersParams,
+    address _withdrawVerifier,
+    address _tokenHEZ,
+    uint8 _forgeL1L2BatchTimeout,
+    uint256 _feeAddToken,
+    address _poseidon2Elements,
+    address _poseidon3Elements,
+    address _poseidon4Elements,
+    address _sybilGovernanceAddress,
+    uint64 _withdrawalDelay,
+    address _withdrawDelayerContract
+) external override initializer {
+    __Ownable_init(msg.sender);
 
-        // Initialization logic
-        withdrawVerifier = _withdrawVerifier;
-        tokenHEZ = _tokenHEZ;
-        forgeL1L2BatchTimeout = _forgeL1L2BatchTimeout;
-        feeAddToken = _feeAddToken;
+    // Initialization logic
+    withdrawVerifier = _withdrawVerifier;
+    tokenHEZ = _tokenHEZ;
+    forgeL1L2BatchTimeout = _forgeL1L2BatchTimeout;
+    feeAddToken = _feeAddToken;
 
-        lastIdx = _RESERVED_IDX;
-        nextL1FillingQueue = 1;
-        tokenList.push(address(0));
+    lastIdx = _RESERVED_IDX;
+    nextL1FillingQueue = 1;
+    tokenList.push(address(0));
 
-        emit InitializeSybilVerifierEvent(_forgeL1L2BatchTimeout, _feeAddToken, _withdrawalDelay);
-    }
+    emit InitializeSybilVerifierEvent(_forgeL1L2BatchTimeout, _feeAddToken, _withdrawalDelay);
+}
+
 
     // L1 Transaction functions
     function addL1Transaction(
@@ -140,7 +130,7 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
                 if (permit.length != 0) {
                     _permit(tokenList[tokenID], loadAmount, permit);
                 }
-                _safeTransferFrom(tokenList[tokenID], msg.sender, address(this), loadAmount);
+                IERC20(tokenList[tokenID]).safeTransferFrom(msg.sender, address(this), loadAmount);
             }
         }
 

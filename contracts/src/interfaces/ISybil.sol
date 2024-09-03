@@ -5,10 +5,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 interface ISybil {
-    // L1 Transaction types
-    uint8 constant DEPOSIT = 1;
-    uint8 constant WITHDRAWAL = 2;
-    uint8 constant TRANSFER = 3;
 
     // Events
     event L1TransactionAdded(
@@ -34,6 +30,14 @@ interface ISybil {
         uint256 feeAddToken,
         uint64 withdrawalDelay
     );
+
+    // Custom Errors
+    error InvalidTransactionType(uint8 transactionType);
+    error TokenNotRegistered(uint32 tokenID);
+    error InvalidLoadAmount(uint256 provided, uint256 expected);
+    error InternalTxNotAllowed();
+    error BatchTimeoutExceeded();
+    error InvalidProof();
 
     // Initialization function
     function initializeSybilVerifier(
