@@ -43,6 +43,14 @@ func hashData(data string) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// LocalStateDB represents the local StateDB which allows to make copies from
+// the synchronizer StateDB, and is used by the tx-selector and the
+// batch-builder. LocalStateDB is an in-memory storage.
+type LocalStateDB struct {
+	*StateDB
+	synchronizerStateDB *StateDB
+}
+
 // initializeDB initializes and returns a Pebble DB instance.
 func initializeDB(path string) (*pebble.DB, error) {
 	db, err := pebble.Open(path, &pebble.Options{})
