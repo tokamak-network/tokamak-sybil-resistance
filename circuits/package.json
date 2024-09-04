@@ -10,7 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "circomkit": "^0.2.1"
+    "circomkit": "^0.2.1",
+    "circomlib": "^2.0.5"
   },
   "devDependencies": {
     "@types/node": "^22.5.3"
