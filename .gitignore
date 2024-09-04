@@ -1,3 +1,6 @@
+#node_modules
+node_modules/
+
 #scoring_algorithm_js
 circuits/scoring_algorithm_js/
 
