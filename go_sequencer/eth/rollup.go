@@ -1,12 +1,17 @@
 package eth
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 	"tokamak-sybil-resistance/common"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
@@ -138,8 +143,6 @@ type RollupInterface interface {
 	// Public Functions
 
 	RollupForgeBatch(*RollupForgeBatchArgs, *bind.TransactOpts) (*types.Transaction, error)
-	RollupAddToken(tokenAddress ethCommon.Address, feeAddToken,
-		deadline *big.Int) (*types.Transaction, error)
 
 	RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp, tokenID uint32, numExitRoot,
 		idx int64, amount *big.Int, siblings []*big.Int, instantWithdraw bool) (*types.Transaction,
@@ -147,18 +150,10 @@ type RollupInterface interface {
 	RollupWithdrawCircuit(proofA, proofC [2]*big.Int, proofB [2][2]*big.Int, tokenID uint32,
 		numExitRoot, idx int64, amount *big.Int, instantWithdraw bool) (*types.Transaction, error)
 
-	RollupL1UserTxERC20ETH(fromBJJ babyjub.PublicKeyComp, fromIdx int64, depositAmount *big.Int,
-		amount *big.Int, tokenID uint32, toIdx int64) (*types.Transaction, error)
-	RollupL1UserTxERC20Permit(fromBJJ babyjub.PublicKeyComp, fromIdx int64,
-		depositAmount *big.Int, amount *big.Int, tokenID uint32, toIdx int64,
-		deadline *big.Int) (tx *types.Transaction, err error)
-
 	// Governance Public Functions
 	RollupUpdateForgeL1L2BatchTimeout(newForgeL1L2BatchTimeout int64) (*types.Transaction, error)
-	RollupUpdateFeeAddToken(newFeeAddToken *big.Int) (*types.Transaction, error)
 
 	// Viewers
-	RollupRegisterTokensCount() (*big.Int, error)
 	RollupLastForgedBatch() (int64, error)
 
 	//
@@ -169,4 +164,77 @@ type RollupInterface interface {
 	RollupEventsByBlock(blockNum int64, blockHash *ethCommon.Hash) (*RollupEvents, error)
 	RollupForgeBatchArgs(ethCommon.Hash, uint16) (*RollupForgeBatchArgs, *ethCommon.Address, error)
 	RollupEventInit(genesisBlockNum int64) (*RollupEventInitialize, int64, error)
+}
+
+//
+// Implementation
+//
+
+// RollupClient is the implementation of the interface to the Rollup Smart Contract in ethereum.
+type RollupClient struct {
+	client      *EthereumClient
+	chainID     *big.Int
+	address     ethCommon.Address
+	contractAbi abi.ABI
+	opts        *bind.CallOpts
+	consts      *common.RollupConstants
+}
+
+// RollupVariables returns the RollupVariables from the initialize event
+func (ei *RollupEventInitialize) RollupVariables() *common.RollupVariables {
+	return &common.RollupVariables{
+		EthBlockNum:           0,
+		ForgeL1L2BatchTimeout: int64(ei.ForgeL1L2BatchTimeout),
+		Buckets:               []common.BucketParams{},
+		SafeMode:              false,
+	}
+}
+
+var (
+	logHermezL1UserTxEvent = crypto.Keccak256Hash([]byte(
+		"L1UserTxEvent(uint32,uint8,bytes)"))
+	logHermezForgeBatch = crypto.Keccak256Hash([]byte(
+		"ForgeBatch(uint32,uint16)"))
+	logHermezUpdateForgeL1L2BatchTimeout = crypto.Keccak256Hash([]byte(
+		"UpdateForgeL1L2BatchTimeout(uint8)"))
+	logHermezWithdrawEvent = crypto.Keccak256Hash([]byte(
+		"WithdrawEvent(uint48,uint32,bool)"))
+	logHermezUpdateBucketWithdraw = crypto.Keccak256Hash([]byte(
+		"UpdateBucketWithdraw(uint8,uint256,uint256)"))
+	logHermezUpdateBucketsParameters = crypto.Keccak256Hash([]byte(
+		"UpdateBucketsParameters(uint256[])"))
+	logHermezSafeMode = crypto.Keccak256Hash([]byte(
+		"SafeMode()"))
+	logHermezInitialize = crypto.Keccak256Hash([]byte(
+		"InitializeHermezEvent(uint8,uint256,uint64)"))
+)
+
+// RollupEventInit returns the initialize event with its corresponding block number
+func (c *RollupClient) RollupEventInit(genesisBlockNum int64) (*RollupEventInitialize, int64, error) {
+	query := ethereum.FilterQuery{
+		Addresses: []ethCommon.Address{
+			c.address,
+		},
+		FromBlock: big.NewInt(max(0, genesisBlockNum-blocksPerDay)),
+		ToBlock:   big.NewInt(genesisBlockNum),
+		Topics:    [][]ethCommon.Hash{{logHermezInitialize}},
+	}
+	logs, err := c.client.client.FilterLogs(context.Background(), query)
+	if err != nil {
+		return nil, 0, common.Wrap(err)
+	}
+	if len(logs) != 1 {
+		return nil, 0, common.Wrap(fmt.Errorf("no event of type InitializeHermezEvent found"))
+	}
+	vLog := logs[0]
+	if vLog.Topics[0] != logHermezInitialize {
+		return nil, 0, common.Wrap(fmt.Errorf("event is not InitializeHermezEvent"))
+	}
+
+	var rollupInit RollupEventInitialize
+	if err := c.contractAbi.UnpackIntoInterface(&rollupInit, "InitializeHermezEvent",
+		vLog.Data); err != nil {
+		return nil, 0, common.Wrap(err)
+	}
+	return &rollupInit, int64(vLog.BlockNumber), common.Wrap(err)
 }

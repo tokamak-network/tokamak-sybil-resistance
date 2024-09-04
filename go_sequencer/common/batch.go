@@ -1,10 +1,14 @@
 package common
 
 import (
+	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 )
+
+const batchNumBytesLen = 8
 
 // Batch is a struct that represents Hermez network batch
 type Batch struct {
@@ -47,9 +51,20 @@ type BatchData struct {
 // AccountUpdate represents an account balance and/or nonce update after a
 // processed batch
 type AccountUpdate struct {
-	EthBlockNum int64       `meddler:"eth_block_num"`
-	BatchNum    BatchNum    `meddler:"batch_num"`
-	Idx         Idx         `meddler:"idx"`
-	Nonce       Nonce `meddler:"nonce"`
-	Balance     *big.Int    `meddler:"balance,bigint"`
+	EthBlockNum int64    `meddler:"eth_block_num"`
+	BatchNum    BatchNum `meddler:"batch_num"`
+	Idx         Idx      `meddler:"idx"`
+	Nonce       Nonce    `meddler:"nonce"`
+	Balance     *big.Int `meddler:"balance,bigint"`
+}
+
+// BatchNumFromBytes returns BatchNum from a []byte
+func BatchNumFromBytes(b []byte) (BatchNum, error) {
+	if len(b) != batchNumBytesLen {
+		return 0,
+			Wrap(fmt.Errorf("can not parse BatchNumFromBytes, bytes len %d, expected %d",
+				len(b), batchNumBytesLen))
+	}
+	batchNum := binary.BigEndian.Uint64(b[:batchNumBytesLen])
+	return BatchNum(batchNum), nil
 }

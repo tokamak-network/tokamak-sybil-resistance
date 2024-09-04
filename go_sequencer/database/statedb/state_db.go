@@ -1,24 +1,91 @@
 package statedb
 
 import (
-	"fmt"
+	"errors"
 	"log"
-	"tokamak-sybil-resistance/models"
+	"tokamak-sybil-resistance/common"
+	"tokamak-sybil-resistance/database/kvdb"
 
 	"github.com/iden3/go-merkletree"
 	"github.com/iden3/go-merkletree/db/pebble"
 )
 
+const (
+	// TypeSynchronizer defines a StateDB used by the Synchronizer, that
+	// generates the ExitTree when processing the txs
+	TypeSynchronizer = "synchronizer"
+	// TypeTxSelector defines a StateDB used by the TxSelector, without
+	// computing ExitTree neither the ZKInputs
+	TypeTxSelector = "txselector"
+	// TypeBatchBuilder defines a StateDB used by the BatchBuilder, that
+	// generates the ExitTree and the ZKInput when processing the txs
+	TypeBatchBuilder = "batchbuilder"
+	// MaxNLevels is the maximum value of NLevels for the merkle tree,
+	// which comes from the fact that AccountIdx has 48 bits.
+	MaxNLevels = 48
+)
+
 var (
-	PrefixKeyAccHash    = []byte("accHash:")
-	PrefixKeyLinkHash   = []byte("linkHash:")
 	PrefixKeyAccountIdx = []byte("accIdx:")
+	PrefixKeyLinkHash   = []byte("linkHash:")
 	PrefixKeyLinkIdx    = []byte("linkIdx:")
+)
+
+// Config of the StateDB
+type Config struct {
+	// Path where the checkpoints will be stored
+	Path string
+	// Keep is the number of old checkpoints to keep.  If 0, all
+	// checkpoints are kept.
+	Keep int
+	// NoLast skips having an opened DB with a checkpoint to the last
+	// batchNum for thread-safe reads.
+	NoLast bool
+	// Type of StateDB (
+	Type string
+	// NLevels is the number of merkle tree levels in case the Type uses a
+	// merkle tree.  If the Type doesn't use a merkle tree, NLevels should
+	// be 0.
+	NLevels int
+	// At every checkpoint, check that there are no gaps between the
+	// checkpoints
+	noGapsCheck bool
+}
+
+var (
+	// ErrStateDBWithoutMT is used when a method that requires a MerkleTree
+	// is called in a StateDB that does not have a MerkleTree defined
+	ErrStateDBWithoutMT = errors.New(
+		"Can not call method to use MerkleTree in a StateDB without MerkleTree")
+
+	// ErrAccountAlreadyExists is used when CreateAccount is called and the
+	// Account already exists
+	ErrAccountAlreadyExists = errors.New("Can not CreateAccount because Account already exists")
+
+	// ErrIdxNotFound is used when trying to get the Idx from EthAddr or
+	// EthAddr&ToBJJ
+	ErrIdxNotFound = errors.New("Idx can not be found")
+	// ErrGetIdxNoCase is used when trying to get the Idx from EthAddr &
+	// BJJ with not compatible combination
+	ErrGetIdxNoCase = errors.New(
+		"Can not get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
+
+	// PrefixKeyIdx is the key prefix for idx in the db
+	PrefixKeyIdx = []byte("i:")
+	// PrefixKeyAccHash is the key prefix for account hash in the db
+	PrefixKeyAccHash = []byte("h:")
+	// PrefixKeyMT is the key prefix for merkle tree in the db
+	PrefixKeyMT = []byte("m:")
+	// PrefixKeyAddr is the key prefix for address in the db
+	PrefixKeyAddr = []byte("a:")
+	// PrefixKeyAddrBJJ is the key prefix for address-babyjubjub in the db
+	PrefixKeyAddrBJJ = []byte("ab:")
 )
 
 // StateDB represents the state database with an integrated Merkle tree.
 type StateDB struct {
-	DB          *pebble.Storage
+	cfg         Config
+	DB          *kvdb.KVDB
 	AccountTree *merkletree.MerkleTree
 	LinkTree    *merkletree.MerkleTree
 }
@@ -33,15 +100,20 @@ func initializeDB(path string) (*pebble.Storage, error) {
 }
 
 // NewStateDB initializes a new StateDB.
-func NewStateDB(dbPath string) (*StateDB, error) {
-	db, err := initializeDB(dbPath)
+func NewStateDB(cfg Config) (*StateDB, error) {
+	var kv *kvdb.KVDB
+	var err error
+
+	kv, err = kvdb.NewKVDB(kvdb.Config{Path: cfg.Path, Keep: cfg.Keep,
+		NoGapsCheck: cfg.noGapsCheck, NoLast: cfg.NoLast})
 	if err != nil {
-		return nil, err
+		return nil, common.Wrap(err)
 	}
-	mtAccount, _ := merkletree.NewMerkleTree(db, 14)
-	mtLink, _ := merkletree.NewMerkleTree(db, 14)
+
+	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
+	mtLink, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
 	return &StateDB{
-		DB:          db,
+		DB:          kv,
 		AccountTree: mtAccount,
 		LinkTree:    mtLink,
 	}, nil
@@ -52,135 +124,30 @@ func (sdb *StateDB) Close() {
 	sdb.DB.Close()
 }
 
-// performActions function for Account and Link are to test the db setup and
-// it's mapping with merkel tree
-func performActionsAccount(a *models.Account, s *StateDB) {
-	proof, err := s.PutAccount(a)
-	if err != nil {
-		log.Fatalf("Failed to store key-value pair: %v", err)
+// Reset resets the StateDB to the checkpoint at the given batchNum. Reset
+// does not delete the checkpoints between old current and the new current,
+// those checkpoints will remain in the storage, and eventually will be
+// deleted when MakeCheckpoint overwrites them.
+func (s *StateDB) Reset(batchNum common.BatchNum) error {
+	log.Fatalf("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
+	if err := s.DB.Reset(batchNum); err != nil {
+		return common.Wrap(err)
 	}
-	fmt.Println(proof, "----------------------- Circom Processor Proof ---------------------")
-
-	// Retrieve and print a value
-	value, err := s.GetAccount(a.Idx)
-	if err != nil {
-		log.Fatalf("Failed to retrieve value: %v", err)
+	if s.AccountTree != nil {
+		// open the MT for the current s.db
+		accountTree, err := merkletree.NewMerkleTree(s.DB.StorageWithPrefix(PrefixKeyMT), s.AccountTree.MaxLevels())
+		if err != nil {
+			return common.Wrap(err)
+		}
+		s.AccountTree = accountTree
 	}
-	fmt.Printf("Retrieved account: %+v\n", value)
-
-	// Get and print root hash for leaf
-	root := s.GetMTRoot(Account)
-	fmt.Println(root, "MT root")
-}
-
-func performActionsLink(l *models.Link, s *StateDB) {
-	proof, err := s.PutLink(l)
-	if err != nil {
-		log.Fatalf("Failed to store key-value pair: %v", err)
+	if s.LinkTree != nil {
+		// open the MT for the current s.db
+		linkTree, err := merkletree.NewMerkleTree(s.DB.StorageWithPrefix(PrefixKeyMT), s.LinkTree.MaxLevels())
+		if err != nil {
+			return common.Wrap(err)
+		}
+		s.AccountTree = linkTree
 	}
-	fmt.Println(proof, "----------------------- Circom Processor Proof ---------------------")
-	// Retrieve and print a value
-	value, err := s.GetLink(l.LinkIdx)
-	if err != nil {
-		log.Fatalf("Failed to retrieve value: %v", err)
-	}
-	fmt.Printf("Retrieved account: %+v\n", value)
-
-	// Get and print root hash for leaf
-	root := s.GetMTRoot(Link)
-	fmt.Println(root, "MT root")
-}
-
-func printExamples(s *StateDB) {
-	// Example accounts
-	accountA := &models.Account{
-		Idx:     1,
-		EthAddr: "0xA",
-		BJJ:     "ay_value",
-		Balance: 10,
-		Score:   1,
-		Nonce:   0,
-	}
-
-	accountB := &models.Account{
-		Idx:     2,
-		EthAddr: "0xB",
-		BJJ:     "ay_value",
-		Balance: 10,
-		Score:   1,
-		Nonce:   0,
-	}
-
-	accountC := &models.Account{
-		Idx:     3,
-		EthAddr: "0xC",
-		BJJ:     "ay_value",
-		Balance: 10,
-		Score:   1,
-		Nonce:   0,
-	}
-
-	accountD := &models.Account{
-		Idx:     4,
-		EthAddr: "0xD",
-		BJJ:     "ay_value",
-		Balance: 10,
-		Score:   1,
-		Nonce:   0,
-	}
-
-	linkAB := &models.Link{
-		LinkIdx: 11,
-		Value:   true,
-	}
-
-	linkAC := &models.Link{
-		LinkIdx: 13,
-		Value:   true,
-	}
-	linkCD := &models.Link{
-		LinkIdx: 34,
-		Value:   true,
-	}
-	linkCA := &models.Link{
-		LinkIdx: 31,
-		Value:   true,
-	}
-	linkCB := &models.Link{
-		LinkIdx: 32,
-		Value:   true,
-	}
-	// Add Account A
-	performActionsAccount(accountA, s)
-
-	// Add Account B
-	performActionsAccount(accountB, s)
-
-	//Add Account C
-	performActionsAccount(accountC, s)
-
-	//Add Account D
-	performActionsAccount(accountD, s)
-
-	//Add Link AB
-	performActionsLink(linkAB, s)
-
-	performActionsLink(linkAC, s)
-	performActionsLink(linkCD, s)
-	performActionsLink(linkCA, s)
-	performActionsLink(linkCB, s)
-
-	// Print Merkle tree root
-	// fmt.Printf("Merkle Account Tree Root: %s\n", s.AccountTree.Root.Hash)
-}
-
-func InitNewStateDB() *StateDB {
-	// Initialize the StateDB
-	stateDB, err := NewStateDB("stateDB")
-	if err != nil {
-		log.Fatalf("Failed to initialize StateDB: %v", err)
-	}
-	defer stateDB.Close()
-	printExamples(stateDB)
-	return stateDB
+	return nil
 }

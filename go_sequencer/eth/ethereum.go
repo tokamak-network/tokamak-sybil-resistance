@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethKeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -39,7 +40,7 @@ type EthereumConfig struct {
 // EthereumClient is an ethereum client to call Smart Contract methods and check blockchain
 // information.
 type EthereumClient struct {
-	client  *ethclient.Client
+	client *ethclient.Client
 	// chainID *big.Int
 	account *accounts.Account
 	ks      *ethKeystore.KeyStore
@@ -177,4 +178,18 @@ func (c *EthereumClient) EthCall(ctx context.Context, tx *types.Transaction,
 	}
 	result, err := c.client.CallContract(ctx, msg, blockNum)
 	return result, common.Wrap(err)
+}
+
+// Call performs a read only Smart Contract method call.
+func (c *EthereumClient) Call(fn func(*ethclient.Client) error) error {
+	return fn(c.client)
+}
+
+// newCallOpts returns a CallOpts to be used in ethereum calls with a non-zero
+// From address.  This is a workaround for a bug in ethereumjs-vm that shows up
+// in ganache: https://github.com/hermeznetwork/hermez-node/issues/317
+func newCallOpts() *bind.CallOpts {
+	return &bind.CallOpts{
+		From: ethCommon.HexToAddress("0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"),
+	}
 }
