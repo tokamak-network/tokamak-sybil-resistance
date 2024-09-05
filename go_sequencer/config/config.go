@@ -3,6 +3,7 @@ package config
 import (
 	"math/big"
 	"time"
+	"tokamak-sybil-resistance/api/stateapiupdater"
 	"tokamak-sybil-resistance/common"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -268,48 +269,48 @@ type NodeDebug struct {
 	GinDebugMode bool `env:"HEZNODE_DEBUG_GINDEBUGMODE"`
 }
 
-// // Node is the hermez node configuration.
-// type Node struct {
-// 	StateDB struct {
-// 		// Path where the synchronizer StateDB is stored
-// 		Path string `validate:"required" env:"HEZNODE_STATEDB_PATH"`
-// 		// Keep is the number of checkpoints to keep
-// 		Keep int `validate:"required,gte=128" env:"HEZNODE_STATEDB_KEEP"`
-// 	} `validate:"required"`
-// 	PostgreSQL PostgreSQL `validate:"required"`
-// 	Web3       struct {
-// 		// URL is the URL of the web3 ethereum-node RPC server.  Only
-// 		// geth is officially supported.
-// 		URL string `validate:"required,url" env:"HEZNODE_WEB3_URL"`
-// 	} `validate:"required"`
-// 	Synchronizer struct {
-// 		// SyncLoopInterval is the interval between attempts to
-// 		// synchronize a new block from an ethereum node
-// 		SyncLoopInterval Duration `validate:"required" env:"HEZNODE_SYNCHRONIZER_SYNCLOOPINTERVAL"`
-// 		// StatsUpdateBlockNumDiffThreshold is a threshold of a number of
-// 		// Ethereum blocks left to synchronize, such that if there are more
-// 		// blocks to sync than the defined value synchronizer can aggressively
-// 		// skip calling UpdateEth to save network bandwidth and time.
-// 		// After reaching the threshold UpdateEth is called on each block.
-// 		// This value only affects the reported % of synchronization of
-// 		// blocks and batches, nothing else.
-// 		StatsUpdateBlockNumDiffThreshold uint16 `validate:"required,gt=32" env:"HEZNODE_SYNCHRONIZER_STATSUPDATEBLOCKSNUMDIFFTHRESHOLD"`
-// 		// StatsUpdateFrequencyDivider - While having more blocks to sync than
-// 		// updateEthBlockNumThreshold, UpdateEth will be called once in a
-// 		// defined number of blocks. This value only affects the reported % of
-// 		// synchronization of blocks and batches, nothing else.
-// 		StatsUpdateFrequencyDivider uint16 `validate:"required,gt=1" env:"HEZNODE_SYNCHRONIZER_STATSUPDATEFREQUENCYDIVIDER"`
-// 	} `validate:"required"`
-// 	SmartContracts struct {
-// 		// Rollup is the address of the Hermez.sol smart contract
-// 		Rollup ethCommon.Address `validate:"required" env:"HEZNODE_SMARTCONTRACTS_ROLLUP"`
-// 	} `validate:"required"`
-// 	API                  APIConfigParameters                  `validate:"required"`
-// 	RecommendedFeePolicy stateapiupdater.RecommendedFeePolicy `validate:"required"`
-// 	Debug                NodeDebug                            `validate:"required"`
-// 	Coordinator          Coordinator                          `validate:"-"`
-// 	Log                  LogConf                              `validate:"-"`
-// }
+// Node is the hermez node configuration.
+type Node struct {
+	StateDB struct {
+		// Path where the synchronizer StateDB is stored
+		Path string `validate:"required" env:"HEZNODE_STATEDB_PATH"`
+		// Keep is the number of checkpoints to keep
+		Keep int `validate:"required,gte=128" env:"HEZNODE_STATEDB_KEEP"`
+	} `validate:"required"`
+	PostgreSQL PostgreSQL `validate:"required"`
+	Web3       struct {
+		// URL is the URL of the web3 ethereum-node RPC server.  Only
+		// geth is officially supported.
+		URL string `validate:"required,url" env:"HEZNODE_WEB3_URL"`
+	} `validate:"required"`
+	Synchronizer struct {
+		// SyncLoopInterval is the interval between attempts to
+		// synchronize a new block from an ethereum node
+		SyncLoopInterval Duration `validate:"required" env:"HEZNODE_SYNCHRONIZER_SYNCLOOPINTERVAL"`
+		// StatsUpdateBlockNumDiffThreshold is a threshold of a number of
+		// Ethereum blocks left to synchronize, such that if there are more
+		// blocks to sync than the defined value synchronizer can aggressively
+		// skip calling UpdateEth to save network bandwidth and time.
+		// After reaching the threshold UpdateEth is called on each block.
+		// This value only affects the reported % of synchronization of
+		// blocks and batches, nothing else.
+		StatsUpdateBlockNumDiffThreshold uint16 `validate:"required,gt=32" env:"HEZNODE_SYNCHRONIZER_STATSUPDATEBLOCKSNUMDIFFTHRESHOLD"`
+		// StatsUpdateFrequencyDivider - While having more blocks to sync than
+		// updateEthBlockNumThreshold, UpdateEth will be called once in a
+		// defined number of blocks. This value only affects the reported % of
+		// synchronization of blocks and batches, nothing else.
+		StatsUpdateFrequencyDivider uint16 `validate:"required,gt=1" env:"HEZNODE_SYNCHRONIZER_STATSUPDATEFREQUENCYDIVIDER"`
+	} `validate:"required"`
+	SmartContracts struct {
+		// Rollup is the address of the Hermez.sol smart contract
+		Rollup ethCommon.Address `validate:"required" env:"HEZNODE_SMARTCONTRACTS_ROLLUP"`
+	} `validate:"required"`
+	API                  APIConfigParameters                  `validate:"required"`
+	RecommendedFeePolicy stateapiupdater.RecommendedFeePolicy `validate:"required"`
+	Debug                NodeDebug                            `validate:"required"`
+	Coordinator          Coordinator                          `validate:"-"`
+	Log                  LogConf                              `validate:"-"`
+}
 
 // APIConfigParameters specifies the configuration parameters of the API
 type APIConfigParameters struct {
