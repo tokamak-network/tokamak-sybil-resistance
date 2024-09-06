@@ -3,12 +3,6 @@
 pragma solidity 0.6.12;
 
 contract Hermez is InstantWithdrawManager {
-    struct VerifierRollup {
-        VerifierRollupInterface verifierInterface;
-        uint256 maxTx; // maximum rollup transactions in a batch: L2-tx + L1-tx transactions
-        uint256 nLevels; // number of levels of the circuit
-    }
-
     // First 256 indexes reserved, first user index will be the 256
     uint48 constant _RESERVED_IDX = 255;
 
