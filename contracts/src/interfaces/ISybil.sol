@@ -5,15 +5,12 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 interface ISybil {
-
     // Events
     event L1TransactionAdded(
         address indexed sender,
         uint48 indexed fromIdx,
         uint48 toIdx,
-        uint32 tokenID,
-        uint40 amount,
-        uint8 transactionType
+        uint40 amount
     );
 
     event QueueCleared(uint32 queueIndex, uint16 numTransactionsCleared);
@@ -38,6 +35,11 @@ interface ISybil {
     error InternalTxNotAllowed();
     error BatchTimeoutExceeded();
     error InvalidProof();
+    error InvalidCreateAccountTransaction();
+    error InvalidCreateAccountDepositTransaction();
+    error InvalidDepositTransaction();
+    error InvalidForceExitTransaction();
+    error InvalidForceExplodeTransaction();
 
     // Initialization function
     function initializeSybilVerifier(
@@ -61,10 +63,7 @@ interface ISybil {
         uint48 fromIdx,
         uint40 loadAmountF,
         uint40 amountF,
-        uint32 tokenID,
-        uint48 toIdx,
-        bytes calldata permit,
-        uint8 transactionType
+        uint48 toIdx
     ) external payable;
 
     function forgeBatch(
@@ -92,9 +91,13 @@ interface ISybil {
     // Getter functions
     function getStateRoot(uint32 batchNum) external view returns (uint256);
     function getLastForgedBatch() external view returns (uint32);
-    function getUniquenessScore(address account) external view returns (uint256);
+    function getUniquenessScore(
+        address account
+    ) external view returns (uint256);
 
     // L1 Transaction Queue functions
-    function getL1TransactionQueue(uint32 queueIndex) external view returns (bytes memory);
+    function getL1TransactionQueue(
+        uint32 queueIndex
+    ) external view returns (bytes memory);
     function getQueueLength() external view returns (uint32);
 }
