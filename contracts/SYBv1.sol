@@ -2,65 +2,44 @@
 
 pragma solidity 0.8.23;
 
-contract Hermez is InstantWithdrawManager {
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "./interfaces/ISybil.sol";
 
-    // First 256 indexes reserved, first user index will be the 256
+contract Sybil is Initializable, OwnableUpgradeable, ISybil {
+
+    //Constants
     uint48 constant _RESERVED_IDX = 255;
-
-    // IDX 1 is reserved for exits
     uint48 constant _EXIT_IDX = 1;
-
-    // IDX 2 is reserved for exits
-    uint48 constant _EXPLODE_IDX = 1;
-
-    // Max load amount allowed (loadAmount: L1 --> L2)
+    uint48 constant _EXPLODE_IDX = 2;
     uint256 constant _LIMIT_LOAD_AMOUNT = (1 << 128);
-
-    // Max amount allowed (amount L2 --> L2)
     uint256 constant _LIMIT_L2TRANSFER_AMOUNT = (1 << 192);
-
-    // [20 bytes] fromEthAddr + [32 bytes] fromBjj-compressed + [6 bytes] fromIdx +
-    // [5 bytes] loadAmountFloat40 + [5 bytes] amountFloat40 + [6 bytes] toIdx
     uint256 constant _L1_USER_TOTALBYTES = 74;
-
-    // Maximum L1 transactions allowed to be queued in a batch
-    // Hermez also has _MAX_L1_USER_TX, since L1txns = L1usertxns + L1Coordinatortxns, but we dont have coordinator txns
     uint256 constant _MAX_L1_TX = 128;
 
-    // Last account index created inside the rollup
+    // 74 = [20 bytes]fromEthAddr + [32 bytes]fromBjj-compressed + [6 bytes]fromIdx +[5 bytes]loadAmountFloat40 + [5 bytes]amountFloat40 + [6 bytes] toIdx
+    // _MAX_L1_TX = Maximum L1 txns allowed to be queued in a batch. Hermez also has _MAX_L1_USER_TX, since L1txns = L1usertxns + L1Coordinatortxns, but we dont have coordinator txns
+
+    //State variables
     uint48 public lastIdx;
-
-    // Last batch forged
     uint32 public lastForgedBatch;
+    uint32 public nextL1ToForgeQueue;
+    uint32 public nextL1FillingQueue;
+    uint64 public lastL1L2Batch;
+    uint8 public forgeL1L2BatchTimeout;
 
-    // Each batch forged will have a correlated 'state root'
+    // lastIdx = Last account index created inside the rollup
+    // lastL1L2Batch = Ethereum block where the last L1-L2-batch was forged
+    // forgeL1L2BatchTimeout = Max ethereum blocks after the last L1-L2-batch, when exceeds the timeout only L1-L2-batch are allowed
+
+
+    // Mappings for various state roots and queue. Each batch forged will have a correlated 'state root', 'vouch root', 'score root' and 'exit root'
     mapping(uint32 => uint256) public stateRootMap;
-
-    // Each batch forged will have a correlated 'vouch root'
     mapping(uint32 => uint256) public vouchRootMap;
-
-    // Each batch forged will have a correlated 'score root'
     mapping(uint32 => uint256) public scoreRootMap;
-
-    // Each batch forged will have a correlated 'exit tree' represented by the exit root
     mapping(uint32 => uint256) public exitRootsMap;
-
-   
-    // Map of queues of L1-user-tx transactions, the transactions are stored in bytes32 sequentially
-    // The coordinator is forced to forge the next queue in the next L1-L2-batch
     mapping(uint32 => bytes) public mapL1TxQueue;
 
-    // Ethereum block where the last L1-L2-batch was forged
-    uint64 public lastL1L2Batch;
-
-    // Queue index that will be forged in the next L1-L2-batch
-    uint32 public nextL1ToForgeQueue;
-
-    // Queue index wich will be filled with the following L1-User-Tx
-    uint32 public nextL1FillingQueue;
-
-    // Max ethereum blocks after the last L1-L2-batch, when exceeds the timeout only L1-L2-batch are allowed
-    uint8 public forgeL1L2BatchTimeout;
 
     // Event emitted when a L1-user transaction is called and added to the nextL1FillingQueue queue
     event L1UserTxEvent(
@@ -92,7 +71,7 @@ contract Hermez is InstantWithdrawManager {
      * @dev Initializer function (equivalent to the constructor). Since we use
      * upgradeable smartcontracts the state vars have to be initialized here.
      */
-    function initializeHermez(
+    function initializeSybil(
         uint8 _forgeL1L2BatchTimeout,
     ) external initializer {
         // set default state variables
