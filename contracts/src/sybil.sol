@@ -1,57 +1,90 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.23;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/ISybil.sol";
 
-contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
-    using SafeERC20 for IERC20;
+contract Sybil is Initializable, OwnableUpgradeable, ISybil {
 
     // Constants
     uint48 constant _RESERVED_IDX = 255;
+    uint48 constant _EXIT_IDX = 1;
+    uint48 constant _EXPLODE_IDX = 2;
     uint256 constant _LIMIT_LOAD_AMOUNT = (1 << 128);
     uint256 constant _LIMIT_L2TRANSFER_AMOUNT = (1 << 192);
+    uint256 constant _L1_USER_TOTALBYTES = 74;
+    uint256 constant _MAX_L1_TX = 128;
     uint8 public constant ABSOLUTE_MAX_L1L2BATCHTIMEOUT = 240;
 
-    // Struct definition
-    struct VerifierRollup {
-        address verifierInterface;
-        uint256 maxTx;
-        uint256 nLevels;
-    }
+    // 74 = [20 bytes]fromEthAddr + [32 bytes]fromBjj-compressed + [6 bytes]fromIdx +[5 bytes]loadAmountFloat40 + [5 bytes]amountFloat40 + [6 bytes] toIdx
+    // _MAX_L1_TX = Maximum L1 txns allowed to be queued in a batch. Hermez also has _MAX_L1_USER_TX, since L1txns = L1usertxns + L1Coordinatortxns, but we dont have coordinator txns
 
-    // Struct for account data
-    struct AccountData {
-        uint256 uniquenessScore;
-        uint48 accountIndex;
-    }
-
-    // State variables
-    VerifierRollup[] public rollupVerifiers;
-    address public withdrawVerifier;
+    //State variables
     uint48 public lastIdx;
     uint32 public lastForgedBatch;
-    uint64 public lastL1L2Batch;
     uint32 public nextL1ToForgeQueue;
     uint32 public nextL1FillingQueue;
+    uint64 public lastL1L2Batch;
     uint8 public forgeL1L2BatchTimeout;
-    uint256 public feeAddToken;
-    address public tokenHEZ;
-    bytes32 public merkleProof;
 
-    // Mappings for various state roots and data
+    // lastIdx = Last account index created inside the rollup
+    // lastL1L2Batch = Ethereum block where the last L1-L2-batch was forged
+    // forgeL1L2BatchTimeout = Max ethereum blocks after the last L1-L2-batch, when exceeds the timeout only L1-L2-batch are allowed
+
+
+    // Mappings for various state roots and queue. Each batch forged will have a correlated 'state root', 'vouch root', 'score root' and 'exit root' and a 'l1L2TxDataHash'
     mapping(uint32 => uint256) public stateRootMap;
+    mapping(uint32 => uint256) public vouchRootMap;
+    mapping(uint32 => uint256) public scoreRootMap;
     mapping(uint32 => uint256) public exitRootsMap;
     mapping(uint32 => bytes32) public l1L2TxsDataHashMap;
-    mapping(uint32 => mapping(uint48 => bool)) public exitNullifierMap;
     mapping(uint32 => bytes) public mapL1TxQueue;
-    mapping(address => AccountData) public accountData;
 
-    address[] public tokenList;
-    mapping(address => uint256) public tokenMap;
+
+    // Event emitted when a L1-user transaction is called and added to the nextL1FillingQueue queue
+    event L1UserTxEvent(
+        uint32 indexed queueIndex,
+        uint8 indexed position, // Position inside the queue where the TX resides
+        bytes l1UserTx
+    );
+
+    // Event emitted every time a batch is forged
+    event ForgeBatch(uint32 indexed batchNum, uint16 l1UserTxsLen);
+
+    // Event emitted when the governance update the `forgeL1L2BatchTimeout`
+    event UpdateForgeL1L2BatchTimeout(uint8 newForgeL1L2BatchTimeout);
+
+    // Event emitted when a withdrawal is done
+    event WithdrawEvent(
+        uint48 indexed idx,
+        uint32 indexed numExitRoot,
+        bool indexed instantWithdraw
+    );
+
+    // Event emitted when the contract is initialized
+    event InitializeHermezEvent(
+        uint8 forgeL1L2BatchTimeout,
+    );
+
+
+    /**
+     * @dev Initializer function (equivalent to the constructor). Since we use
+     * upgradeable smartcontracts the state vars have to be initialized here.
+     */
+    function initializeSybil(
+        uint8 _forgeL1L2BatchTimeout,
+    ) external initializer {
+        // set default state variables
+        lastIdx = _RESERVED_IDX;
+        // lastL1L2Batch = 0 --> first batch forced to be L1Batch
+        // nextL1ToForgeQueue = 0 --> First queue will be forged
+        nextL1FillingQueue = 1;
+        // stateRootMap[0] = 0 --> genesis batch will have root = 0
+        emit InitializeHermezEvent(
+            _forgeL1L2BatchTimeout
+        );
+    }
 
     /**
      * @dev Initializes the Sybil Verifier contract with necessary parameters and settings.
@@ -68,91 +101,85 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
      * @param _withdrawalDelay Delay for withdrawals.
      * @param _withdrawDelayerContract Contract handling withdrawal delays.
      */
+/*
     function initializeSybilVerifier(
-        address[] memory _verifiers,
-        uint256[] memory _verifiersParams,
-        address _withdrawVerifier,
-        address _tokenHEZ,
-        uint8 _forgeL1L2BatchTimeout,
-        uint256 _feeAddToken,
-        address _poseidon2Elements,
-        address _poseidon3Elements,
-        address _poseidon4Elements,
-        address _sybilGovernanceAddress,
-        uint64 _withdrawalDelay,
-        address _withdrawDelayerContract
-    ) external override initializer {
-        __Ownable_init(msg.sender);
+            address[] memory _verifiers,
+            uint256[] memory _verifiersParams,
+            address _withdrawVerifier,
+            address _tokenHEZ,
+            uint8 _forgeL1L2BatchTimeout,
+            uint256 _feeAddToken,
+            address _poseidon2Elements,
+            address _poseidon3Elements,
+            address _poseidon4Elements,
+            address _sybilGovernanceAddress,
+            uint64 _withdrawalDelay,
+            address _withdrawDelayerContract
+        ) external override initializer {
+            __Ownable_init(msg.sender);
+    
+            withdrawVerifier = _withdrawVerifier;
+            tokenHEZ = _tokenHEZ;
+            forgeL1L2BatchTimeout = _forgeL1L2BatchTimeout;
+            feeAddToken = _feeAddToken;
+    
+            lastIdx = _RESERVED_IDX;
+            nextL1FillingQueue = 1;
+            tokenList.push(address(0));
+    
+            emit InitializeSybilVerifierEvent(
+                _forgeL1L2BatchTimeout,
+                _feeAddToken,
+                _withdrawalDelay
+            );
+        }
 
-        withdrawVerifier = _withdrawVerifier;
-        tokenHEZ = _tokenHEZ;
-        forgeL1L2BatchTimeout = _forgeL1L2BatchTimeout;
-        feeAddToken = _feeAddToken;
+*/
 
-        lastIdx = _RESERVED_IDX;
-        nextL1FillingQueue = 1;
-        tokenList.push(address(0));
 
-        emit InitializeSybilVerifierEvent(
-            _forgeL1L2BatchTimeout,
-            _feeAddToken,
-            _withdrawalDelay
-        );
-    }
 
-    /**
-     * @dev Adds an L1 transaction to the queue for processing.
-     * @param babyPubKey The public key for the account.
-     * @param fromIdx The index of the sender's account.
-     * @param loadAmountF The load amount for the transaction.
-     * @param amountF The amount for the transaction.
-     * @param toIdx The index of the recipient's account.
-     *
-     * @notice Different transactions are validated based on the values of `fromIdx` and `toIdx`.
-     *         The following are possible transactions:
-     *         - Create Account: fromIdx = 0, toIdx = 0, loadAmountF = 0, amountF = 0, babyPubKey != 0
-     *         - Create Account Deposit: fromIdx = 0, toIdx = 0, loadAmountF > 0, babyPubKey != 0
-     *         - Deposit: fromIdx >= _RESERVED_IDX, toIdx = 0, babyPubKey = 0
-     *         - ForceExit: fromIdx >= _RESERVED_IDX, toIdx = 1, amountF > 0
-     *         - ForceExplode: fromIdx >= _RESERVED_IDX, toIdx = 2
-     */
+
     function addL1Transaction(
         uint256 babyPubKey,
         uint48 fromIdx,
         uint40 loadAmountF,
         uint40 amountF,
-        uint48 toIdx
+        uint48 toIdx,
     ) external payable {
-        // Check loadAmount
         uint256 loadAmount = _float2Fix(loadAmountF);
         require(
             loadAmount < _LIMIT_LOAD_AMOUNT,
-            "Sybil::addL1Transaction: LOADAMOUNT_EXCEED_LIMIT"
+            "Hermez::addL1Transaction: LOADAMOUNT_EXCEED_LIMIT"
+        );
+        require(
+            loadAmount == msg.value,
+            "Hermez::addL1Transaction: LOADAMOUNT_ETH_DOES_NOT_MATCH"
         );
 
-        // Validate transaction type based on fromIdx and toIdx
-        if (fromIdx == 0 && toIdx == 0) {
+        uint256 amount = _float2Fix(amountF);
+        require(
+            amount < _LIMIT_L2TRANSFER_AMOUNT,
+            "Hermez::_addL1Transaction: AMOUNT_EXCEED_LIMIT"
+        );
+
+        if (fromIdx == 0 && toIdx == 0) {                 //is it safer to bracket each condition?
             // CreateAccount or CreateAccountDeposit
-            if (babyPubKey == 0 || amountF != 0) {
+            if (babyPubKey == 0 || amount != 0) {
                 revert InvalidCreateAccountTransaction();
             }
-            // If loadAmount is non-zero, it is a CreateAccountDeposit
-            if (loadAmount > 0 && loadAmount != msg.value) {
-                revert InvalidCreateAccountDepositTransaction();
-            }
-        } else if (fromIdx >= _RESERVED_IDX && toIdx == 0) {
+        } else if (toIdx == 0 && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
             // Deposit transaction
-            if (babyPubKey != 0 || amountF != 0) {
+            if (babyPubKey != 0 || amount != 0) {
                 revert InvalidDepositTransaction();
             }
-        } else if (fromIdx >= _RESERVED_IDX && toIdx == 1) {
+        } else if (toIdx == _EXIT_IDX && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
             // ForceExit transaction
-            if (amountF == 0 || babyPubKey != 0 || loadAmount != 0) {
+            if (babyPubKey != 0 || loadAmount != 0) {
                 revert InvalidForceExitTransaction();
             }
-        } else if (fromIdx >= _RESERVED_IDX && toIdx == 2) {
+        } else if (toIdx == _EXPLODE_IDX && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
             // ForceExplode transaction
-            if (babyPubKey != 0 || amountF != 0 || loadAmount != 0) {
+            if (babyPubKey != 0 || amount != 0 || loadAmount != 0) {
                 revert InvalidForceExplodeTransaction();
             }
         } else {
@@ -160,8 +187,7 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
             revert("Invalid transaction parameters");
         }
 
-        // Perform L1 User Transaction
-        _addL1Transaction(
+        _l1QueueAddTx(
             msg.sender,
             babyPubKey,
             fromIdx,
@@ -169,21 +195,10 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
             amountF,
             toIdx
         );
-
-        // Emit event with the appropriate interpretation of `toIdx`
-        emit L1TransactionAdded(msg.sender, fromIdx, toIdx, amountF);
     }
 
-    /**
-     * @dev Internal function to append an L1 transaction to the queue.
-     * @param ethAddress The sender's address.
-     * @param babyPubKey The public key for the account.
-     * @param fromIdx The index of the sender's account.
-     * @param loadAmountF The load amount for the transaction.
-     * @param amountF The amount for the transaction.
-     * @param toIdx The index of the recipient's account.
-     */
-    function _addL1Transaction(
+
+    function _l1QueueAddTx(
         address ethAddress,
         uint256 babyPubKey,
         uint48 fromIdx,
@@ -191,7 +206,6 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
         uint40 amountF,
         uint48 toIdx
     ) internal {
-        // Encode the transaction data
         bytes memory l1Tx = abi.encodePacked(
             ethAddress,
             babyPubKey,
@@ -201,8 +215,8 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
             toIdx
         );
 
-        // Get the current position in the queue
-        uint256 currentPosition = mapL1TxQueue[nextL1FillingQueue].length;
+        uint256 currentPosition = mapL1TxQueue[nextL1FillingQueue].length /
+            _L1_USER_TOTALBYTES;
 
         // Append the transaction to the queue
         mapL1TxQueue[nextL1FillingQueue] = bytes.concat(
@@ -210,55 +224,47 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
             l1Tx
         );
 
-        // If the queue exceeds the maximum transactions, move to the next queue
-        if ((currentPosition + l1Tx.length) >= _LIMIT_L2TRANSFER_AMOUNT) {
+        emit L1UserTxEvent(nextL1FillingQueue, uint8(currentPosition), l1Tx);
+
+        if (currentPosition + 1 >= _MAX_L1_TX) {
             nextL1FillingQueue++;
         }
     }
 
+
     /**
-     * @dev Clears the queue after processing transactions.
-     * @return Number of transactions cleared from the queue.
+     * @dev Clear the current queue, and update the `nextL1ToForgeQueue` and `nextL1FillingQueue` if needed
      */
     function _clearQueue() internal returns (uint16) {
-        uint16 l1UserTxsLen = uint16(mapL1TxQueue[nextL1ToForgeQueue].length);
+        uint16 l1UserTxsLen = uint16(
+            mapL1TxQueue[nextL1ToForgeQueue].length / _L1_USER_TOTALBYTES
+        );
         delete mapL1TxQueue[nextL1ToForgeQueue];
         nextL1ToForgeQueue++;
         if (nextL1ToForgeQueue == nextL1FillingQueue) {
             nextL1FillingQueue++;
         }
-
-        emit QueueCleared(nextL1ToForgeQueue, l1UserTxsLen);
+        //emit QueueCleared(nextL1ToForgeQueue, l1UserTxsLen);
+        // do we need an event here?
         return l1UserTxsLen;
     }
 
-    /**
-     * @dev Forges a batch of transactions, processing L1 and/or L2 batches.
-     * @param newLastIdx The index of the last processed account.
-     * @param newStRoot The new state root.
-     * @param newExitRoot The new exit root.
-     * @param encodedL1CoordinatorTx Encoded data for L1 coordinator transaction.
-     * @param l1L2TxsData Encoded L1 and L2 transaction data.
-     * @param feeIdxCoordinator Coordinator index for fees.
-     * @param verifierIdx Index of the verifier to use.
-     * @param l1Batch Boolean flag indicating if this is an L1 batch.
-     * @param proofA Proof part A for zk-SNARK verification.
-     * @param proofB Proof part B for zk-SNARK verification.
-     * @param proofC Proof part C for zk-SNARK verification.
-     */
+
+
     function forgeBatch(
         uint48 newLastIdx,
         uint256 newStRoot,
+        uint256 newVouchRoot,
+        uint256 newScoreRoot,
         uint256 newExitRoot,
-        bytes calldata encodedL1CoordinatorTx,
-        bytes calldata l1L2TxsData,
-        bytes calldata feeIdxCoordinator,
-        uint8 verifierIdx,
+        //bytes calldata encodedL1CoordinatorTx,
+        //bytes calldata l1L2TxsData,
+        //uint8 verifierIdx,
         bool l1Batch,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
-    ) external override {
+        //uint256[2] calldata proofA,
+        //uint256[2][2] calldata proofB,
+        //uint256[2] calldata proofC
+    ) external virtual {
         if (msg.sender != tx.origin) {
             revert InternalTxNotAllowed();
         }
@@ -269,29 +275,12 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
             revert BatchTimeoutExceeded();
         }
 
-        uint256 input = _constructCircuitInput(
-            newLastIdx,
-            newStRoot,
-            newExitRoot,
-            l1Batch,
-            verifierIdx
-        );
-
-        if (
-            !_verifyProof(
-                rollupVerifiers[verifierIdx].verifierInterface,
-                proofA,
-                proofB,
-                proofC,
-                input
-            )
-        ) {
-            revert InvalidProof();
-        }
-
+        // update state
         lastForgedBatch++;
         lastIdx = newLastIdx;
         stateRootMap[lastForgedBatch] = newStRoot;
+        vouchRootMap[lastForgedBatch] = newVouchRoot;
+        scoreRootMap[lastForgedBatch] = newScoreRoot;
         exitRootsMap[lastForgedBatch] = newExitRoot;
         l1L2TxsDataHashMap[lastForgedBatch] = sha256(l1L2TxsData);
 
@@ -301,14 +290,12 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
             l1UserTxsLen = _clearQueue();
         }
 
-        emit BatchForged(
-            lastForgedBatch,
-            newLastIdx,
-            newStRoot,
-            newExitRoot,
-            l1Batch ? 1 : 0
-        ); // 1: L1, 0: L2
+        emit ForgeBatch(lastForgedBatch, l1UserTxsLen);
     }
+
+
+
+
 
     /**
      * @dev Sets the L1/L2 batch timeout.
@@ -319,34 +306,11 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
     ) external override onlyOwner {
         require(
             newTimeout <= ABSOLUTE_MAX_L1L2BATCHTIMEOUT,
-            "SybilVerifier::setForgeL1L2BatchTimeout: MAX_TIMEOUT_EXCEEDED"
+            "Sybil::setForgeL1L2BatchTimeout: MAX_TIMEOUT_EXCEEDED"
         );
         forgeL1L2BatchTimeout = newTimeout;
     }
 
-    /**
-     * @dev Sets the fee for adding a new token.
-     * @param newFee The new fee to be charged for adding a token.
-     */
-    function setFeeAddToken(uint256 newFee) external override onlyOwner {
-        feeAddToken = newFee;
-    }
-
-    /**
-     * @dev Sets the Merkle proof for the verifier.
-     * @param proof The Merkle proof.
-     */
-    function setMerkleProof(bytes32 proof) external override onlyOwner {
-        merkleProof = proof;
-    }
-
-    /**
-     * @dev Returns the Merkle proof.
-     * @return The Merkle proof.
-     */
-    function getMerkleProof() external view override returns (bytes32) {
-        return merkleProof;
-    }
 
     // Getter functions
     function getStateRoot(
@@ -357,12 +321,6 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
 
     function getLastForgedBatch() external view override returns (uint32) {
         return lastForgedBatch;
-    }
-
-    function getUniquenessScore(
-        address account
-    ) external view override returns (uint256) {
-        return accountData[account].uniquenessScore;
     }
 
     function getL1TransactionQueue(
@@ -380,34 +338,4 @@ contract SybilVerifier is Initializable, OwnableUpgradeable, ISybil {
         return uint256(floatVal) * 10 ** (18 - 8);
     }
 
-    // Placeholder for proof verification logic
-    function _verifyProof(
-        address verifier,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC,
-        uint256 input
-    ) internal view returns (bool) {
-        return true; // Placeholder logic
-    }
-
-    // Placeholder for constructing circuit input
-    function _constructCircuitInput(
-        uint48 newLastIdx,
-        uint256 newStRoot,
-        uint256 newExitRoot,
-        bool l1Batch,
-        uint8 verifierIdx
-    ) internal view returns (uint256) {
-        return 0; // Placeholder logic
-    }
-
-    // Placeholder for ERC20 permit functionality
-    function _permit(
-        address token,
-        uint256 _amount,
-        bytes calldata _permitData
-    ) internal {
-        // Placeholder logic
-    }
 }
