@@ -152,20 +152,14 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         //uint256[2][2] calldata proofB,
         //uint256[2] calldata proofC
     ) external virtual {
-        // Assure data availability from regular ethereum nodes
-        // We include this line because it's easier to track the transaction data, as it will never be in an internal TX.
-        // In general this makes no sense, as callling this function from another smart contract will have to pay the calldata twice.
-        // But forcing, it avoids having to check.
-        require(
-            msg.sender == tx.origin,
-            "Hermez::forgeBatch: INTENAL_TX_NOT_ALLOWED"
-        );
+        if (msg.sender != tx.origin) {
+            revert InternalTxNotAllowed();
+        }
 
-        if (!l1Batch) {
-            require(
-                block.number < (lastL1L2Batch + forgeL1L2BatchTimeout), // No overflow since forgeL1L2BatchTimeout is an uint8
-                "Hermez::forgeBatch: L1L2BATCH_REQUIRED"
-            );
+        if (
+            !l1Batch && block.number >= (lastL1L2Batch + forgeL1L2BatchTimeout)
+        ) {
+            revert BatchTimeoutExceeded();
         }
 
         // update state
