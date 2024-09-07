@@ -308,5 +308,30 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     }
 
 
+    // Getter functions
+    function getStateRoot(
+        uint32 batchNum
+    ) external view override returns (uint256) {
+        return stateRootMap[batchNum];
+    }
+
+    function getLastForgedBatch() external view override returns (uint32) {
+        return lastForgedBatch;
+    }
+
+    function getL1TransactionQueue(
+        uint32 queueIndex
+    ) external view override returns (bytes memory) {
+        return mapL1TxQueue[queueIndex];
+    }
+
+    function getQueueLength() external view override returns (uint32) {
+        return nextL1FillingQueue - nextL1ToForgeQueue;
+    }
+
+    // Placeholder for floating point to fixed point conversion
+    function _float2Fix(uint40 floatVal) internal pure returns (uint256) {
+        return uint256(floatVal) * 10 ** (18 - 8);
+    }
 
 }
