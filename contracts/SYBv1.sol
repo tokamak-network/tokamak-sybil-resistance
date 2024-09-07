@@ -293,5 +293,20 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     }
 
 
+    /**
+     * @dev Sets the L1/L2 batch timeout.
+     * @param newTimeout New timeout value for the batches.
+     */
+    function setForgeL1L2BatchTimeout(
+        uint8 newTimeout
+    ) external override onlyOwner {
+        require(
+            newTimeout <= ABSOLUTE_MAX_L1L2BATCHTIMEOUT,
+            "SybilVerifier::setForgeL1L2BatchTimeout: MAX_TIMEOUT_EXCEEDED"
+        );
+        forgeL1L2BatchTimeout = newTimeout;
+    }
+
+
 
 }
