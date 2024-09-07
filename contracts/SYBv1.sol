@@ -245,6 +245,8 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         if (nextL1ToForgeQueue == nextL1FillingQueue) {
             nextL1FillingQueue++;
         }
+        //emit QueueCleared(nextL1ToForgeQueue, l1UserTxsLen);
+        // do we need an event here?
         return l1UserTxsLen;
     }
 
