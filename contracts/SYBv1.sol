@@ -219,7 +219,6 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         uint256 currentPosition = mapL1TxQueue[nextL1FillingQueue].length /
             _L1_USER_TOTALBYTES;
 
-
         // Append the transaction to the queue
         mapL1TxQueue[nextL1FillingQueue] = bytes.concat(
             mapL1TxQueue[nextL1FillingQueue],
