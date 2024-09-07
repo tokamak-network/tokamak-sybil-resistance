@@ -139,49 +139,6 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
 
 
 
-    function forgeBatch(
-        uint48 newLastIdx,
-        uint256 newStRoot,
-        uint256 newVouchRoot,
-        uint256 newScoreRoot,
-        uint256 newExitRoot,
-        //bytes calldata encodedL1CoordinatorTx,
-        //bytes calldata l1L2TxsData,
-        //uint8 verifierIdx,
-        bool l1Batch,
-        //uint256[2] calldata proofA,
-        //uint256[2][2] calldata proofB,
-        //uint256[2] calldata proofC
-    ) external virtual {
-        if (msg.sender != tx.origin) {
-            revert InternalTxNotAllowed();
-        }
-
-        if (
-            !l1Batch && block.number >= (lastL1L2Batch + forgeL1L2BatchTimeout)
-        ) {
-            revert BatchTimeoutExceeded();
-        }
-
-        // update state
-        lastForgedBatch++;
-        lastIdx = newLastIdx;
-        stateRootMap[lastForgedBatch] = newStRoot;
-        vouchRootMap[lastForgedBatch] = newVouchRoot;
-        scoreRootMap[lastForgedBatch] = newScoreRoot;
-        exitRootsMap[lastForgedBatch] = newExitRoot;
-        l1L2TxsDataHashMap[lastForgedBatch] = sha256(l1L2TxsData);
-
-        uint16 l1UserTxsLen;
-        if (l1Batch) {
-            lastL1L2Batch = uint64(block.number);
-            l1UserTxsLen = _clearQueue();
-        }
-
-        emit ForgeBatch(lastForgedBatch, l1UserTxsLen);
-    }
-
-
     function addL1Transaction(
         uint256 babyPubKey,
         uint48 fromIdx,
@@ -291,6 +248,53 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         }
         return l1UserTxsLen;
     }
+
+
+
+    function forgeBatch(
+        uint48 newLastIdx,
+        uint256 newStRoot,
+        uint256 newVouchRoot,
+        uint256 newScoreRoot,
+        uint256 newExitRoot,
+        //bytes calldata encodedL1CoordinatorTx,
+        //bytes calldata l1L2TxsData,
+        //uint8 verifierIdx,
+        bool l1Batch,
+        //uint256[2] calldata proofA,
+        //uint256[2][2] calldata proofB,
+        //uint256[2] calldata proofC
+    ) external virtual {
+        if (msg.sender != tx.origin) {
+            revert InternalTxNotAllowed();
+        }
+
+        if (
+            !l1Batch && block.number >= (lastL1L2Batch + forgeL1L2BatchTimeout)
+        ) {
+            revert BatchTimeoutExceeded();
+        }
+
+        // update state
+        lastForgedBatch++;
+        lastIdx = newLastIdx;
+        stateRootMap[lastForgedBatch] = newStRoot;
+        vouchRootMap[lastForgedBatch] = newVouchRoot;
+        scoreRootMap[lastForgedBatch] = newScoreRoot;
+        exitRootsMap[lastForgedBatch] = newExitRoot;
+        l1L2TxsDataHashMap[lastForgedBatch] = sha256(l1L2TxsData);
+
+        uint16 l1UserTxsLen;
+        if (l1Batch) {
+            lastL1L2Batch = uint64(block.number);
+            l1UserTxsLen = _clearQueue();
+        }
+
+        emit ForgeBatch(lastForgedBatch, l1UserTxsLen);
+    }
+
+
+
 
 
     /**
