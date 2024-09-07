@@ -69,13 +69,11 @@ contract Hermez is InstantWithdrawManager {
         bytes l1UserTx
     );
 
-
     // Event emitted every time a batch is forged
     event ForgeBatch(uint32 indexed batchNum, uint16 l1UserTxsLen);
 
     // Event emitted when the governance update the `forgeL1L2BatchTimeout`
     event UpdateForgeL1L2BatchTimeout(uint8 newForgeL1L2BatchTimeout);
-
 
     // Event emitted when a withdrawal is done
     event WithdrawEvent(
@@ -88,6 +86,7 @@ contract Hermez is InstantWithdrawManager {
     event InitializeHermezEvent(
         uint8 forgeL1L2BatchTimeout,
     );
+
 
     /**
      * @dev Initializer function (equivalent to the constructor). Since we use
