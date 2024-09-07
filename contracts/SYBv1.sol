@@ -174,9 +174,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
 
         uint16 l1UserTxsLen;
         if (l1Batch) {
-            // restart the timeout
             lastL1L2Batch = uint64(block.number);
-            // clear current queue
             l1UserTxsLen = _clearQueue();
         }
 
