@@ -85,7 +85,59 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         );
     }
 
-  
+    /**
+     * @dev Initializes the Sybil Verifier contract with necessary parameters and settings.
+     * @param _verifiers Array of verifier addresses.
+     * @param _verifiersParams Array of verifier parameters (e.g., maxTx, nLevels).
+     * @param _withdrawVerifier Address of the withdrawal verifier.
+     * @param _tokenHEZ Address of the token to be used for fees.
+     * @param _forgeL1L2BatchTimeout The timeout for L1/L2 batch forging.
+     * @param _feeAddToken Fee required to add a token.
+     * @param _poseidon2Elements Address for Poseidon 2 elements.
+     * @param _poseidon3Elements Address for Poseidon 3 elements.
+     * @param _poseidon4Elements Address for Poseidon 4 elements.
+     * @param _sybilGovernanceAddress Governance contract address.
+     * @param _withdrawalDelay Delay for withdrawals.
+     * @param _withdrawDelayerContract Contract handling withdrawal delays.
+     */
+/*
+    function initializeSybilVerifier(
+            address[] memory _verifiers,
+            uint256[] memory _verifiersParams,
+            address _withdrawVerifier,
+            address _tokenHEZ,
+            uint8 _forgeL1L2BatchTimeout,
+            uint256 _feeAddToken,
+            address _poseidon2Elements,
+            address _poseidon3Elements,
+            address _poseidon4Elements,
+            address _sybilGovernanceAddress,
+            uint64 _withdrawalDelay,
+            address _withdrawDelayerContract
+        ) external override initializer {
+            __Ownable_init(msg.sender);
+    
+            withdrawVerifier = _withdrawVerifier;
+            tokenHEZ = _tokenHEZ;
+            forgeL1L2BatchTimeout = _forgeL1L2BatchTimeout;
+            feeAddToken = _feeAddToken;
+    
+            lastIdx = _RESERVED_IDX;
+            nextL1FillingQueue = 1;
+            tokenList.push(address(0));
+    
+            emit InitializeSybilVerifierEvent(
+                _forgeL1L2BatchTimeout,
+                _feeAddToken,
+                _withdrawalDelay
+            );
+        }
+
+*/
+
+
+
+
     function forgeBatch(
         uint48 newLastIdx,
         uint256 newStRoot,
