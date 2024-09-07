@@ -7,7 +7,7 @@ import "./interfaces/ISybil.sol";
 
 contract Sybil is Initializable, OwnableUpgradeable, ISybil {
 
-    //Constants
+    // Constants
     uint48 constant _RESERVED_IDX = 255;
     uint48 constant _EXIT_IDX = 1;
     uint48 constant _EXPLODE_IDX = 2;
