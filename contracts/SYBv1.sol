@@ -15,6 +15,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     uint256 constant _LIMIT_L2TRANSFER_AMOUNT = (1 << 192);
     uint256 constant _L1_USER_TOTALBYTES = 74;
     uint256 constant _MAX_L1_TX = 128;
+    uint8 public constant ABSOLUTE_MAX_L1L2BATCHTIMEOUT = 240;
 
     // 74 = [20 bytes]fromEthAddr + [32 bytes]fromBjj-compressed + [6 bytes]fromIdx +[5 bytes]loadAmountFloat40 + [5 bytes]amountFloat40 + [6 bytes] toIdx
     // _MAX_L1_TX = Maximum L1 txns allowed to be queued in a batch. Hermez also has _MAX_L1_USER_TX, since L1txns = L1usertxns + L1Coordinatortxns, but we dont have coordinator txns
