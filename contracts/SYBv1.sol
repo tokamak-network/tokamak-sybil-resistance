@@ -145,7 +145,6 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         uint40 amountF,
         uint48 toIdx,
     ) external payable {
-
         uint256 loadAmount = _float2Fix(loadAmountF);
         require(
             loadAmount < _LIMIT_LOAD_AMOUNT,
