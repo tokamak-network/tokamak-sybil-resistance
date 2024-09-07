@@ -33,11 +33,12 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     // forgeL1L2BatchTimeout = Max ethereum blocks after the last L1-L2-batch, when exceeds the timeout only L1-L2-batch are allowed
 
 
-    // Mappings for various state roots and queue. Each batch forged will have a correlated 'state root', 'vouch root', 'score root' and 'exit root'
+    // Mappings for various state roots and queue. Each batch forged will have a correlated 'state root', 'vouch root', 'score root' and 'exit root' and a 'l1L2TxDataHash'
     mapping(uint32 => uint256) public stateRootMap;
     mapping(uint32 => uint256) public vouchRootMap;
     mapping(uint32 => uint256) public scoreRootMap;
     mapping(uint32 => uint256) public exitRootsMap;
+    mapping(uint32 => bytes32) public l1L2TxsDataHashMap;
     mapping(uint32 => bytes) public mapL1TxQueue;
 
 
