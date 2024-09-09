@@ -1,0 +1,7 @@
+{
+    "singleTx": {
+        "file": "singleTx",
+        "template": "SingleTx",
+        "params": [1]
+    }
+}

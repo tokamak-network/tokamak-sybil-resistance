@@ -6,10 +6,19 @@ async function main() {
         protocol: "groth16",
     });
 
-    // main()
-    // .then(() => process.exit(0))
-    // .catch((e) => {
-    //     console.error(e);
-    //     process.exit(1);
-    // });
+    await circomkit.compile("src/singleTx", {
+        file:"singleTx",
+        template:"SingleTx",
+        params:[1],
+    });
+
+    await circomkit.prove("singleTx", "singleTx_input");
+
+    const ok = await circomkit.verify("singleTx","singleTx_input");
+
+    if (ok) {
+        console.log("Proof is valid", "success");
+    } else {
+        console.log("Proof is invalid", "error");
+    }
 }

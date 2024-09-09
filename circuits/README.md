@@ -6,3 +6,9 @@
 </p>
 
 WIP: Will use [circomkit](https://github.com/erhant/circomkit) tools.
+
+
+
+# Usage
+
+npx circomkit compile singleTx

@@ -3,6 +3,7 @@ node_modules/
 
 #scoring_algorithm_js
 circuits/scoring_algorithm_js/
+circuits/build/
 
 #circom
 *.r1cs
