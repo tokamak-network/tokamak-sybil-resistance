@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "singleTx": "ts-node src/index.ts"
   },
   "keywords": [],
   "author": "",
@@ -11,10 +12,13 @@
   "description": "",
   "dependencies": {
     "circomkit": "^0.2.1",
-    "circomlib": "^2.0.5"
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7"
   },
   "devDependencies": {
+    "@types/loglevel": "^1.6.3",
     "@types/node": "^22.5.3",
+    "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }
 }

@@ -8,7 +8,13 @@
 WIP: Will use [circomkit](https://github.com/erhant/circomkit) tools.
 
 
+# Install
+`npm install` to install dependencies
+
 
 # Usage
+To generate the proof and verify the process for **singleTx** in one step, run the following command:
 
-npx circomkit compile singleTx
+~~~bash
+npm run singleTx
+~~~

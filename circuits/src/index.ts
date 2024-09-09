@@ -6,15 +6,11 @@ async function main() {
         protocol: "groth16",
     });
 
-    await circomkit.compile("src/singleTx", {
-        file:"singleTx",
-        template:"SingleTx",
-        params:[1],
-    });
+    const proof = await circomkit.prove("singleTx", "test");
 
-    await circomkit.prove("singleTx", "singleTx_input");
+    console.log("Proof generated:", proof);
 
-    const ok = await circomkit.verify("singleTx","singleTx_input");
+    const ok = await circomkit.verify("singleTx","test");
 
     if (ok) {
         console.log("Proof is valid", "success");
@@ -22,3 +18,10 @@ async function main() {
         console.log("Proof is invalid", "error");
     }
 }
+
+main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
