@@ -28,6 +28,7 @@ type RollupData struct {
 	Withdrawals          []WithdrawInfo
 	UpdateBucketWithdraw []BucketUpdate
 	Vars                 *RollupVariables
+	AddedTokens          []Token
 }
 
 // NewRollupData creates an empty RollupData with the slices initialized.

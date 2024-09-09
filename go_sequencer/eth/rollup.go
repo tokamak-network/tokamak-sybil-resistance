@@ -48,12 +48,6 @@ type RollupEventL1UserTx struct {
 	L1UserTx common.L1Tx
 }
 
-// RollupEventAddToken is an event of the Rollup Smart Contract
-type RollupEventAddToken struct {
-	TokenAddress ethCommon.Address
-	TokenID      uint32
-}
-
 // RollupEventForgeBatch is an event of the Rollup Smart Contract
 type RollupEventForgeBatch struct {
 	BatchNum int64
@@ -122,7 +116,6 @@ type RollupEventSafeMode struct{}
 // RollupEvents is the list of events in a block of the Rollup Smart Contract
 type RollupEvents struct {
 	L1UserTx                    []RollupEventL1UserTx
-	AddToken                    []RollupEventAddToken
 	ForgeBatch                  []RollupEventForgeBatch
 	UpdateForgeL1L2BatchTimeout []RollupEventUpdateForgeL1L2BatchTimeout
 	UpdateFeeAddToken           []RollupEventUpdateFeeAddToken

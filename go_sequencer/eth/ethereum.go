@@ -40,12 +40,12 @@ type EthereumConfig struct {
 // EthereumClient is an ethereum client to call Smart Contract methods and check blockchain
 // information.
 type EthereumClient struct {
-	client *ethclient.Client
-	// chainID *big.Int
+	client  *ethclient.Client
+	chainID *big.Int
 	account *accounts.Account
 	ks      *ethKeystore.KeyStore
-	// config  *EthereumConfig
-	// opts    *bind.CallOpts
+	config  *EthereumConfig
+	opts    *bind.CallOpts
 }
 
 // EthereumInterface is the interface to Ethereum

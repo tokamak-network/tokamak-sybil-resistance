@@ -24,6 +24,28 @@ func NewHistoryDB(dbRead, dbWrite *sqlx.DB, apiConnCon *database.APIConnectionCo
 	}
 }
 
+// DB returns a pointer to the L2DB.db. This method should be used only for
+// internal testing purposes.
+func (hdb *HistoryDB) DB() *sqlx.DB {
+	return hdb.dbWrite
+}
+
+// AddBlock insert a block into the DB
+func (hdb *HistoryDB) AddBlock(block *common.Block) error { return hdb.addBlock(hdb.dbWrite, block) }
+func (hdb *HistoryDB) addBlock(d meddler.DB, block *common.Block) error {
+	return common.Wrap(meddler.Insert(d, "block", block))
+}
+
+// GetBlock retrieve a block from the DB, given a block number
+func (hdb *HistoryDB) GetBlock(blockNum int64) (*common.Block, error) {
+	block := &common.Block{}
+	err := meddler.QueryRow(
+		hdb.dbRead, block,
+		"SELECT * FROM block WHERE eth_block_num = $1;", blockNum,
+	)
+	return block, common.Wrap(err)
+}
+
 // GetLastBlock retrieve the block with the highest block number from the DB
 func (hdb *HistoryDB) GetLastBlock() (*common.Block, error) {
 	block := &common.Block{}
@@ -31,6 +53,17 @@ func (hdb *HistoryDB) GetLastBlock() (*common.Block, error) {
 		hdb.dbRead, block, "SELECT * FROM block ORDER BY eth_block_num DESC LIMIT 1;",
 	)
 	return block, common.Wrap(err)
+}
+
+// getBlocks retrieve blocks from the DB, given a range of block numbers defined by from and to
+func (hdb *HistoryDB) getBlocks(from, to int64) ([]common.Block, error) {
+	var blocks []*common.Block
+	err := meddler.QueryAll(
+		hdb.dbRead, &blocks,
+		"SELECT * FROM block WHERE $1 <= eth_block_num AND eth_block_num < $2 ORDER BY eth_block_num;",
+		from, to,
+	)
+	return database.SlicePtrsToSlice(blocks).([]common.Block), common.Wrap(err)
 }
 
 // GetSCVars returns the rollup, auction and wdelayer smart contracts variables at their last update.
@@ -113,29 +146,4 @@ func (hdb *HistoryDB) GetLastL1TxsNum() (*int64, error) {
 	row := hdb.dbRead.QueryRow("SELECT MAX(forge_l1_txs_num) FROM batch;")
 	lastL1TxsNum := new(int64)
 	return lastL1TxsNum, common.Wrap(row.Scan(&lastL1TxsNum))
-}
-
-// GetBestBidCoordinator returns the forger address of the highest bidder in a slot by slotNum
-func (hdb *HistoryDB) GetBidCoordinator(slotNum int64) (*common.BidCoordinator, error) {
-	bidCoord := &common.BidCoordinator{}
-	err := meddler.QueryRow(
-		hdb.dbRead, bidCoord,
-		`SELECT (
-			SELECT default_slot_set_bid
-			FROM auction_vars
-			WHERE default_slot_set_bid_slot_num <= $1
-			ORDER BY eth_block_num DESC LIMIT 1
-		),
-		bid.slot_num, bid.bid_value, bid.bidder_addr,
-		coordinator.forger_addr, coordinator.url
-		FROM bid
-		INNER JOIN (
-			SELECT bidder_addr, MAX(item_id) AS item_id FROM coordinator
-			GROUP BY bidder_addr
-		) c ON bid.bidder_addr = c.bidder_addr 
-		INNER JOIN coordinator ON c.item_id = coordinator.item_id
-		WHERE bid.slot_num = $1 ORDER BY bid.item_id DESC LIMIT 1;`,
-		slotNum)
-
-	return bidCoord, common.Wrap(err)
 }

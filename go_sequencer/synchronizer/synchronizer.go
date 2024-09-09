@@ -2,7 +2,9 @@ package synchronizer
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 	"tokamak-sybil-resistance/common"
@@ -11,6 +13,7 @@ import (
 	"tokamak-sybil-resistance/database/statedb"
 	"tokamak-sybil-resistance/eth"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 )
 
@@ -84,14 +87,14 @@ type Config struct {
 // Synchronizer implements the Synchronizer type
 type Synchronizer struct {
 	EthClient        eth.ClientInterface
-	consts           common.SCConsts
+	consts           *common.RollupConstants
 	historyDB        *historydb.HistoryDB
 	l2DB             *l2db.L2DB
 	stateDB          *statedb.StateDB
 	cfg              Config
-	initVars         common.SCVariables
+	initVars         common.RollupVariables
 	startBlockNum    int64
-	vars             common.SCVariables
+	vars             common.RollupVariables
 	stats            *StatsHolder
 	resetStateFailed bool
 }
@@ -104,11 +107,8 @@ func NewSynchronizer(ethClient eth.ClientInterface, historyDB *historydb.History
 		return nil, common.Wrap(fmt.Errorf("NewSynchronizer ethClient.RollupConstants(): %w",
 			err))
 	}
-	consts := common.SCConsts{
-		Rollup: *rollupConstants,
-	}
 
-	initVars, startBlockNum, err := getInitialVariables(ethClient, &consts)
+	initVars, startBlockNum, err := getInitialVariables(ethClient, rollupConstants)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -116,7 +116,7 @@ func NewSynchronizer(ethClient eth.ClientInterface, historyDB *historydb.History
 	stats := NewStatsHolder(startBlockNum, cfg.StatsUpdateBlockNumDiffThreshold, cfg.StatsUpdateFrequencyDivider)
 	s := &Synchronizer{
 		EthClient:     ethClient,
-		consts:        consts,
+		consts:        rollupConstants,
 		historyDB:     historyDB,
 		l2DB:          l2DB,
 		stateDB:       stateDB,
@@ -133,15 +133,13 @@ func (s *Synchronizer) Sync(ctx context.Context, lastSavedBlock *common.Block) (
 }
 
 func getInitialVariables(ethClient eth.ClientInterface,
-	consts *common.SCConsts) (*common.SCVariables, int64, error) {
-	rollupInit, rollupInitBlock, err := ethClient.RollupEventInit(consts.Rollup.GenesisBlockNum)
+	consts *common.RollupConstants) (*common.RollupVariables, int64, error) {
+	rollupInit, rollupInitBlock, err := ethClient.RollupEventInit(consts.GenesisBlockNum)
 	if err != nil {
 		return nil, 0, common.Wrap(fmt.Errorf("RollupEventInit: %w", err))
 	}
 	rollupVars := rollupInit.RollupVariables()
-	return &common.SCVariables{
-		Rollup: *rollupVars,
-	}, rollupInitBlock, nil
+	return rollupVars, rollupInitBlock, nil
 }
 
 func (s *Synchronizer) init() error {
@@ -199,5 +197,64 @@ func (s *StatsHolder) UpdateEth(ethClient eth.ClientInterface) error {
 	s.Eth.LastBlock = *lastBlock
 	s.Eth.LastBatchNum = lastBatchNum
 	s.rw.Unlock()
+	return nil
+}
+
+func (s *Synchronizer) resetState(block *common.Block) error {
+	rollup, err := s.historyDB.GetSCVars()
+	// If SCVars are not in the HistoryDB, this is probably the first run
+	// of the Synchronizer: store the initial vars taken from config
+	if common.Unwrap(err) == sql.ErrNoRows {
+		vars := s.initVars
+		log.Info("Setting initial SCVars in HistoryDB")
+		if err = s.historyDB.SetInitialSCVars(&vars); err != nil {
+			return common.Wrap(fmt.Errorf("historyDB.SetInitialSCVars: %w", err))
+		}
+		s.vars = *vars.Copy()
+		// Add initial boot coordinator to HistoryDB
+		if err := s.historyDB.AddCoordinators([]common.Coordinator{{
+			Forger:      ethCommon.HexToAddress(os.Getenv("BootCoordinator")),
+			URL:         os.Getenv("BootCoordinatorURL"),
+			EthBlockNum: s.initVars.EthBlockNum,
+		}}); err != nil {
+			return common.Wrap(err)
+		}
+	} else if err != nil {
+		return common.Wrap(err)
+	} else {
+		s.vars = *rollup
+	}
+
+	batch, err := s.historyDB.GetLastBatch()
+	if err != nil && common.Unwrap(err) != sql.ErrNoRows {
+		return common.Wrap(fmt.Errorf("historyDB.GetLastBatchNum: %w", err))
+	}
+	if common.Unwrap(err) == sql.ErrNoRows {
+		batch = &common.Batch{}
+	}
+
+	err = s.stateDB.Reset(batch.BatchNum)
+	if err != nil {
+		return common.Wrap(fmt.Errorf("stateDB.Reset: %w", err))
+	}
+
+	lastL1BatchBlockNum, err := s.historyDB.GetLastL1BatchBlockNum()
+	if err != nil && common.Unwrap(err) != sql.ErrNoRows {
+		return common.Wrap(fmt.Errorf("historyDB.GetLastL1BatchBlockNum: %w", err))
+	}
+	if common.Unwrap(err) == sql.ErrNoRows {
+		lastL1BatchBlockNum = 0
+	}
+
+	lastForgeL1TxsNum, err := s.historyDB.GetLastL1TxsNum()
+	if err != nil && common.Unwrap(err) != sql.ErrNoRows {
+		return common.Wrap(fmt.Errorf("historyDB.GetLastL1BatchBlockNum: %w", err))
+	}
+	if common.Unwrap(err) == sql.ErrNoRows || lastForgeL1TxsNum == nil {
+		n := int64(-1)
+		lastForgeL1TxsNum = &n
+	}
+
+	s.stats.UpdateSync(block, batch, &lastL1BatchBlockNum, lastForgeL1TxsNum)
 	return nil
 }
