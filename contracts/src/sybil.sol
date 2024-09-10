@@ -79,17 +79,17 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         uint256 loadAmount = _float2Fix(loadAmountF);
         require(
             loadAmount < _LIMIT_LOAD_AMOUNT,
-            "Hermez::addL1Transaction: LOADAMOUNT_EXCEED_LIMIT"
+            "addL1Transaction: LOADAMOUNT_EXCEED_LIMIT"
         );
         require(
             loadAmount == msg.value,
-            "Hermez::addL1Transaction: LOADAMOUNT_ETH_DOES_NOT_MATCH"
+            "addL1Transaction: LOADAMOUNT_ETH_DOES_NOT_MATCH"
         );
 
         uint256 amount = _float2Fix(amountF);
         require(
             amount < _LIMIT_L2TRANSFER_AMOUNT,
-            "Hermez::_addL1Transaction: AMOUNT_EXCEED_LIMIT"
+            "_addL1Transaction: AMOUNT_EXCEED_LIMIT"
         );
 
         if (fromIdx == 0 && toIdx == 0) {
@@ -180,8 +180,6 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         if (nextL1ToForgeQueue == nextL1FillingQueue) {
             nextL1FillingQueue++;
         }
-        //emit QueueCleared(nextL1ToForgeQueue, l1UserTxsLen);
-        // do we need an event here?
         return l1UserTxsLen;
     }
 
@@ -193,16 +191,6 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         uint256 newExitRoot,
         bool l1Batch
     ) external virtual {
-        if (msg.sender != tx.origin) {
-            revert InternalTxNotAllowed();
-        }
-
-        if (
-            !l1Batch && block.number >= (lastL1L2Batch + forgeL1L2BatchTimeout)
-        ) {
-            revert BatchTimeoutExceeded();
-        }
-
         // update state
         lastForgedBatch++;
         lastIdx = newLastIdx;
@@ -225,34 +213,30 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @dev Sets the L1/L2 batch timeout.
      * @param newTimeout New timeout value for the batches.
      */
-    function setForgeL1L2BatchTimeout(
-        uint8 newTimeout
-    ) external override onlyOwner {
+    function setForgeL1L2BatchTimeout(uint8 newTimeout) external onlyOwner {
         require(
             newTimeout <= ABSOLUTE_MAX_L1L2BATCHTIMEOUT,
-            "Sybil::setForgeL1L2BatchTimeout: MAX_TIMEOUT_EXCEEDED"
+            "setForgeL1L2BatchTimeout: MAX_TIMEOUT_EXCEEDED"
         );
         forgeL1L2BatchTimeout = newTimeout;
     }
 
     // Getter functions
-    function getStateRoot(
-        uint32 batchNum
-    ) external view override returns (uint256) {
+    function getStateRoot(uint32 batchNum) external view returns (uint256) {
         return stateRootMap[batchNum];
     }
 
-    function getLastForgedBatch() external view override returns (uint32) {
+    function getLastForgedBatch() external view returns (uint32) {
         return lastForgedBatch;
     }
 
     function getL1TransactionQueue(
         uint32 queueIndex
-    ) external view override returns (bytes memory) {
+    ) external view returns (bytes memory) {
         return mapL1TxQueue[queueIndex];
     }
 
-    function getQueueLength() external view override returns (uint32) {
+    function getQueueLength() external view returns (uint32) {
         return nextL1FillingQueue - nextL1ToForgeQueue;
     }
 

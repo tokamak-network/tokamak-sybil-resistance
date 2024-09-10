@@ -20,6 +20,19 @@ contract TestHelpers {
     function getZeroAddress() public pure returns (address) {
         return address(0);
     }
+    function toWei(uint256 ethAmount) public pure returns (uint256) {
+    return ethAmount * 1e18;
+}
+
+function isValidAddress(address addr) public pure returns (bool) {
+    return addr != address(0);
+}
+
+function exceedsLimit(uint256 amount, uint256 limit) public pure returns (bool) {
+    return amount > limit;
+}
+
+
 
     // Utility to return zero amount
     function getZeroAmount() public pure returns (uint256) {
