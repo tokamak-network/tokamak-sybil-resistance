@@ -9,6 +9,11 @@ interface ISybil {
     error InvalidForceExplodeTransaction();
     error InternalTxNotAllowed();
     error BatchTimeoutExceeded();
+    error LoadAmountExceedsLimit();
+    error LoadAmountDoesNotMatch();
+    error AmountExceedsLimit();
+    error InvalidTransactionParameters();
+    
 
     // Initialization function
     function initialize(uint8 _forgeL1L2BatchTimeout) external;

@@ -69,71 +69,58 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         emit Initialize(_forgeL1L2BatchTimeout);
     }
 
-    function addL1Transaction(
-        uint256 babyPubKey,
-        uint48 fromIdx,
-        uint40 loadAmountF,
-        uint40 amountF,
-        uint48 toIdx
-    ) external payable {
-        uint256 loadAmount = _float2Fix(loadAmountF);
-        require(
-            loadAmount < _LIMIT_LOAD_AMOUNT,
-            "addL1Transaction: LOADAMOUNT_EXCEED_LIMIT"
-        );
-        require(
-            loadAmount == msg.value,
-            "addL1Transaction: LOADAMOUNT_ETH_DOES_NOT_MATCH"
-        );
-
-        uint256 amount = _float2Fix(amountF);
-        require(
-            amount < _LIMIT_L2TRANSFER_AMOUNT,
-            "_addL1Transaction: AMOUNT_EXCEED_LIMIT"
-        );
-
-        if (fromIdx == 0 && toIdx == 0) {
-            // CreateAccount or CreateAccountDeposit
-            if (babyPubKey == 0 || amount != 0) {
-                revert InvalidCreateAccountTransaction();
-            }
-        } else if (
-            toIdx == 0 && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx
-        ) {
-            // Deposit transaction
-            if (babyPubKey != 0 || amount != 0) {
-                revert InvalidDepositTransaction();
-            }
-        } else if (
-            toIdx == _EXIT_IDX && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx
-        ) {
-            // ForceExit transaction
-            if (babyPubKey != 0 || loadAmount != 0) {
-                revert InvalidForceExitTransaction();
-            }
-        } else if (
-            toIdx == _EXPLODE_IDX &&
-            fromIdx > _RESERVED_IDX &&
-            fromIdx <= lastIdx
-        ) {
-            // ForceExplode transaction
-            if (babyPubKey != 0 || amount != 0 || loadAmount != 0) {
-                revert InvalidForceExplodeTransaction();
-            }
-        } else {
-            // Invalid transaction parameters
-            revert("Invalid transaction parameters");
-        }
-
-        _l1QueueAddTx(
-            msg.sender,
-            babyPubKey,
-            fromIdx,
-            loadAmountF,
-            amountF,
-            toIdx
-        );
+ function addL1Transaction(
+    uint256 babyPubKey,
+    uint48 fromIdx,
+    uint40 loadAmountF,
+    uint40 amountF,
+    uint48 toIdx
+) external payable {
+    uint256 loadAmount = _float2Fix(loadAmountF);
+    if (loadAmount >= _LIMIT_LOAD_AMOUNT) {
+        revert LoadAmountExceedsLimit();
     }
+    if (loadAmount != msg.value) {
+        revert LoadAmountDoesNotMatch();
+    }
+
+    uint256 amount = _float2Fix(amountF);
+    if (amount >= _LIMIT_L2TRANSFER_AMOUNT) {
+        revert AmountExceedsLimit();
+    }
+
+    // CreateAccount or CreateAccountDeposit
+    if (fromIdx == 0 && toIdx == 0) {
+        if (babyPubKey == 0 || amount != 0) {
+            revert InvalidCreateAccountTransaction();
+        }
+    } 
+    // Deposit transaction
+    else if (toIdx == 0 && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
+        if (babyPubKey != 0 || amount != 0) {
+            revert InvalidDepositTransaction();
+        }
+    } 
+    // ForceExit transaction
+    else if (toIdx == _EXIT_IDX && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
+        if (babyPubKey != 0 || loadAmount != 0) {
+            revert InvalidForceExitTransaction();
+        }
+    } 
+    // ForceExplode transaction
+    else if (toIdx == _EXPLODE_IDX && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
+        if (babyPubKey != 0 || amount != 0 || loadAmount != 0) {
+            revert InvalidForceExplodeTransaction();
+        }
+    } 
+    // Invalid parameters
+    else {
+        revert InvalidTransactionParameters();
+    }
+
+    // Proceed to add the transaction to the queue
+    _l1QueueAddTx(msg.sender, babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
+}
 
     function _l1QueueAddTx(
         address ethAddress,
