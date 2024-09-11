@@ -1,12 +1,17 @@
 package config
 
 import (
+	"fmt"
+	"log"
 	"math/big"
+	"strings"
 	"time"
 	"tokamak-sybil-resistance/api/stateapiupdater"
 	"tokamak-sybil-resistance/common"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/go-playground/validator"
+	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
@@ -396,4 +401,32 @@ type APIServer struct {
 type LogConf struct {
 	Level string   `env:"HEZNODE_LOG_LEVEL"`
 	Out   []string `env:"HEZNODE_LOG_OUT" envSeparator:","`
+}
+
+// LoadNode loads the Node configuration from path.
+func LoadNode(path string, coordinator bool) (*Node, error) {
+	var cfg, aux Node
+	err := SourceParamsNode(path, &cfg, &aux)
+	if err != nil {
+		log.Println("Error SourceParamsNode: ", err.Error())
+	}
+	err = LoadConfig(path, DefaultValues, &cfg)
+	if err != nil {
+		//Split errors depending on if there is a file error, a env error or a default error
+		if strings.Contains(err.Error(), "default") {
+			return nil, err
+		}
+		log.Println(err.Error())
+	}
+	validate := validator.New()
+	if err := validate.Struct(cfg); err != nil {
+		return nil, tracerr.Wrap(fmt.Errorf("error validating configuration file: %w", err))
+	}
+	if coordinator {
+		if err := validate.Struct(cfg.Coordinator); err != nil {
+			return nil, tracerr.Wrap(fmt.Errorf("error validating configuration file: %w", err))
+		}
+	}
+	log.Printf("Loaded Configuration: %+v", cfg)
+	return &cfg, nil
 }
