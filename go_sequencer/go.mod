@@ -2,7 +2,25 @@ module tokamak-sybil-resistance
 
 go 1.22.5
 
+<<<<<<< HEAD
 require gorm.io/driver/postgres v1.5.9
+=======
+require (
+	github.com/dghubble/sling v1.4.2
+	github.com/ethereum/go-ethereum v1.14.8
+	github.com/gobuffalo/packr/v2 v2.8.3
+	github.com/iden3/go-iden3-crypto v0.0.16
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
+	github.com/libp2p/go-libp2p-core v0.14.0
+	github.com/rubenv/sql-migrate v1.7.0
+	github.com/russross/meddler v1.0.1
+	github.com/stretchr/testify v1.9.0
+	go.uber.org/zap v1.27.0
+	golang.org/x/sync v0.8.0
+)
+>>>>>>> b1bb9df (Merged sequencer initialisation changes into coordinator node initialisation)
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
@@ -22,15 +40,22 @@ require (
 	github.com/dchest/blake512 v1.0.0 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
-	github.com/dghubble/sling v1.4.2 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
+<<<<<<< HEAD
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gobuffalo/logger v1.0.6 // indirect
 	github.com/gobuffalo/packd v1.0.1 // indirect
 	github.com/gobuffalo/packr/v2 v2.8.3 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+=======
+	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/gobuffalo/logger v1.0.6 // indirect
+	github.com/gobuffalo/packd v1.0.1 // indirect
+>>>>>>> 73c16ff (Merged sequencer initialisation changes into coordinator node initialisation)
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -47,6 +72,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/ipld/go-ipld-prime v0.21.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
+<<<<<<< HEAD
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/karrick/godirwalk v1.16.1 // indirect
@@ -75,6 +101,60 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/term v0.22.0 // indirect
+=======
+	github.com/karrick/godirwalk v1.16.1 // indirect
+	github.com/klauspost/compress v1.17.9 // indirect
+	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
+	github.com/libp2p/go-cidranger v1.1.0 // indirect
+	github.com/libp2p/go-libp2p v0.36.2 // indirect
+	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
+	github.com/libp2p/go-libp2p-kbucket v0.6.3 // indirect
+	github.com/libp2p/go-libp2p-record v0.2.0 // indirect
+	github.com/libp2p/go-libp2p-routing-helpers v0.7.4 // indirect
+	github.com/libp2p/go-msgio v0.3.0 // indirect
+	github.com/libp2p/go-netroute v0.2.1 // indirect
+	github.com/libp2p/go-openssl v0.1.0 // indirect
+	github.com/markbates/errx v1.1.0 // indirect
+	github.com/markbates/oncer v1.0.0 // indirect
+	github.com/markbates/safe v1.0.1 // indirect
+	github.com/mattn/go-pointer v0.0.1 // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
+	github.com/mr-tron/base58 v1.2.0 // indirect
+	github.com/multiformats/go-base32 v0.1.0 // indirect
+	github.com/multiformats/go-base36 v0.2.0 // indirect
+	github.com/multiformats/go-multiaddr v0.13.0 // indirect
+	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
+	github.com/multiformats/go-multibase v0.2.0 // indirect
+	github.com/multiformats/go-multicodec v0.9.0 // indirect
+	github.com/multiformats/go-multihash v0.2.3 // indirect
+	github.com/multiformats/go-multistream v0.5.0 // indirect
+	github.com/multiformats/go-varint v0.0.7 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/polydawn/refmt v0.89.0 // indirect
+	github.com/prometheus/client_golang v1.20.0 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.55.0 // indirect
+	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
+	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/supranational/blst v0.3.11 // indirect
+	github.com/tklauser/go-sysconf v0.3.12 // indirect
+	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
+	go.opencensus.io v0.24.0 // indirect
+	go.opentelemetry.io/otel v1.27.0 // indirect
+	go.opentelemetry.io/otel/metric v1.27.0 // indirect
+	go.opentelemetry.io/otel/trace v1.27.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/term v0.23.0 // indirect
+	gonum.org/v1/gonum v0.15.0 // indirect
+	lukechampine.com/blake3 v1.3.0 // indirect
+>>>>>>> 73c16ff (Merged sequencer initialisation changes into coordinator node initialisation)
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
