@@ -4,15 +4,17 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
 	"tokamak-sybil-resistance/common"
+	"tokamak-sybil-resistance/eth/contracts/tokamak"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/iden3/go-iden3-crypto/babyjub"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/hermeznetwork/tracerr"
 )
 
 // RollupForgeBatchArgs are the arguments to the ForgeBatch function in the Rollup Smart Contract
@@ -127,6 +129,7 @@ type RollupEvents struct {
 	SafeMode                    []RollupEventSafeMode
 }
 
+// TODO: Update interfaces and the functions
 // RollupInterface is the inteface to to Rollup Smart Contract
 type RollupInterface interface {
 	//
@@ -135,27 +138,27 @@ type RollupInterface interface {
 
 	// Public Functions
 
-	RollupForgeBatch(*RollupForgeBatchArgs, *bind.TransactOpts) (*types.Transaction, error)
+	// RollupForgeBatch(*RollupForgeBatchArgs, *bind.TransactOpts) (*types.Transaction, error)
 
-	RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp, tokenID uint32, numExitRoot,
-		idx int64, amount *big.Int, siblings []*big.Int, instantWithdraw bool) (*types.Transaction,
-		error)
-	RollupWithdrawCircuit(proofA, proofC [2]*big.Int, proofB [2][2]*big.Int, tokenID uint32,
-		numExitRoot, idx int64, amount *big.Int, instantWithdraw bool) (*types.Transaction, error)
+	// RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp, tokenID uint32, numExitRoot,
+	// 	idx int64, amount *big.Int, siblings []*big.Int, instantWithdraw bool) (*types.Transaction,
+	// 	error)
+	// RollupWithdrawCircuit(proofA, proofC [2]*big.Int, proofB [2][2]*big.Int, tokenID uint32,
+	// 	numExitRoot, idx int64, amount *big.Int, instantWithdraw bool) (*types.Transaction, error)
 
 	// Governance Public Functions
-	RollupUpdateForgeL1L2BatchTimeout(newForgeL1L2BatchTimeout int64) (*types.Transaction, error)
+	// RollupUpdateForgeL1L2BatchTimeout(newForgeL1L2BatchTimeout int64) (*types.Transaction, error)
 
 	// Viewers
-	RollupLastForgedBatch() (int64, error)
+	// RollupLastForgedBatch() (int64, error)
 
 	//
 	// Smart Contract Status
 	//
 
 	RollupConstants() (*common.RollupConstants, error)
-	RollupEventsByBlock(blockNum int64, blockHash *ethCommon.Hash) (*RollupEvents, error)
-	RollupForgeBatchArgs(ethCommon.Hash, uint16) (*RollupForgeBatchArgs, *ethCommon.Address, error)
+	// RollupEventsByBlock(blockNum int64, blockHash *ethCommon.Hash) (*RollupEvents, error)
+	// RollupForgeBatchArgs(ethCommon.Hash, uint16) (*RollupForgeBatchArgs, *ethCommon.Address, error)
 	RollupEventInit(genesisBlockNum int64) (*RollupEventInitialize, int64, error)
 }
 
@@ -168,6 +171,7 @@ type RollupClient struct {
 	client      *EthereumClient
 	chainID     *big.Int
 	address     ethCommon.Address
+	tokamak     *tokamak.Tokamak
 	contractAbi abi.ABI
 	opts        *bind.CallOpts
 	consts      *common.RollupConstants
@@ -183,23 +187,24 @@ func (ei *RollupEventInitialize) RollupVariables() *common.RollupVariables {
 	}
 }
 
+// TODO: Check and Update theses constants
 var (
-	logHermezL1UserTxEvent = crypto.Keccak256Hash([]byte(
-		"L1UserTxEvent(uint32,uint8,bytes)"))
-	logHermezForgeBatch = crypto.Keccak256Hash([]byte(
-		"ForgeBatch(uint32,uint16)"))
-	logHermezUpdateForgeL1L2BatchTimeout = crypto.Keccak256Hash([]byte(
-		"UpdateForgeL1L2BatchTimeout(uint8)"))
-	logHermezWithdrawEvent = crypto.Keccak256Hash([]byte(
-		"WithdrawEvent(uint48,uint32,bool)"))
-	logHermezUpdateBucketWithdraw = crypto.Keccak256Hash([]byte(
-		"UpdateBucketWithdraw(uint8,uint256,uint256)"))
-	logHermezUpdateBucketsParameters = crypto.Keccak256Hash([]byte(
-		"UpdateBucketsParameters(uint256[])"))
-	logHermezSafeMode = crypto.Keccak256Hash([]byte(
-		"SafeMode()"))
+	// 	logHermezL1UserTxEvent = crypto.Keccak256Hash([]byte(
+	// 		"L1UserTxEvent(uint32,uint8,bytes)"))
+	// 	logHermezForgeBatch = crypto.Keccak256Hash([]byte(
+	// 		"ForgeBatch(uint32,uint16)"))
+	// 	logHermezUpdateForgeL1L2BatchTimeout = crypto.Keccak256Hash([]byte(
+	// 		"UpdateForgeL1L2BatchTimeout(uint8)"))
+	// 	logHermezWithdrawEvent = crypto.Keccak256Hash([]byte(
+	// 		"WithdrawEvent(uint48,uint32,bool)"))
+	// 	logHermezUpdateBucketWithdraw = crypto.Keccak256Hash([]byte(
+	// 		"UpdateBucketWithdraw(uint8,uint256,uint256)"))
+	// 	logHermezUpdateBucketsParameters = crypto.Keccak256Hash([]byte(
+	// 		"UpdateBucketsParameters(uint256[])"))
+	// 	logHermezSafeMode = crypto.Keccak256Hash([]byte(
+	// 		"SafeMode()"))
 	logHermezInitialize = crypto.Keccak256Hash([]byte(
-		"InitializeHermezEvent(uint8,uint256,uint64)"))
+		""))
 )
 
 // RollupEventInit returns the initialize event with its corresponding block number
@@ -230,4 +235,82 @@ func (c *RollupClient) RollupEventInit(genesisBlockNum int64) (*RollupEventIniti
 		return nil, 0, common.Wrap(err)
 	}
 	return &rollupInit, int64(vLog.BlockNumber), common.Wrap(err)
+}
+
+// NewRollupClient creates a new RollupClient
+func NewRollupClient(client *EthereumClient, address ethCommon.Address) (*RollupClient, error) {
+	contractAbi, err := abi.JSON(strings.NewReader(string(tokamak.TokamakABI)))
+	if err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+	tokamak, err := tokamak.NewTokamak(address, client.Client())
+	if err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+	chainID, err := client.EthChainID()
+	if err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+	c := &RollupClient{
+		client:      client,
+		chainID:     chainID,
+		address:     address,
+		tokamak:     tokamak,
+		contractAbi: contractAbi,
+		opts:        newCallOpts(),
+	}
+	consts, err := c.RollupConstants()
+	if err != nil {
+		return nil, tracerr.Wrap(fmt.Errorf("RollupConstants at %v: %w", address, err))
+	}
+	c.consts = consts
+	// c.token, err = NewTokenClient(client, consts.TokenHEZ)
+	// if err != nil {
+	// 	return nil, tracerr.Wrap(fmt.Errorf("new token client at %v: %w", address, err))
+	// }
+	return c, nil
+}
+
+// RollupConstants returns the Constants of the Rollup Smart Contract
+func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstants, err error) {
+	rollupConstants = new(common.RollupConstants)
+	if err := c.client.Call(func(ec *ethclient.Client) error {
+		absoluteMaxL1L2BatchTimeout, err := c.tokamak.ABSOLUTEMAXL1L2BATCHTIMEOUT(c.opts)
+		if err != nil {
+			return tracerr.Wrap(err)
+		}
+		rollupConstants.AbsoluteMaxL1L2BatchTimeout = int64(absoluteMaxL1L2BatchTimeout)
+		// rollupConstants.TokenHEZ, err = c.tokamak.TokenHEZ(c.opts)
+		if err != nil {
+			return tracerr.Wrap(err)
+		}
+		rollupVerifiersLength, err := c.tokamak.RollupVerifiersLength(c.opts)
+		if err != nil {
+			return tracerr.Wrap(err)
+		}
+		for i := int64(0); i < rollupVerifiersLength.Int64(); i++ {
+			var newRollupVerifier common.RollupVerifierStruct
+			rollupVerifier, err := c.tokamak.RollupVerifiers(c.opts, big.NewInt(i))
+			if err != nil {
+				return tracerr.Wrap(err)
+			}
+			newRollupVerifier.MaxTx = rollupVerifier.MaxTx.Int64()
+			newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
+			rollupConstants.Verifiers = append(rollupConstants.Verifiers,
+				newRollupVerifier)
+		}
+		// rollupConstants.HermezAuctionContract, err = c.hermez.HermezAuctionContract(c.opts)
+		// if err != nil {
+		// 	return tracerr.Wrap(err)
+		// }
+		// rollupConstants.HermezGovernanceAddress, err = c.hermez.HermezGovernanceAddress(c.opts)
+		// if err != nil {
+		// 	return tracerr.Wrap(err)
+		// }
+		// rollupConstants.WithdrawDelayerContract, err = c.hermez.WithdrawDelayerContract(c.opts)
+		return tracerr.Wrap(err)
+	}); err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+	return rollupConstants, nil
 }
