@@ -105,4 +105,4 @@ template ScoringAlgorithm (num_verts , num_subsets) {
     
 
 }
-component main = ScoringAlgorithm(7,63);
+//component main = ScoringAlgorithm(7,63);

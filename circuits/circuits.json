@@ -3,5 +3,10 @@
         "file": "singleTx",
         "template": "SingleTx",
         "params": [1]
+    },
+    "scoring": {
+        "file": "scoring_algorithm",
+        "template": "ScoringAlgorithm",
+        "params": [7, 63]
     }
 }
