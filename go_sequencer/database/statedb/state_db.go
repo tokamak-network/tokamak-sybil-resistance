@@ -6,6 +6,7 @@ import (
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database/kvdb"
 
+	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-merkletree"
 	"github.com/iden3/go-merkletree/db/pebble"
 )
@@ -130,6 +131,22 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 // Close closes the StateDB.
 func (sdb *StateDB) Close() {
 	sdb.DB.Close()
+}
+
+// NewLocalStateDB returns a new LocalStateDB connected to the given
+// synchronizerDB.  Checkpoints older than the value defined by `keep` will be
+// deleted.
+func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error) {
+	cfg.noGapsCheck = true
+	cfg.NoLast = true
+	s, err := NewStateDB(cfg)
+	if err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+	return &LocalStateDB{
+		s,
+		synchronizerDB,
+	}, nil
 }
 
 // Reset resets the StateDB to the checkpoint at the given batchNum. Reset

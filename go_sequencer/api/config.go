@@ -27,3 +27,22 @@ type configAPI struct {
 	ChainID         uint16          `json:"chainId"`
 	RollupConstants rollupConstants `json:"hermez"`
 }
+
+func newRollupConstants(publicConstants common.RollupConstants) *rollupConstants {
+	return &rollupConstants{
+		PublicConstants:         publicConstants,
+		MaxFeeIdxCoordinator:    common.RollupConstMaxFeeIdxCoordinator,
+		ReservedIdx:             common.RollupConstReservedIDx,
+		ExitIdx:                 common.RollupConstExitIDx,
+		LimitDepositAmount:      common.RollupConstLimitDepositAmount,
+		LimitL2TransferAmount:   common.RollupConstLimitL2TransferAmount,
+		LimitTokens:             common.RollupConstLimitTokens,
+		L1CoordinatorTotalBytes: common.RollupConstL1CoordinatorTotalBytes,
+		L1UserTotalBytes:        common.RollupConstL1UserTotalBytes,
+		MaxL1UserTx:             common.RollupConstMaxL1UserTx,
+		MaxL1Tx:                 common.RollupConstMaxL1Tx,
+		InputSHAConstantBytes:   common.RollupConstInputSHAConstantBytes,
+		// MaxWithdrawalDelay:      common.RollupConstMaxWithdrawalDelay,
+		ExchangeMultiplier: common.RollupConstExchangeMultiplier,
+	}
+}

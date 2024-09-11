@@ -5,6 +5,8 @@ import (
 	"tokamak-sybil-resistance/common"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/tracerr"
+	"github.com/russross/meddler"
 )
 
 // NodeConfig contains the node config exposed in the API
@@ -62,4 +64,54 @@ type Constants struct {
 	common.SCConsts
 	ChainID       uint16
 	HermezAddress ethCommon.Address
+}
+
+// NodeInfo contains information about he node used when serving the API
+type NodeInfo struct {
+	ItemID     int         `meddler:"item_id,pk"`
+	StateAPI   *StateAPI   `meddler:"state,json"`
+	NodeConfig *NodeConfig `meddler:"config,json"`
+	Constants  *Constants  `meddler:"constants,json"`
+}
+
+// SetNodeConfig sets the NodeConfig
+func (hdb *HistoryDB) SetNodeConfig(nodeConfig *NodeConfig) error {
+	_nodeConfig := struct {
+		NodeConfig *NodeConfig `meddler:"config,json"`
+	}{nodeConfig}
+	values, err := meddler.Default.Values(&_nodeConfig, false)
+	if err != nil {
+		return tracerr.Wrap(err)
+	}
+	_, err = hdb.dbWrite.Exec(
+		"UPDATE node_info SET config = $1 WHERE item_id = 1;",
+		values[0],
+	)
+	return tracerr.Wrap(err)
+}
+
+// SetConstants sets the Constants
+func (hdb *HistoryDB) SetConstants(constants *Constants) error {
+	_constants := struct {
+		Constants *Constants `meddler:"constants,json"`
+	}{constants}
+	values, err := meddler.Default.Values(&_constants, false)
+	if err != nil {
+		return tracerr.Wrap(err)
+	}
+	_, err = hdb.dbWrite.Exec(
+		"UPDATE node_info SET constants = $1 WHERE item_id = 1;",
+		values[0],
+	)
+	return tracerr.Wrap(err)
+}
+
+// GetConstants returns the Constats
+func (hdb *HistoryDB) GetConstants() (*Constants, error) {
+	var nodeInfo NodeInfo
+	err := meddler.QueryRow(
+		hdb.dbRead, &nodeInfo,
+		"SELECT constants FROM node_info WHERE item_id = 1;",
+	)
+	return nodeInfo.Constants, tracerr.Wrap(err)
 }

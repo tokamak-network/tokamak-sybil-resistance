@@ -33,12 +33,12 @@ type BucketParamsAPI struct {
 
 // RollupVariablesAPI are the variables of the Rollup Smart Contract
 type RollupVariablesAPI struct {
-	EthBlockNum           int64               `json:"ethereumBlockNum" meddler:"eth_block_num"`
-	FeeAddToken           *apitypes.BigIntStr `json:"feeAddToken" meddler:"fee_add_token" validate:"required"`
-	ForgeL1L2BatchTimeout int64               `json:"forgeL1L2BatchTimeout" meddler:"forge_l1_timeout" validate:"required"`
-	WithdrawalDelay       uint64              `json:"withdrawalDelay" meddler:"withdrawal_delay" validate:"required"`
-	Buckets               []BucketParamsAPI   `json:"buckets" meddler:"buckets,json"`
-	SafeMode              bool                `json:"safeMode" meddler:"safe_mode"`
+	EthBlockNum int64 `json:"ethereumBlockNum" meddler:"eth_block_num"`
+	// FeeAddToken           *apitypes.BigIntStr `json:"feeAddToken" meddler:"fee_add_token" validate:"required"`
+	ForgeL1L2BatchTimeout int64 `json:"forgeL1L2BatchTimeout" meddler:"forge_l1_timeout" validate:"required"`
+	// WithdrawalDelay       uint64              `json:"withdrawalDelay" meddler:"withdrawal_delay" validate:"required"`
+	Buckets  []BucketParamsAPI `json:"buckets" meddler:"buckets,json"`
+	SafeMode bool              `json:"safeMode" meddler:"safe_mode"`
 }
 
 // CoordinatorAPI is a representation of a coordinator with additional information
@@ -76,4 +76,28 @@ type BatchAPI struct {
 	TotalItems       uint64                      `json:"-" meddler:"total_items"`
 	FirstItem        uint64                      `json:"-" meddler:"first_item"`
 	LastItem         uint64                      `json:"-" meddler:"last_item"`
+}
+
+// NewRollupVariablesAPI creates a RollupVariablesAPI from common.RollupVariables
+func NewRollupVariablesAPI(rollupVariables *common.RollupVariables) *RollupVariablesAPI {
+	buckets := make([]BucketParamsAPI, len(rollupVariables.Buckets))
+	rollupVars := RollupVariablesAPI{
+		EthBlockNum: rollupVariables.EthBlockNum,
+		// FeeAddToken:           apitypes.NewBigIntStr(rollupVariables.FeeAddToken),
+		ForgeL1L2BatchTimeout: rollupVariables.ForgeL1L2BatchTimeout,
+		// WithdrawalDelay:       rollupVariables.WithdrawalDelay,
+		SafeMode: rollupVariables.SafeMode,
+		Buckets:  buckets,
+	}
+	for i, bucket := range rollupVariables.Buckets {
+		rollupVars.Buckets[i] = BucketParamsAPI{
+			CeilUSD:         apitypes.NewBigIntStr(bucket.CeilUSD),
+			BlockStamp:      apitypes.NewBigIntStr(bucket.BlockStamp),
+			Withdrawals:     apitypes.NewBigIntStr(bucket.Withdrawals),
+			RateBlocks:      apitypes.NewBigIntStr(bucket.RateBlocks),
+			RateWithdrawals: apitypes.NewBigIntStr(bucket.RateWithdrawals),
+			MaxWithdrawals:  apitypes.NewBigIntStr(bucket.MaxWithdrawals),
+		}
+	}
+	return &rollupVars
 }
