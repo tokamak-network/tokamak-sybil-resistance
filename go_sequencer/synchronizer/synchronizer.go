@@ -258,3 +258,17 @@ func (s *Synchronizer) resetState(block *common.Block) error {
 	s.stats.UpdateSync(block, batch, &lastL1BatchBlockNum, lastForgeL1TxsNum)
 	return nil
 }
+
+// TODO: Update consts variable above to SConsts
+// RollupConstants returns the RollupConstants read from the smart contract
+func (s *Synchronizer) RollupConstants() *common.RollupConstants {
+	return &s.consts.Rollup
+}
+
+// TODO: Need to check and Update type initialised above in Synchronizer struct RollupVariables -> to SCVariables
+// SCVars returns a copy of the Smart Contract Variables
+func (s *Synchronizer) SCVars() *common.SCVariables {
+	return &common.SCVariables{
+		Rollup: *s.Rollup.Copy(),
+	}
+}

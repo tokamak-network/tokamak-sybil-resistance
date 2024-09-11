@@ -44,6 +44,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"time"
 	"tokamak-sybil-resistance/batchbuilder"
@@ -52,11 +53,14 @@ import (
 	"tokamak-sybil-resistance/coordinator/prover"
 	"tokamak-sybil-resistance/database/historydb"
 	"tokamak-sybil-resistance/database/l2db"
+	"tokamak-sybil-resistance/eth"
+	"tokamak-sybil-resistance/etherscan"
 	"tokamak-sybil-resistance/synchronizer"
 	"tokamak-sybil-resistance/txprocessor"
 	"tokamak-sybil-resistance/txselector"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/tracerr"
 )
 
 var errSkipBatchByPolicy = fmt.Errorf("skip batch by policy")
@@ -238,4 +242,70 @@ type MsgStopPipeline struct {
 	// FailedBatchNum indicates the first batchNum that failed in the
 	// pipeline.  If FailedBatchNum is 0, it should be ignored.
 	FailedBatchNum common.BatchNum
+}
+
+// NewCoordinator creates a new Coordinator
+func NewCoordinator(cfg Config,
+	historyDB *historydb.HistoryDB,
+	l2DB *l2db.L2DB,
+	txSelector *txselector.TxSelector,
+	batchBuilder *batchbuilder.BatchBuilder,
+	serverProofs []prover.Client,
+	ethClient eth.ClientInterface,
+	scConsts *common.SCConsts,
+	initSCVars *common.SCVariables,
+	etherscanService *etherscan.Service,
+) (*Coordinator, error) {
+	if cfg.DebugBatchPath != "" {
+		if err := os.MkdirAll(cfg.DebugBatchPath, 0744); err != nil {
+			return nil, tracerr.Wrap(err)
+		}
+	}
+
+	purger := Purger{
+		cfg:                 cfg.Purger,
+		lastPurgeBlock:      0,
+		lastPurgeBatch:      0,
+		lastInvalidateBlock: 0,
+		lastInvalidateBatch: 0,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	c := Coordinator{
+		pipelineNum: 0,
+		pipelineFromBatch: fromBatch{
+			BatchNum:   0,
+			ForgerAddr: ethCommon.Address{},
+			StateRoot:  big.NewInt(0),
+		},
+		provers: serverProofs,
+		consts:  *scConsts,
+		vars:    *initSCVars,
+
+		cfg: cfg,
+
+		historyDB:    historyDB,
+		l2DB:         l2DB,
+		txSelector:   txSelector,
+		batchBuilder: batchBuilder,
+
+		purger: &purger,
+
+		msgCh: make(chan interface{}, queueLen),
+		ctx:   ctx,
+		// wg
+		cancel: cancel,
+	}
+	ctxTimeout, ctxTimeoutCancel := context.WithTimeout(ctx, 1*time.Second)
+	defer ctxTimeoutCancel()
+	txManager, err := NewTxManager(ctxTimeout, &cfg, ethClient, l2DB, &c,
+		scConsts, initSCVars, etherscanService)
+	if err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+	c.txManager = txManager
+	// Set Eth LastBlockNum to -1 in stats so that stats.Synced() is
+	// guaranteed to return false before it's updated with a real stats
+	c.stats.Eth.LastBlock.Num = -1
+	return &c, nil
 }

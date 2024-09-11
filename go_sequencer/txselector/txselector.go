@@ -64,10 +64,12 @@ package txselector
 // current: very simple version of TxSelector
 
 import (
+	"tokamak-sybil-resistance/database/kvdb"
 	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/database/statedb"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
@@ -87,4 +89,26 @@ type TxSelector struct {
 	localAccountsDB *statedb.LocalStateDB
 
 	coordAccount *CoordAccount
+}
+
+// NewTxSelector returns a *TxSelector
+func NewTxSelector(coordAccount *CoordAccount, dbpath string,
+	synchronizerStateDB *statedb.StateDB, l2 *l2db.L2DB) (*TxSelector, error) {
+	localAccountsDB, err := statedb.NewLocalStateDB(
+		statedb.Config{
+			Path:    dbpath,
+			Keep:    kvdb.DefaultKeep,
+			Type:    statedb.TypeTxSelector,
+			NLevels: 0,
+		},
+		synchronizerStateDB) // without merkletree
+	if err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+
+	return &TxSelector{
+		l2db:            l2,
+		localAccountsDB: localAccountsDB,
+		coordAccount:    coordAccount,
+	}, nil
 }
