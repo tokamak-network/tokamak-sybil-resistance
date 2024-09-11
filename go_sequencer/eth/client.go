@@ -6,3 +6,7 @@ type ClientInterface interface {
 	EthereumInterface
 	RollupInterface
 }
+
+const (
+	blocksPerDay = (3600 * 24) / 15 //nolint:gomnd
+)

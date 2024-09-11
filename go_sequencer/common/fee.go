@@ -11,3 +11,6 @@ type RecommendedFee struct {
 	CreatesAccount         float64 `json:"createAccount"`
 	CreatesAccountInternal float64 `json:"createAccountInternal"`
 }
+
+// MaxFeePlan is the maximum value of the FeePlan
+const MaxFeePlan = 256
