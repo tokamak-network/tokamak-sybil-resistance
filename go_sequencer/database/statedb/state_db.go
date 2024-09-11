@@ -7,7 +7,13 @@ import (
 	"fmt"
 	"log"
 
+<<<<<<< HEAD
 	"github.com/cockroachdb/pebble"
+=======
+	"github.com/hermeznetwork/tracerr"
+	"github.com/iden3/go-merkletree"
+	"github.com/iden3/go-merkletree/db/pebble"
+>>>>>>> e0ccd8a (Updated util functionalities for database and apis)
 )
 
 // TreeNode represents a node in the Merkle tree.
@@ -88,11 +94,38 @@ func (sdb *StateDB) Close() error {
 	return closeDB(sdb.DB)
 }
 
+<<<<<<< HEAD
 // Put stores an account in the database and updates the Merkle tree.
 func (sdb *StateDB) PutAccount(account *Account) error {
 	accountBytes, err := json.Marshal(account)
 	if err != nil {
 		return err
+=======
+// NewLocalStateDB returns a new LocalStateDB connected to the given
+// synchronizerDB.  Checkpoints older than the value defined by `keep` will be
+// deleted.
+func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error) {
+	cfg.noGapsCheck = true
+	cfg.NoLast = true
+	s, err := NewStateDB(cfg)
+	if err != nil {
+		return nil, tracerr.Wrap(err)
+	}
+	return &LocalStateDB{
+		s,
+		synchronizerDB,
+	}, nil
+}
+
+// Reset resets the StateDB to the checkpoint at the given batchNum. Reset
+// does not delete the checkpoints between old current and the new current,
+// those checkpoints will remain in the storage, and eventually will be
+// deleted when MakeCheckpoint overwrites them.
+func (s *StateDB) Reset(batchNum common.BatchNum) error {
+	log.Fatalf("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
+	if err := s.DB.Reset(batchNum); err != nil {
+		return common.Wrap(err)
+>>>>>>> e0ccd8a (Updated util functionalities for database and apis)
 	}
 
 	err = sdb.DB.Set([]byte(account.Address), accountBytes, nil)
