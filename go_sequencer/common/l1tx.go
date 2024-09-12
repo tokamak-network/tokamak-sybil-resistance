@@ -35,9 +35,9 @@ type L1Tx struct {
 	FromEthAddr      ethCommon.Address     `meddler:"from_eth_addr,zeroisnull"`
 	FromBJJ          babyjub.PublicKeyComp `meddler:"from_bjj,zeroisnull"`
 	// ToIdx is ignored in L1Tx/Deposit, but used in the L1Tx/DepositAndTransfer
-	ToIdx   Idx      `meddler:"to_idx"`
-	TokenID TokenID  `meddler:"token_id"`
-	Amount  *big.Int `meddler:"amount,bigint"`
+	ToIdx Idx `meddler:"to_idx"`
+	// TokenID TokenID  `meddler:"token_id"`
+	Amount *big.Int `meddler:"amount,bigint"`
 	// EffectiveAmount only applies to L1UserTx.
 	EffectiveAmount *big.Int `meddler:"effective_amount,bigintnull"`
 	DepositAmount   *big.Int `meddler:"deposit_amount,bigint"`

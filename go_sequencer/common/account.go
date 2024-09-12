@@ -13,10 +13,12 @@ import (
 // a specific token. Is the data structure that generates the Value stored in
 // the leaf of the MerkleTree
 type Account struct {
-	Idx      Idx                   `meddler:"idx"`
-	TokenID  TokenID               `meddler:"token_id"`
+	Idx Idx `meddler:"idx"`
+	// TokenID TokenID `meddler:"token_id"`
 	BatchNum BatchNum              `meddler:"batch_num"`
 	BJJ      babyjub.PublicKeyComp `meddler:"bjj"`
+	Sign     Sign                  `meddler:"sign"`
+	Ay       *big.Int              `meddler:"ay"` // max of 253 bits used
 	EthAddr  ethCommon.Address     `meddler:"eth_addr"`
 	Nonce    Nonce                 `meddler:"-"` // max of 40 bits used
 	Balance  *big.Int              `meddler:"-"` // max of 192 bits used
@@ -24,6 +26,12 @@ type Account struct {
 
 // Idx represents the account Index in the MerkleTree
 type Idx uint64
+
+// Sign represents the 1 bit of baby jubjub
+type Sign bool
+
+// Ay represents the ay of baby jubjub of 253 bits
+type Ay *big.Int
 
 const (
 	// NLeafElems is the number of elements for a leaf

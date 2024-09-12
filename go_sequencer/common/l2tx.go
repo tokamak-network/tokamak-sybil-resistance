@@ -14,8 +14,8 @@ type L2Tx struct {
 	Position int      `meddler:"position"`
 	FromIdx  Idx      `meddler:"from_idx"`
 	ToIdx    Idx      `meddler:"to_idx"`
-	Nonce Nonce `meddler:"nonce"`
-	Type  TxType      `meddler:"type"`
+	Nonce    Nonce    `meddler:"nonce"`
+	Type     TxType   `meddler:"type"`
 	// EthBlockNum in which this L2Tx was added to the queue
 	EthBlockNum int64 `meddler:"eth_block_num"`
 }
@@ -50,9 +50,7 @@ func NewL2Tx(tx *L2Tx) (*L2Tx, error) {
 func (tx *L2Tx) SetType() error {
 	if tx.ToIdx == Idx(1) {
 		tx.Type = TxTypeExit
-	} else if tx.ToIdx >= IdxUserThreshold {
-		tx.Type = TxTypeTransfer
-	} else {
+	} else if tx.ToIdx < IdxUserThreshold {
 		return Wrap(fmt.Errorf(
 			"cannot determine type of L2Tx, invalid ToIdx value: %d", tx.ToIdx))
 	}

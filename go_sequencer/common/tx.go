@@ -29,6 +29,10 @@ const (
 	TxTypeTransferToEthAddr TxType = "TransferToEthAddr"
 	// TxTypeTransferToBJJ TBD
 	TxTypeTransferToBJJ TxType = "TransferToBJJ"
+	// TxTypeCreateVouch
+	TxTypeCreateVouch TxType = "CreateVouch"
+	// TxTypeDeleteVouch
+	TxTypeDeleteVouch TxType = "DeleteVouch"
 )
 
 const (
