@@ -2,6 +2,8 @@
 pragma solidity 0.8.23;
 
 contract TestHelpers {
+
+
     // Constant for a zero address
     address public constant ZERO_ADDRESS = address(0);
 
@@ -11,7 +13,7 @@ contract TestHelpers {
     // Constant for 1 ether in wei (1e18)
     uint256 public constant ONE_ETHER = 1e18;
 
-    // ether value
+    // Ether value
     function toEther(uint256 amount) public pure returns (uint256) {
         return amount * 1e18;
     }
@@ -20,19 +22,18 @@ contract TestHelpers {
     function getZeroAddress() public pure returns (address) {
         return address(0);
     }
+
     function toWei(uint256 ethAmount) public pure returns (uint256) {
-    return ethAmount * 1e18;
-}
+        return ethAmount * 1e18;
+    }
 
-function isValidAddress(address addr) public pure returns (bool) {
-    return addr != address(0);
-}
+    function isValidAddress(address addr) public pure returns (bool) {
+        return addr != address(0);
+    }
 
-function exceedsLimit(uint256 amount, uint256 limit) public pure returns (bool) {
-    return amount > limit;
-}
-
-
+    function exceedsLimit(uint256 amount, uint256 limit) public pure returns (bool) {
+        return amount > limit;
+    }
 
     // Utility to return zero amount
     function getZeroAmount() public pure returns (uint256) {
