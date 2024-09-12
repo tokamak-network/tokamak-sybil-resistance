@@ -34,7 +34,11 @@ interface ISybil {
         uint256 newVouchRoot,
         uint256 newScoreRoot,
         uint256 newExitRoot,
-        bool l1Batch
+        uint8 verifierIdx,
+        bool l1Batch,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC
     ) external;
 
     // Governance function

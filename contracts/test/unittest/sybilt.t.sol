@@ -18,10 +18,24 @@ contract SybilTest is Test {
     // Test for getStateRoot
     function testGetStateRoot() external {
         uint32 batchNum = 1;
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
 
         // Simulate setting a state root in the contract
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC
+        );
 
         // Retrieve the state root for batch 1 and assert it's correct
         uint256 stateRoot = sybil.getStateRoot(batchNum);
@@ -34,9 +48,24 @@ contract SybilTest is Test {
         uint32 lastForged = sybil.getLastForgedBatch();
         assertEq(lastForged, 0, "Initially, the last forged batch should be 0");
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+
         // After forging a batch, the last forged batch should increment
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC
+        );
 
         lastForged = sybil.getLastForgedBatch();
         assertEq(lastForged, 1, "Last forged batch should increment after forgeBatch call");
@@ -86,12 +115,12 @@ function testGetQueueLength() external {
     queueLength = sybil.getQueueLength();
     assertEq(queueLength, 1, "Queue length should still be 1 after adding a transaction");
 }
- function testClearQueue() public {
-    uint256 babyPubKey = 2; // Deposit transactions should have babyPubKey = 2
-    uint48 fromIdx = 0; // Ensure fromIdx is > _RESERVED_IDX and <= lastIdx
-    uint40 loadAmountF = 100;
-    uint40 amountF = 0; // Deposit transactions should have amountF = 0
-    uint48 toIdx = 0; // Deposit transactions should have toIdx = 0
+    function testClearQueue() public {
+        uint256 babyPubKey = 2; // Deposit transactions should have babyPubKey = 2
+        uint48 fromIdx = 0; // Ensure fromIdx is > _RESERVED_IDX and <= lastIdx
+        uint40 loadAmountF = 100;
+        uint40 amountF = 0; // Deposit transactions should have amountF = 0
+        uint48 toIdx = 0; // Deposit transactions should have toIdx = 0
 
         uint256 loadAmount = (loadAmountF) * 10 ** (18 - 8);
 
@@ -100,14 +129,27 @@ function testGetQueueLength() external {
         sybil.addL1Transaction{value: loadAmount}(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
         sybil.addL1Transaction{value: loadAmount}(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
 
         // Forge a batch and clear the queue
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, true);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            true, 
+            proofA,
+            proofB,
+            proofC
+        );
 
         // Verify queue length has been cleared
         uint32 queueAfter = sybil.getQueueLength();
         assertEq(queueAfter, 1, "Queue should be cleared after forgeBatch");
     }
-
 }
