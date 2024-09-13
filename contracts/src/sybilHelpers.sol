@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8 .23;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-
 /**
  * @dev Interface poseidon hash function 2 elements
  */
@@ -27,7 +25,7 @@ contract PoseidonUnit4 {
 /**
  * @dev Sybil helper functions
  */
-contract SybilHelpers is Initializable {
+contract SybilHelpers {
     PoseidonUnit2 _insPoseidonUnit2;
     PoseidonUnit3 _insPoseidonUnit3;
     PoseidonUnit4 _insPoseidonUnit4;
