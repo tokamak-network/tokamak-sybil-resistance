@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"math/big"
 
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 )
@@ -16,6 +17,7 @@ type L2Tx struct {
 	ToIdx    Idx      `meddler:"to_idx"`
 	Nonce    Nonce    `meddler:"nonce"`
 	Type     TxType   `meddler:"type"`
+	Amount   *big.Int `meddler:"amount,bigint"`
 	// EthBlockNum in which this L2Tx was added to the queue
 	EthBlockNum int64 `meddler:"eth_block_num"`
 }

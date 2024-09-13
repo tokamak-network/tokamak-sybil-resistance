@@ -318,7 +318,7 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 			c.Typ = common.TxTypeDeposit
 		case "Exit":
 			c.Typ = common.TxTypeExit
-			fee = true
+			// fee = true
 		case "CreateVouch":
 			c.Typ = common.TxTypeCreateVouch
 			vouch = true
@@ -371,8 +371,6 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		_, lit = p.scanIgnoreWhitespace()
 		c.Literal += lit
 		c.To = lit
-		_, lit = p.scanIgnoreWhitespace()
-		c.Literal += lit
 		line, _ := p.s.r.ReadString('\n')
 		c.Literal += line
 	} else {
@@ -481,10 +479,6 @@ func (p *parser) parse() (*parsedSet, error) {
 		}
 		ps.instructions = append(ps.instructions, *instruction)
 		users[instruction.From] = true
-		if instruction.Typ == common.TxTypeCreateVouch ||
-			instruction.Typ == common.TxTypeDeleteVouch { // type: Transfer
-			users[instruction.To] = true
-		}
 	}
 	for u := range users {
 		ps.users = append(ps.users, u)

@@ -9,12 +9,11 @@ import (
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
-// Account is a struct that gives information of the holdings of an address and
-// a specific token. Is the data structure that generates the Value stored in
+// Account is a struct that gives information of the holdings of an address.
+// Is the data structure that generates the Value stored in
 // the leaf of the MerkleTree
 type Account struct {
-	Idx Idx `meddler:"idx"`
-	// TokenID TokenID `meddler:"token_id"`
+	Idx      Idx                   `meddler:"idx"`
 	BatchNum BatchNum              `meddler:"batch_num"`
 	BJJ      babyjub.PublicKeyComp `meddler:"bjj"`
 	Sign     Sign                  `meddler:"sign"`
@@ -34,11 +33,9 @@ type Sign bool
 type Ay *big.Int
 
 const (
-	// NLeafElems is the number of elements for a leaf
-	NLeafElems = 4
-
 	// IdxBytesLen idx bytes
 	IdxBytesLen = 6
+
 	// maxIdxValue is the maximum value that Idx can have (48 bits:
 	// maxIdxValue=2**48-1)
 	maxIdxValue = 0xffffffffffff

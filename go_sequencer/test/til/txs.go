@@ -162,28 +162,6 @@ func (tc *Context) GenerateBlocks(set string) ([]common.BlockData, error) {
 	return tc.generateBlocks()
 }
 
-// GenerateBlocksFromInstructions returns an array of BlockData for a given set
-// made of instructions. It uses the users (keys & nonces) of the Context.
-func (tc *Context) GenerateBlocksFromInstructions(set []Instruction) ([]common.BlockData, error) {
-	accountNames := []string{}
-	addedNames := make(map[string]bool)
-	for _, inst := range set {
-		if _, ok := addedNames[inst.From]; !ok {
-			// If the name wasn't already added
-			accountNames = append(accountNames, inst.From)
-			addedNames[inst.From] = true
-		}
-		if _, ok := addedNames[inst.To]; !ok {
-			// If the name wasn't already added
-			accountNames = append(accountNames, inst.To)
-			addedNames[inst.To] = true
-		}
-	}
-	tc.accountNames = accountNames
-	tc.instructions = set
-	return tc.generateBlocks()
-}
-
 func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 	tc.generateKeys(tc.accountNames)
 
@@ -211,24 +189,19 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			if err := tc.addToL1UserQueue(testTx); err != nil {
 				return nil, common.Wrap(err)
 			}
-		case common.TxTypeDeposit, common.TxTypeDepositTransfer: // tx source: L1UserTx
+		case common.TxTypeDeposit: // tx source: L1UserTx
 			if err := tc.checkIfAccountExists(inst.From, inst); err != nil {
 				log.Error(err)
 				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
 			}
 			tx := common.L1Tx{
 				// TokenID:       inst.TokenID,
-				Amount:        big.NewInt(0),
 				DepositAmount: inst.DepositAmount,
 				Type:          inst.Typ,
-			}
-			if inst.Typ == common.TxTypeDepositTransfer {
-				tx.Amount = inst.Amount
 			}
 			testTx := L1Tx{
 				lineNum:     inst.LineNum,
 				fromIdxName: inst.From,
-				toIdxName:   inst.To,
 				L1Tx:        tx,
 			}
 			if err := tc.addToL1UserQueue(testTx); err != nil {
@@ -267,22 +240,29 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			if err := tc.addToL1UserQueue(testTx); err != nil {
 				return nil, common.Wrap(err)
 			}
+		case common.TxTypeExit: // tx source: L2Tx
+			tx := common.L2Tx{
+				ToIdx:       common.Idx(1), // as is an Exit
+				Amount:      inst.Amount,
+				Type:        common.TxTypeExit,
+				EthBlockNum: tc.blockNum,
+			}
+			// when converted to PoolL2Tx BatchNum parameter is lost
+			tx.BatchNum = common.BatchNum(tc.currBatchNum)
+			testTx := L2Tx{
+				lineNum:     inst.LineNum,
+				fromIdxName: inst.From,
+				toIdxName:   inst.To,
+				L2Tx:        tx,
+			}
+			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
 		case TypeNewBatch:
-			// if err := tc.calculateIdxForL1Txs(true, tc.currBatchTest.l1CoordinatorTxs); err != nil {
-			// 	return nil, common.Wrap(err)
-			// }
 			if err := tc.setIdxs(); err != nil {
 				log.Error(err)
 				return nil, common.Wrap(err)
 			}
 		case TypeNewBatchL1:
 			// for each L1UserTx of the Queues[ToForgeNum], calculate the Idx
-			// if err := tc.calculateIdxForL1Txs(false, tc.Queues[tc.ToForgeNum]); err != nil {
-			// 	return nil, common.Wrap(err)
-			// }
-			// if err := tc.calculateIdxForL1Txs(true, tc.currBatchTest.l1CoordinatorTxs); err != nil {
-			// 	return nil, common.Wrap(err)
-			// }
 			tc.currBatch.L1Batch = true
 			if err := tc.setIdxs(); err != nil {
 				return nil, common.Wrap(err)
@@ -306,37 +286,6 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 	}
 
 	return blocks, nil
-}
-
-// calculateIdxsForL1Txs calculates new Idx for new created accounts. If
-// 'isCoordinatorTxs==true', adds the tx to tc.currBatch.L1CoordinatorTxs.
-func (tc *Context) calculateIdxForL1Txs(isCoordinatorTxs bool, txs []L1Tx) error {
-	// for each batch.L1CoordinatorTxs of the Queues[ToForgeNum], calculate the Idx
-	for i := 0; i < len(txs); i++ {
-		tx := txs[i]
-		if tx.L1Tx.Type == common.TxTypeCreateAccountDeposit {
-			if tc.Accounts[tx.fromIdxName] != nil {
-				// if account already exists, return error
-				return common.Wrap(fmt.Errorf("Can not create same account twice "+
-					"(same User (%s)) (this is a design property of Til)",
-					tx.fromIdxName))
-			}
-			tc.Accounts[tx.fromIdxName] = &Account{
-				Idx:      common.Idx(tc.idx),
-				Nonce:    common.Nonce(0),
-				BatchNum: tc.currBatchNum,
-			}
-			tc.l1CreatedAccounts[tx.fromIdxName] =
-				tc.Accounts[tx.fromIdxName]
-			tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
-			tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
-			tc.idx++
-		}
-		if isCoordinatorTxs {
-			tc.currBatch.L1CoordinatorTxs = append(tc.currBatch.L1CoordinatorTxs, tx.L1Tx)
-		}
-	}
-	return nil
 }
 
 // setIdxs sets the Idxs to the transactions of the tc.currBatch
