@@ -11,7 +11,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
     function setUp() public {
         sybil = new Sybil();
-        sybil.initialize(120);
+        sybil.initialize(120, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000);
     }
 
     // Forge batch tests
@@ -110,7 +110,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         vm.expectEmit(true, true, true, true);
         emit Sybil.Initialize(120);
 
-        newSybil.initialize(120);
+        newSybil.initialize(120, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000);
     }
 
     // CreateAccount transactions tests
