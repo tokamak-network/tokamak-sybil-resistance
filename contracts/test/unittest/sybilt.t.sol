@@ -17,9 +17,23 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
     // Forge batch tests
     function testGetStateRoot() external {
         uint32 batchNum = 1;
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
 
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC
+        );
 
         uint256 stateRoot = sybil.getStateRoot(batchNum);
         assertEq(stateRoot, 0xabc);
@@ -29,8 +43,24 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint32 lastForged = sybil.getLastForgedBatch();
         assertEq(lastForged, 0);
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+
+        // After forging a batch, the last forged batch should increment
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC
+        );
 
         lastForged = sybil.getLastForgedBatch();
         assertEq(lastForged, 1);
@@ -71,13 +101,28 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
     function testClearQueue() public {
         TxParams memory params = valid();
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
+        
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
 
         vm.prank(address(this));
         sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
         sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
 
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, true);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            true, 
+            proofA,
+            proofB,
+            proofC
+        );
 
         uint32 queueAfter = sybil.getQueueLength();
         assertEq(queueAfter, 1);
@@ -86,6 +131,18 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
     // Events tests
     function testForgeBatchEventEmission() public {
         vm.prank(address(this));
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            true, 
+            proofA,
+            proofB,
+            proofC
+        );
 
         vm.expectEmit(true, true, true, true);
         emit Sybil.ForgeBatch(1, 0);
