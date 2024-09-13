@@ -16,7 +16,12 @@ interface ISybil {
     
 
     // Initialization function
-    function initialize(uint8 _forgeL1L2BatchTimeout) external;
+    function initialize(
+        address[] memory _verifiers,
+        uint256[] memory _maxTx,
+        uint256[] memory _nLevels,
+        uint8 _forgeL1L2BatchTimeout
+    ) external;
 
     // L1 Transaction functions
     function addL1Transaction(

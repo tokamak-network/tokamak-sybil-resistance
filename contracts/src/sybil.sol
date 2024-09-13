@@ -48,7 +48,15 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @notice Initializes the Sybil contract.
      * @param _forgeL1L2BatchTimeout Timeout value for batch creation in blocks.
      */
-    function initialize(uint8 _forgeL1L2BatchTimeout) external initializer {
+    function initialize(
+        address[] memory _verifiers,
+        uint256[] memory _maxTx,
+        uint256[] memory _nLevels,
+        uint8 _forgeL1L2BatchTimeout
+    ) external initializer {
+        // set state variables
+        _initializeVerifiers(_verifiers, _maxTx, _nLevels);
+
         lastIdx = _RESERVED_IDX;
         nextL1FillingQueue = 1;
         emit Initialize(_forgeL1L2BatchTimeout);
@@ -179,6 +187,33 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         uint256 newExitRoot,
         bool l1Batch
     ) external virtual {
+        // caller must be EOA.
+        // require(
+        //     msg.sender == tx.origin,
+        //     "forgeBatch: INTENAL_TX_NOT_ALLOWED"
+        // );
+
+        // calculate input
+        uint256 input = _constructCircuitInput(
+            newLastIdx,
+            newStRoot,
+            newExitRoot,
+            l1Batch,
+            verifierIdx
+        );
+
+        // verify proof
+        require(
+            rollupVerifiers[verifierIdx].verifierInterface.verifyProof(
+                proofA,
+                proofB,
+                proofC,
+                [input]
+            ),
+            "Sybil::forgeBatch: INVALID_PROOF"
+        );
+
+        // update state
         lastForgedBatch++;
         lastIdx = newLastIdx;
         stateRootMap[lastForgedBatch] = newStRoot;
@@ -248,5 +283,46 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      */
     function _float2Fix(uint40 floatVal) internal pure returns (uint256) {
         return uint256(floatVal) * 10 ** (18 - 8);
+    }
+
+    /**
+     * @dev Calculate the circuit input hashing all the elements
+     * @param newLastIdx New total rollup accounts
+     * @param newStRoot New state root
+     * @param newExitRoot New exit root
+     * @param l1Batch Indicates if this forge will be L2 or L1-L2
+     * @param verifierIdx Verifier index
+     */
+    function _constructCircuitInput(
+        uint48 newLastIdx,
+        uint256 newStRoot,
+        uint256 newExitRoot,
+        bool l1Batch,
+        uint8 verifierIdx
+    ) internal view returns (uint256) {
+        // TODO: calculate circuit input
+        return 0;
+    }
+
+    /**
+     * @dev Initialize verifiers
+     * @param _verifiers verifiers address array
+     * @param _maxTx maxTx of the verifier
+     * @param _nLevels  nlevels of the verifier
+     */
+    function _initializeVerifiers(
+        address[] memory _verifiers,
+        uint256[] memory _maxTx,
+        uint256[] memory _nLevels
+    ) internal {
+        for (uint256 i = 0; i < _verifiers.length; i++) {
+            rollupVerifiers.push(
+                VerifierRollup({
+                    verifierInterface: VerifierRollupInterface(_verifiers[i]),
+                    maxTx: _maxTx[i] ,
+                    nLevels: _nLevels[i]
+                })
+            );
+        }
     }
 }
