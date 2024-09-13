@@ -20,7 +20,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         emit log_address(address(mockPoseidon4));
         // Initialize the Sybil contract with mock Poseidon addresses
         sybil = new Sybil();
-        sybil.initialize(1, address(mockPoseidon2), address(mockPoseidon3), address(mockPoseidon4));
+        sybil.initialize(120, address(mockPoseidon2), address(mockPoseidon3), address(mockPoseidon4));
     }
 
     // Forge batch tests
@@ -124,12 +124,16 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
     }
 
     function testInitializeEventEmission() public {
+        PoseidonUnit2 mockPoseidon2 = new PoseidonUnit2();
+        PoseidonUnit3 mockPoseidon3 = new PoseidonUnit3();
+        PoseidonUnit4 mockPoseidon4 = new PoseidonUnit4();
+
         Sybil newSybil = new Sybil();
 
         vm.expectEmit(true, true, true, true);
         emit Sybil.Initialize(120);
 
-        newSybil.initialize(120, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000);
+        newSybil.initialize(120, address(mockPoseidon2), address(mockPoseidon3), address(mockPoseidon4));
     }
 
     // CreateAccount transactions tests
