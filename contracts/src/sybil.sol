@@ -4,7 +4,6 @@ pragma solidity 0.8.23;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/ISybil.sol";
-import "./stub/VerifierRollupStub.sol";
 
 contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     uint48 constant _RESERVED_IDX = 255;
@@ -30,16 +29,6 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     mapping(uint32 => bytes32) public l1L2TxsDataHashMap;
     mapping(uint32 => bytes) public mapL1TxQueue;
 
-    struct VerifierRollup {
-        VerifierRollupInterface verifierInterface;
-        uint256 maxTx; // maximum rollup transactions in a batch: L2-tx + L1-tx transactions
-        uint256 nLevels; // number of levels of the circuit
-    }
-
-    // Verifiers array
-    VerifierRollup[] public rollupVerifiers;
-
-    // Event emitted when a L1-user transaction is called and added to the nextL1FillingQueue queue
     event L1UserTxEvent(
         uint32 indexed queueIndex,
         uint8 indexed position,
@@ -188,39 +177,8 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
         uint256 newVouchRoot,
         uint256 newScoreRoot,
         uint256 newExitRoot,
-        uint8 verifierIdx,
-        bool l1Batch,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC
+        bool l1Batch
     ) external virtual {
-        // caller must be EOA.
-        require(
-            msg.sender == tx.origin,
-            "forgeBatch: INTENAL_TX_NOT_ALLOWED"
-        );
-
-        // calculate input
-        uint256 input = _constructCircuitInput(
-            newLastIdx,
-            newStRoot,
-            newExitRoot,
-            l1Batch,
-            verifierIdx
-        );
-
-        // verify proof
-        require(
-            rollupVerifiers[verifierIdx].verifierInterface.verifyProof(
-                proofA,
-                proofB,
-                proofC,
-                [input]
-            ),
-            "Sybil::forgeBatch: INVALID_PROOF"
-        );
-
-        // update state
         lastForgedBatch++;
         lastIdx = newLastIdx;
         stateRootMap[lastForgedBatch] = newStRoot;
@@ -290,24 +248,5 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      */
     function _float2Fix(uint40 floatVal) internal pure returns (uint256) {
         return uint256(floatVal) * 10 ** (18 - 8);
-    }
-
-    /**
-     * @dev Calculate the circuit input hashing all the elements
-     * @param newLastIdx New total rollup accounts
-     * @param newStRoot New state root
-     * @param newExitRoot New exit root
-     * @param l1Batch Indicates if this forge will be L2 or L1-L2
-     * @param verifierIdx Verifier index
-     */
-    function _constructCircuitInput(
-        uint48 newLastIdx,
-        uint256 newStRoot,
-        uint256 newExitRoot,
-        bool l1Batch,
-        uint8 verifierIdx
-    ) internal view returns (uint256) {
-        // TODO: calculate circuit input
-        return 0;
     }
 }
