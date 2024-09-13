@@ -1,17 +1,26 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity 0.8 .23;
 
 import "forge-std/Test.sol";
 import "../../src/Sybil.sol";
 import "../_helpers/constants.sol";
 import "../_helpers/transactionTypes.sol";
+import "../../src/sybilHelpers.sol";
 
 contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
     Sybil public sybil;
 
     function setUp() public {
+        // Deploy Poseidon contracts
+        PoseidonUnit2 mockPoseidon2 = new PoseidonUnit2();
+        PoseidonUnit3 mockPoseidon3 = new PoseidonUnit3();
+        PoseidonUnit4 mockPoseidon4 = new PoseidonUnit4();
+        emit log_address(address(mockPoseidon2));
+        emit log_address(address(mockPoseidon3));
+        emit log_address(address(mockPoseidon4));
+        // Initialize the Sybil contract with mock Poseidon addresses
         sybil = new Sybil();
-        sybil.initialize(120, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000);
+        sybil.initialize(1, address(mockPoseidon2), address(mockPoseidon3), address(mockPoseidon4));
     }
 
     // Forge batch tests
@@ -47,7 +56,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (loadAmountF) * 10 ** (18 - 8);
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
 
         bytes memory txData = sybil.getL1TransactionQueue(1);
         bytes memory expectedTxData = abi.encodePacked(address(this), babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
@@ -62,7 +73,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
 
         queueLength = sybil.getQueueLength();
         assertEq(queueLength, 1);
@@ -73,8 +86,12 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
 
         vm.prank(address(this));
         sybil.forgeBatch(256, 0xabc, 0, 0, 0, true);
@@ -101,7 +118,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         emit Sybil.L1UserTxEvent(1, 0, abi.encodePacked(address(this), params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx));
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     function testInitializeEventEmission() public {
@@ -119,7 +138,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     function testInvalidCreateAccountTransaction() public {
@@ -128,7 +149,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
         vm.expectRevert(ISybil.InvalidCreateAccountTransaction.selector);
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     // Deposit transactions tests
@@ -141,7 +164,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     function testInvalidDepositTransaction() public {
@@ -154,7 +179,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
         vm.expectRevert(ISybil.InvalidDepositTransaction.selector);
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     // ForceExit transactions tests
@@ -167,7 +194,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     function testInvalidForceExitTransaction() public {
@@ -180,7 +209,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
         vm.expectRevert(ISybil.InvalidForceExitTransaction.selector);
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     // ForceExplode transactions tests
@@ -193,7 +224,9 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
 
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
     // Invalid transaction parameters tests
@@ -208,6 +241,8 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
         vm.expectRevert(ISybil.InvalidTransactionParameters.selector);
         vm.prank(address(this));
-        sybil.addL1Transaction{value: loadAmount}(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
     }
 }

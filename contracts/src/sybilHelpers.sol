@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.23;
+pragma solidity 0.8 .23;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
@@ -7,21 +7,21 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * @dev Interface poseidon hash function 2 elements
  */
 contract PoseidonUnit2 {
-    function poseidon(uint256[2] memory) public pure returns (uint256) {}
+    function poseidon(uint256[2] memory) public pure returns(uint256) {}
 }
 
 /**
  * @dev Interface poseidon hash function 3 elements
  */
 contract PoseidonUnit3 {
-    function poseidon(uint256[3] memory) public pure returns (uint256) {}
+    function poseidon(uint256[3] memory) public pure returns(uint256) {}
 }
 
 /**
  * @dev Interface poseidon hash function 4 elements
  */
 contract PoseidonUnit4 {
-    function poseidon(uint256[4] memory) public pure returns (uint256) {}
+    function poseidon(uint256[4] memory) public pure returns(uint256) {}
 }
 
 /**
@@ -40,13 +40,17 @@ contract SybilHelpers is Initializable {
         address _poseidon2Elements,
         address _poseidon3Elements,
         address _poseidon4Elements
-    ) internal initializer {
+    ) internal {
+        require(_poseidon2Elements != address(0), "Invalid poseidon2Elements address");
+        require(_poseidon3Elements != address(0), "Invalid poseidon3Elements address");
+        require(_poseidon4Elements != address(0), "Invalid poseidon4Elements address");
+
         _insPoseidonUnit2 = PoseidonUnit2(_poseidon2Elements);
         _insPoseidonUnit3 = PoseidonUnit3(_poseidon3Elements);
         _insPoseidonUnit4 = PoseidonUnit4(_poseidon4Elements);
     }
 
-     /**
+    /**
      * @dev Build entry for the exit tree leaf
      * @param nonce nonce parameter, only use 40 bits instead of 48
      * @param balance Balance of the account
@@ -59,7 +63,7 @@ contract SybilHelpers is Initializable {
         uint256 balance,
         uint256 ay,
         address ethAddress
-    ) internal pure returns (uint256[4] memory) {
+    ) internal pure returns(uint256[4] memory) {
         uint256[4] memory stateArray;
 
         stateArray[0] |= nonce << 32;
@@ -73,16 +77,15 @@ contract SybilHelpers is Initializable {
         return stateArray;
     }
 
-     /**
+    /**
      * @dev Hash poseidon for 2 elements
      * @param inputs Poseidon input array of 2 elements
      * @return Poseidon hash
      */
     function _hash2Elements(uint256[2] memory inputs)
-        internal
-        view
-        returns (uint256)
-    {
+    internal
+    view
+    returns(uint256) {
         return _insPoseidonUnit2.poseidon(inputs);
     }
 
@@ -92,10 +95,9 @@ contract SybilHelpers is Initializable {
      * @return Poseidon hash
      */
     function _hash3Elements(uint256[3] memory inputs)
-        internal
-        view
-        returns (uint256)
-    {
+    internal
+    view
+    returns(uint256) {
         return _insPoseidonUnit3.poseidon(inputs);
     }
 
@@ -105,10 +107,9 @@ contract SybilHelpers is Initializable {
      * @return Poseidon hash
      */
     function _hash4Elements(uint256[4] memory inputs)
-        internal
-        view
-        returns (uint256)
-    {
+    internal
+    view
+    returns(uint256) {
         return _insPoseidonUnit4.poseidon(inputs);
     }
 
@@ -119,10 +120,9 @@ contract SybilHelpers is Initializable {
      * @return Poseidon hash1
      */
     function _hashFinalNode(uint256 key, uint256 value)
-        internal
-        view
-        returns (uint256)
-    {
+    internal
+    view
+    returns(uint256) {
         uint256[3] memory inputs;
         inputs[0] = key;
         inputs[1] = value;
@@ -130,7 +130,7 @@ contract SybilHelpers is Initializable {
         return _hash3Elements(inputs);
     }
 
-     /**
+    /**
      * @dev Verify sparse merkle tree proof
      * @param root Root to verify
      * @param siblings Siblings necessary to compute the merkle proof
@@ -143,33 +143,32 @@ contract SybilHelpers is Initializable {
         uint256[] calldata siblings,
         uint256 key,
         uint256 value
-    ) internal view returns (bool) {
+    ) internal view returns(bool) {
         // Step 2: Calcuate root
         uint256 nextHash = _hashFinalNode(key, value);
         uint256 siblingTmp;
         for (int256 i = int256(siblings.length) - 1; i >= 0; i--) {
             siblingTmp = siblings[uint256(i)];
             bool leftRight = (uint8(key >> uint256(i)) & 0x01) == 1;
-            nextHash = leftRight
-                ? _hashNode(siblingTmp, nextHash)
-                : _hashNode(nextHash, siblingTmp);
+            nextHash = leftRight ?
+                _hashNode(siblingTmp, nextHash) :
+                _hashNode(nextHash, siblingTmp);
         }
 
         // Step 3: Check root
         return root == nextHash;
     }
 
-     /**
+    /**
      * @dev Hash poseidon for sparse merkle tree nodes
      * @param left Input element array
      * @param right Input element array
      * @return Poseidon hash
      */
     function _hashNode(uint256 left, uint256 right)
-        internal
-        view
-        returns (uint256)
-    {
+    internal
+    view
+    returns(uint256) {
         uint256[2] memory inputs;
         inputs[0] = left;
         inputs[1] = right;
