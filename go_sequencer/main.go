@@ -119,9 +119,39 @@ func cmdRun(c *cli.Context) error {
 }
 
 func main() {
+<<<<<<< HEAD
 	stateDB := statedb.InitNewStateDB()
 	account.NewAccount(stateDB)
 	database.InitDB()
+=======
+	app := cli.NewApp()
+	app.Name = "tokamak-node"
+	app.Version = "v1"
+
+	flags := []cli.Flag{
+		&cli.StringFlag{
+			Name:     flagMode,
+			Usage:    fmt.Sprintf("Set node `MODE` (can be \"%v\" or \"%v\")", modeSync, modeCoord),
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     flagCfg,
+			Usage:    "Node configuration `FILE`",
+			Required: false,
+		},
+	}
+
+	app.Commands = []cli.Command{
+		{
+			Name:    "run",
+			Aliases: []string{},
+			Usage:   "Run the tokamak-node in the indicated mode",
+			Action:  cmdRun,
+			Flags:   flags,
+		},
+	}
+
+>>>>>>> 34f8275 (Added initial setup for node in sequencer)
 	router := gin.Default()
 	routes.Account(router)
 	routes.Link(router)

@@ -9,15 +9,15 @@ require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/dghubble/sling v1.4.2
-	github.com/ethereum/go-ethereum v1.14.8
+	github.com/ethereum/go-ethereum v1.10.6
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
-	github.com/libp2p/go-libp2p-core v0.14.0
-	github.com/rs/cors v1.7.0
+	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/multiformats/go-multiaddr v0.13.0
 	github.com/rubenv/sql-migrate v1.7.0
 	github.com/russross/meddler v1.0.1
 	github.com/stretchr/testify v1.9.0
@@ -30,31 +30,31 @@ require (
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+=======
+>>>>>>> 34f8275 (Added initial setup for node in sequencer)
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.2 // indirect
 >>>>>>> d06ea65 (Added node initialisation for sequencer and initialisation cmd in main)
 	github.com/beorn7/perks v1.0.1 // indirect
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
+=======
+>>>>>>> 34f8275 (Added initial setup for node in sequencer)
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
-	github.com/consensys/bavard v0.1.13 // indirect
-	github.com/consensys/gnark-crypto v0.12.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
-	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c // indirect
-	github.com/crate-crypto/go-kzg-4844 v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/blake512 v1.0.0 // indirect
-	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
+	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
-	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
-	github.com/ethereum/go-verkle v0.1.1-0.20240306133620-7d920df305f0 // indirect
+	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
@@ -68,13 +68,18 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gobuffalo/logger v1.0.6 // indirect
 	github.com/gobuffalo/packd v1.0.1 // indirect
+<<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> 73c16ff (Merged sequencer initialisation changes into coordinator node initialisation)
 =======
 	github.com/gofrs/flock v0.8.1 // indirect
 >>>>>>> 6ec8170 (Added node initialisation for sequencer and initialisation cmd in main)
+=======
+	github.com/golang/protobuf v1.5.4 // indirect
+>>>>>>> 9ff4157 (Added initial setup for node in sequencer)
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -94,6 +99,7 @@ require (
 	github.com/ipld/go-ipld-prime v0.21.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 	github.com/jmoiron/sqlx v1.4.0 // indirect
@@ -128,6 +134,9 @@ require (
 =======
 	github.com/karalabe/hid v1.0.1-0.20240306101548-573246063e52 // indirect
 >>>>>>> 6ec8170 (Added node initialisation for sequencer and initialisation cmd in main)
+=======
+	github.com/karalabe/usb v0.0.2 // indirect
+>>>>>>> 9ff4157 (Added initial setup for node in sequencer)
 	github.com/karrick/godirwalk v1.16.1 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
@@ -135,6 +144,7 @@ require (
 	github.com/libp2p/go-libp2p v0.36.2 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.6.3 // indirect
+	github.com/libp2p/go-libp2p-peerstore v0.2.6 // indirect
 	github.com/libp2p/go-libp2p-record v0.2.0 // indirect
 	github.com/libp2p/go-libp2p-routing-helpers v0.7.4 // indirect
 	github.com/libp2p/go-msgio v0.3.0 // indirect
@@ -147,12 +157,11 @@ require (
 	github.com/mattn/go-pointer v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
-	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
-	github.com/multiformats/go-multiaddr v0.13.0 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
+	github.com/multiformats/go-multiaddr-net v0.1.5 // indirect
 	github.com/multiformats/go-multibase v0.2.0 // indirect
 	github.com/multiformats/go-multicodec v0.9.0 // indirect
 	github.com/multiformats/go-multihash v0.2.3 // indirect
@@ -168,14 +177,15 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/prometheus/tsdb v0.7.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/status-im/keycard-go v0.2.0 // indirect
-	github.com/supranational/blst v0.3.11 // indirect
+	github.com/status-im/keycard-go v0.1.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
@@ -188,9 +198,13 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
 	gonum.org/v1/gonum v0.15.0 // indirect
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
+<<<<<<< HEAD
 >>>>>>> 73c16ff (Merged sequencer initialisation changes into coordinator node initialisation)
 	rsc.io/tmplfunc v0.0.3 // indirect
+=======
+>>>>>>> 9ff4157 (Added initial setup for node in sequencer)
 )
 
 require (
@@ -230,15 +244,19 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 =======
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
+<<<<<<< HEAD
 	github.com/iden3/go-merkletree v0.1.0
 >>>>>>> 5c80401 (Cleared commented code and added basic setup for node initialisation)
+=======
+	github.com/iden3/go-merkletree v0.0.0-20210308143313-8b63ca866189
+>>>>>>> 34f8275 (Added initial setup for node in sequencer)
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/libp2p/go-libp2p-discovery v0.7.0
+	github.com/libp2p/go-libp2p-discovery v0.5.1
 	github.com/libp2p/go-libp2p-kad-dht v0.26.1
 	github.com/libp2p/go-libp2p-pubsub v0.12.0
 	github.com/mattn/go-isatty v0.0.20 // indirect
