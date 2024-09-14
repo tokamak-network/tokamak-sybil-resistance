@@ -6,7 +6,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/signer/core"
+	ethSigner "github.com/ethereum/go-ethereum/signer/core"
 	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
@@ -36,28 +36,28 @@ func (a *AccountCreationAuth) toHash(chainID uint16,
 	hermezContractAddr ethCommon.Address) ([]byte, error) {
 	chainIDFormatted := ethMath.NewHexOrDecimal256(int64(chainID))
 
-	signerData := core.TypedData{
-		Types: core.Types{
-			"EIP712Domain": []core.Type{
+	signerData := ethSigner.TypedData{
+		Types: ethSigner.Types{
+			"EIP712Domain": []ethSigner.Type{
 				{Name: "name", Type: "string"},
 				{Name: "version", Type: "string"},
 				{Name: "chainId", Type: "uint256"},
 				{Name: "verifyingContract", Type: "address"},
 			},
-			"Authorise": []core.Type{
+			"Authorise": []ethSigner.Type{
 				{Name: "Provider", Type: "string"},
 				{Name: "Authorisation", Type: "string"},
 				{Name: "BJJKey", Type: "bytes32"},
 			},
 		},
 		PrimaryType: "Authorise",
-		Domain: core.TypedDataDomain{
+		Domain: ethSigner.TypedDataDomain{
 			Name:              EIP712Provider,
 			Version:           EIP712Version,
 			ChainId:           chainIDFormatted,
 			VerifyingContract: hermezContractAddr.Hex(),
 		},
-		Message: core.TypedDataMessage{
+		Message: ethSigner.TypedDataMessage{
 			"Provider":      EIP712Provider,
 			"Authorisation": AccountCreationAuthMsg,
 			"BJJKey":        SwapEndianness(a.BJJ[:]),

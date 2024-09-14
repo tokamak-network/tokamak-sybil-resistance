@@ -150,7 +150,7 @@ type RollupInterface interface {
 	// RollupUpdateForgeL1L2BatchTimeout(newForgeL1L2BatchTimeout int64) (*types.Transaction, error)
 
 	// Viewers
-	// RollupLastForgedBatch() (int64, error)
+	RollupLastForgedBatch() (int64, error)
 
 	//
 	// Smart Contract Status
@@ -313,4 +313,16 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 		return nil, tracerr.Wrap(err)
 	}
 	return rollupConstants, nil
+}
+
+// RollupLastForgedBatch is the interface to call the smart contract function
+func (c *RollupClient) RollupLastForgedBatch() (lastForgedBatch int64, err error) {
+	if err := c.client.Call(func(ec *ethclient.Client) error {
+		_lastForgedBatch, err := c.tokamak.LastForgedBatch(c.opts)
+		lastForgedBatch = int64(_lastForgedBatch)
+		return tracerr.Wrap(err)
+	}); err != nil {
+		return 0, tracerr.Wrap(err)
+	}
+	return lastForgedBatch, nil
 }

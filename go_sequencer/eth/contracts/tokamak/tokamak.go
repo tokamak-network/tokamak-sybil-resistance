@@ -88,6 +88,23 @@ func (_Tokamak *TokamakCaller) RollupVerifiers(opts *bind.CallOpts, arg0 *big.In
 
 }
 
+// LastForgedBatch is a free data retrieval call binding the contract method 0x44e0b2ce.
+//
+// Solidity: function lastForgedBatch() view returns(uint32)
+func (_Tokamak *TokamakCaller) LastForgedBatch(opts *bind.CallOpts) (uint32, error) {
+	var out []interface{}
+	err := _Tokamak.contract.Call(opts, &out, "lastForgedBatch")
+
+	if err != nil {
+		return *new(uint32), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint32)).(*uint32)
+
+	return out0, err
+
+}
+
 // NewTokamak creates a new instance of Tokamak, bound to a specific deployed contract.
 func NewTokamak(address common.Address, backend bind.ContractBackend) (*Tokamak, error) {
 	contract, err := bindTokamak(address, backend, backend, backend)
