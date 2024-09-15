@@ -139,6 +139,12 @@ func main() {
 		},
 	}
 
+	err := app.Run(os.Args)
+	if err != nil {
+		fmt.Printf("\nError: %v\n", tracerr.Sprint(err))
+		os.Exit(1)
+	}
+
 	router := gin.Default()
 	router.Run("localhost:8080")
 }
