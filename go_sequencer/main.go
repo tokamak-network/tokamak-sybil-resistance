@@ -151,7 +151,16 @@ func main() {
 		},
 	}
 
+<<<<<<< HEAD
 >>>>>>> 34f8275 (Added initial setup for node in sequencer)
+=======
+	err := app.Run(os.Args)
+	if err != nil {
+		fmt.Printf("\nError: %v\n", tracerr.Sprint(err))
+		os.Exit(1)
+	}
+
+>>>>>>> 2d9a15e (updated dependencies)
 	router := gin.Default()
 	routes.Account(router)
 	routes.Link(router)
