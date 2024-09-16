@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hermeznetwork/tracerr"
 
-	// "github.com/hermeznetwork/tracerr"
 	"github.com/urfave/cli"
 )
 
