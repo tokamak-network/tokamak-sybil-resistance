@@ -257,12 +257,27 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			}
 			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
 		case TypeNewBatch:
+			for _, tx := range tc.currBatchTest.l1CoordinatorTxs {
+				tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
+				tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
+				tc.idx++
+			}
 			if err := tc.setIdxs(); err != nil {
 				log.Error(err)
 				return nil, common.Wrap(err)
 			}
 		case TypeNewBatchL1:
-			// for each L1UserTx of the Queues[ToForgeNum], calculate the Idx
+			// for each L1UserTx of the Queues[ToForgeNum], accumulate Txs into map
+			for _, tx := range tc.Queues[tc.ToForgeNum] {
+				tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
+				tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
+				tc.idx++
+			}
+			for _, tx := range tc.currBatchTest.l1CoordinatorTxs {
+				tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
+				tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
+				tc.idx++
+			}
 			tc.currBatch.L1Batch = true
 			if err := tc.setIdxs(); err != nil {
 				return nil, common.Wrap(err)
@@ -570,7 +585,7 @@ func NewUser(keyDerivationIndex int, name string) Account {
 	addr := ethCrypto.PubkeyToAddress(key.PublicKey)
 
 	// Idx
-	idx := common.Idx(256 + keyDerivationIndex)
+	idx := common.Idx(255 + keyDerivationIndex)
 
 	// Sign
 	sign := common.Sign(false)
@@ -846,7 +861,6 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				// 	return common.Wrap(err)
 				// }
 
-				// Find the TokenID of the tx
 				// fromAcc, ok := tc.accountsByIdx[int(tx.FromIdx)]
 				// if !ok {
 				// 	return common.Wrap(fmt.Errorf("L2tx.FromIdx idx: %v not found", tx.FromIdx))

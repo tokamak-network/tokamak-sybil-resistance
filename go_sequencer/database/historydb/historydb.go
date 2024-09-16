@@ -1,8 +1,11 @@
 package historydb
 
 import (
+	"math"
+	"math/big"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database"
+	"tokamak-sybil-resistance/log"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/russross/meddler"
@@ -146,4 +149,114 @@ func (hdb *HistoryDB) GetLastL1TxsNum() (*int64, error) {
 	row := hdb.dbRead.QueryRow("SELECT MAX(forge_l1_txs_num) FROM batch;")
 	lastL1TxsNum := new(int64)
 	return lastL1TxsNum, common.Wrap(row.Scan(&lastL1TxsNum))
+}
+
+// AddBatch insert a Batch into the DB
+func (hdb *HistoryDB) AddBatch(batch *common.Batch) error { return hdb.addBatch(hdb.dbWrite, batch) }
+func (hdb *HistoryDB) addBatch(d meddler.DB, batch *common.Batch) error {
+	// Calculate total collected fees in USD
+	// Get IDs of collected tokens for fees
+	tokenIDs := []common.TokenID{}
+	for id := range batch.CollectedFees {
+		tokenIDs = append(tokenIDs, id)
+	}
+	// Get USD value of the tokens
+	type tokenPrice struct {
+		ID       common.TokenID `meddler:"token_id"`
+		USD      *float64       `meddler:"usd"`
+		Decimals int            `meddler:"decimals"`
+	}
+	var tokenPrices []*tokenPrice
+	if len(tokenIDs) > 0 {
+		query, args, err := sqlx.In(
+			"SELECT token_id, usd, decimals FROM token WHERE token_id IN (?);",
+			tokenIDs,
+		)
+		if err != nil {
+			return common.Wrap(err)
+		}
+		query = hdb.dbWrite.Rebind(query)
+		if err := meddler.QueryAll(
+			hdb.dbWrite, &tokenPrices, query, args...,
+		); err != nil {
+			return common.Wrap(err)
+		}
+	}
+	// Calculate total collected
+	var total float64
+	for _, tokenPrice := range tokenPrices {
+		if tokenPrice.USD == nil {
+			continue
+		}
+		f := new(big.Float).SetInt(batch.CollectedFees[tokenPrice.ID])
+		amount, _ := f.Float64()
+		total += *tokenPrice.USD * (amount / math.Pow(10, float64(tokenPrice.Decimals))) //nolint decimals have to be ^10
+	}
+	batch.TotalFeesUSD = &total
+	// Check current ether price and insert it into batch table
+	var ether TokenWithUSD
+	err := meddler.QueryRow(
+		hdb.dbRead, &ether,
+		"SELECT * FROM token WHERE symbol = 'ETH';",
+	)
+	if err != nil {
+		log.Warn("error getting ether price from db: ", err)
+		batch.EtherPriceUSD = 0
+	} else if ether.USD == nil {
+		batch.EtherPriceUSD = 0
+	} else {
+		batch.EtherPriceUSD = *ether.USD
+	}
+	if batch.GasPrice == nil {
+		batch.GasPrice = big.NewInt(0)
+	}
+	// Insert to DB
+	return common.Wrap(meddler.Insert(d, "batch", batch))
+}
+
+// AddBatches insert Bids into the DB
+func (hdb *HistoryDB) AddBatches(batches []common.Batch) error {
+	return common.Wrap(hdb.addBatches(hdb.dbWrite, batches))
+}
+func (hdb *HistoryDB) addBatches(d meddler.DB, batches []common.Batch) error {
+	for i := 0; i < len(batches); i++ {
+		if err := hdb.addBatch(d, &batches[i]); err != nil {
+			return common.Wrap(err)
+		}
+	}
+	return nil
+}
+
+// GetBatches retrieve batches from the DB, given a range of batch numbers defined by from and to
+func (hdb *HistoryDB) GetBatches(from, to common.BatchNum) ([]common.Batch, error) {
+	var batches []*common.Batch
+	err := meddler.QueryAll(
+		hdb.dbRead, &batches,
+		`SELECT batch_num, eth_block_num, forger_addr, fees_collected, fee_idxs_coordinator, 
+		state_root, num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, gas_price, gas_used, ether_price_usd 
+		FROM batch WHERE $1 <= batch_num AND batch_num < $2 ORDER BY batch_num;`,
+		from, to,
+	)
+	return database.SlicePtrsToSlice(batches).([]common.Batch), common.Wrap(err)
+}
+
+// GetLastBatchNum returns the BatchNum of the latest forged batch
+func (hdb *HistoryDB) GetLastBatchNum() (common.BatchNum, error) {
+	row := hdb.dbRead.QueryRow("SELECT batch_num FROM batch ORDER BY batch_num DESC LIMIT 1;")
+	var batchNum common.BatchNum
+	return batchNum, common.Wrap(row.Scan(&batchNum))
+}
+
+// GetBatch returns the batch with the given batchNum
+func (hdb *HistoryDB) GetBatch(batchNum common.BatchNum) (*common.Batch, error) {
+	var batch common.Batch
+	err := meddler.QueryRow(
+		hdb.dbRead, &batch, `SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr,
+		batch.fees_collected, batch.fee_idxs_coordinator, batch.state_root,
+		batch.num_accounts, batch.last_idx, batch.exit_root, batch.forge_l1_txs_num,
+		batch.slot_num, batch.total_fees_usd, batch.gas_price, batch.gas_used, batch.ether_price_usd
+		FROM batch WHERE batch_num = $1;`,
+		batchNum,
+	)
+	return &batch, common.Wrap(err)
 }
