@@ -9,7 +9,7 @@ contract VerifierRollupStub is VerifierRollupInterface {
         uint256[2][2] calldata b,
         uint256[2] calldata c,
         uint256[1] calldata input
-    ) public override view returns (bool) {
+    ) public  override pure returns (bool) {
         return true;
     }
 }
