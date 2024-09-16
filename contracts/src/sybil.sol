@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity 0.8 .23;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/ISybil.sol";
+import "./sybilHelpers.sol";
 
-contract Sybil is Initializable, OwnableUpgradeable, ISybil {
+contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
     uint48 constant _RESERVED_IDX = 255;
     uint48 constant _EXIT_IDX = 1;
     uint48 constant _EXPLODE_IDX = 2;
@@ -29,6 +30,10 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     mapping(uint32 => bytes32) public l1L2TxsDataHashMap;
     mapping(uint32 => bytes) public mapL1TxQueue;
 
+    // Mapping of exit nullifiers, only allowing each withdrawal to be made once
+    // rootId => (Idx => true/false)
+    mapping(uint32 => mapping(uint48 => bool)) public exitNullifierMap;
+
     event L1UserTxEvent(
         uint32 indexed queueIndex,
         uint8 indexed position,
@@ -39,8 +44,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     event UpdateForgeL1L2BatchTimeout(uint8 newForgeL1L2BatchTimeout);
     event WithdrawEvent(
         uint48 indexed idx,
-        uint32 indexed numExitRoot,
-        bool indexed instantWithdraw
+        uint32 indexed numExitRoot
     );
     event Initialize(uint8 forgeL1L2BatchTimeout);
 
@@ -48,9 +52,18 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @notice Initializes the Sybil contract.
      * @param _forgeL1L2BatchTimeout Timeout value for batch creation in blocks.
      */
-    function initialize(uint8 _forgeL1L2BatchTimeout) external initializer {
+    function initialize(uint8 _forgeL1L2BatchTimeout, address _poseidon2Elements,
+        address _poseidon3Elements,
+        address _poseidon4Elements) external initializer {
         lastIdx = _RESERVED_IDX;
         nextL1FillingQueue = 1;
+
+        _initializeHelpers(
+            _poseidon2Elements,
+            _poseidon3Elements,
+            _poseidon4Elements
+        );
+
         emit Initialize(_forgeL1L2BatchTimeout);
     }
 
@@ -150,7 +163,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @notice Clears the current queue after batch processing.
      * @return l1UserTxsLen The number of user transactions in the batch.
      */
-    function _clearQueue() internal returns (uint16) {
+    function _clearQueue() internal returns(uint16) {
         uint16 l1UserTxsLen = uint16(
             mapL1TxQueue[nextL1ToForgeQueue].length / _L1_USER_TOTALBYTES
         );
@@ -208,11 +221,83 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
     }
 
     /**
+     * @dev Withdraw to retrieve the tokens from the exit tree to the owner account
+     * Before this call an exit transaction must be done
+     * @param amount Amount to retrieve
+     * @param babyPubKey Public key babyjubjub represented as point: sign + (Ay)
+     * @param numExitRoot Batch number where the exit transaction has been done
+     * @param idx Index of the exit tree account
+     * Events: `WithdrawEvent`
+     */
+    function withdrawMerkleProof(
+        uint192 amount,
+        uint256 babyPubKey,
+        uint32 numExitRoot,
+        uint256[] calldata siblings,
+        uint48 idx
+    ) external {
+        // Build 'key' and 'value' for exit tree
+        uint256[4] memory arrayState = _buildTreeState(
+            0,
+            amount,
+            babyPubKey,
+            msg.sender
+        );
+        uint256 stateHash = _hash4Elements(arrayState);
+
+        // Check exit tree nullifier
+        if (exitNullifierMap[numExitRoot][idx]) {
+            revert WithdrawAlreadyDone();
+        }
+
+        // Get exit root given its index depth
+        uint256 exitRoot = exitRootsMap[numExitRoot];
+
+        // Check sparse merkle tree proof
+        if (!_smtVerifier(exitRoot, siblings, idx, stateHash)) {
+            revert SmtProofInvalid();
+        }
+
+        // Set nullifier
+        exitNullifierMap[numExitRoot][idx] = true;
+
+        _withdrawFunds(amount);
+
+        emit WithdrawEvent(idx, numExitRoot);
+    }
+
+    /**
+     * @dev Withdraw the funds to the msg.sender if instant withdraw or to the withdraw delayer if delayed
+     * @param amount Amount to retrieve
+     */
+    function _withdrawFunds(
+        uint192 amount
+    ) internal {
+        _safeTransfer(amount);
+    }
+
+    /**
+     * @dev Transfer tokens or ether from the smart contract
+     * @param value Quantity to transfer
+     */
+    function _safeTransfer(
+        uint256 value
+    ) internal {
+        /* solhint-disable avoid-low-level-calls */
+        (bool success, ) = msg.sender.call {
+            value: value
+        }(new bytes(0));
+        if (!success) {
+            revert EthTransferFailed();
+        }
+    }
+
+    /**
      * @notice Retrieves the state root for a given batch.
      * @param batchNum The batch number.
      * @return The state root of the batch.
      */
-    function getStateRoot(uint32 batchNum) external view returns (uint256) {
+    function getStateRoot(uint32 batchNum) external view returns(uint256) {
         return stateRootMap[batchNum];
     }
 
@@ -220,7 +305,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @notice Retrieves the last forged batch number.
      * @return The last forged batch number.
      */
-    function getLastForgedBatch() external view returns (uint32) {
+    function getLastForgedBatch() external view returns(uint32) {
         return lastForgedBatch;
     }
 
@@ -229,7 +314,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @param queueIndex The index of the queue.
      * @return The transaction queue in bytes format.
      */
-    function getL1TransactionQueue(uint32 queueIndex) external view returns (bytes memory) {
+    function getL1TransactionQueue(uint32 queueIndex) external view returns(bytes memory) {
         return mapL1TxQueue[queueIndex];
     }
 
@@ -237,7 +322,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @notice Retrieves the current length of the queue.
      * @return The length of the queue.
      */
-    function getQueueLength() external view returns (uint32) {
+    function getQueueLength() external view returns(uint32) {
         return nextL1FillingQueue - nextL1ToForgeQueue;
     }
 
@@ -246,7 +331,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil {
      * @param floatVal The floating point value.
      * @return The fixed point equivalent of the floating value.
      */
-    function _float2Fix(uint40 floatVal) internal pure returns (uint256) {
+    function _float2Fix(uint40 floatVal) internal pure returns(uint256) {
         return uint256(floatVal) * 10 ** (18 - 8);
     }
 }

@@ -13,10 +13,14 @@ interface ISybil {
     error LoadAmountDoesNotMatch();
     error AmountExceedsLimit();
     error InvalidTransactionParameters();
-    
+    error WithdrawAlreadyDone();
+    error SmtProofInvalid();
+    error EthTransferFailed();
 
     // Initialization function
-    function initialize(uint8 _forgeL1L2BatchTimeout) external;
+    function initialize(uint8 _forgeL1L2BatchTimeout, address _poseidon2Elements,
+        address _poseidon3Elements,
+        address _poseidon4Elements) external;
 
     // L1 Transaction functions
     function addL1Transaction(
