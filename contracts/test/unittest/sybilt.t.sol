@@ -6,6 +6,7 @@ import "../../src/Sybil.sol";
 import "../_helpers/constants.sol";
 import "../_helpers/transactionTypes.sol";
 import "../../src/sybilHelpers.sol";
+import "../../src/stub/VerifierRollupStub.sol";
 
 contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
     Sybil public sybil;
@@ -18,17 +19,52 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         emit log_address(address(mockPoseidon2));
         emit log_address(address(mockPoseidon3));
         emit log_address(address(mockPoseidon4));
+
+        // Deploy verifier stub
+        VerifierRollupStub verifierStub = new VerifierRollupStub(); 
+
+        address[] memory verifieres = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
+
+        verifieres[0] = address(verifierStub);
+        maxTx[0] = uint(256);
+        nLevels[0] = uint(1);
+
         // Initialize the Sybil contract with mock Poseidon addresses
-        sybil = new Sybil();
-        sybil.initialize(120, address(mockPoseidon2), address(mockPoseidon3), address(mockPoseidon4));
+        sybil = new Sybil(
+            verifieres, 
+            maxTx, 
+            nLevels, 
+            120, 
+            address(mockPoseidon2), 
+            address(mockPoseidon3), 
+            address(mockPoseidon4)
+        );
     }
 
     // Forge batch tests
     function testGetStateRoot() external {
         uint32 batchNum = 1;
+        uint256 input = uint(1);
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
 
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         uint256 stateRoot = sybil.getStateRoot(batchNum);
         assertEq(stateRoot, 0xabc);
@@ -38,8 +74,25 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint32 lastForged = sybil.getLastForgedBatch();
         assertEq(lastForged, 0);
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         lastForged = sybil.getLastForgedBatch();
         assertEq(lastForged, 1);
@@ -93,8 +146,25 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
             value: loadAmount
         }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
         vm.prank(address(this));
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, true);
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         uint32 queueAfter = sybil.getQueueLength();
         assertEq(queueAfter, 1);
@@ -102,12 +172,28 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
     // Events tests
     function testForgeBatchEventEmission() public {
-        vm.prank(address(this));
-
         vm.expectEmit(true, true, true, true);
         emit Sybil.ForgeBatch(1, 0);
 
-        sybil.forgeBatch(256, 0xabc, 0, 0, 0, true);
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
+        vm.prank(address(this));
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            true, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
     }
 
     function testL1UserTxEventEmission() public {
@@ -128,12 +214,27 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         PoseidonUnit3 mockPoseidon3 = new PoseidonUnit3();
         PoseidonUnit4 mockPoseidon4 = new PoseidonUnit4();
 
-        Sybil newSybil = new Sybil();
+        // Deploy verifier stub
+        VerifierRollupStub verifierStub = new VerifierRollupStub(); 
+        
+        address[] memory verifieres = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
 
-        vm.expectEmit(true, true, true, true);
+        verifieres[0] = address(verifierStub);
+        maxTx[0] = uint(256);
+        nLevels[0] = uint(1);
+
+        Sybil newSybil = new Sybil(
+            verifieres, 
+            maxTx, 
+            nLevels, 
+            120, 
+            address(mockPoseidon2), 
+            address(mockPoseidon3), 
+            address(mockPoseidon4)
+        );
         emit Sybil.Initialize(120);
-
-        newSybil.initialize(120, address(mockPoseidon2), address(mockPoseidon3), address(mockPoseidon4));
     }
 
     // CreateAccount transactions tests
@@ -164,8 +265,25 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
         uint48 initialLastIdx = 256;
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
         vm.prank(address(this));
-        sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         vm.prank(address(this));
         sybil.addL1Transaction {
@@ -178,8 +296,25 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
         uint48 initialLastIdx = 256;
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
         vm.prank(address(this));
-        sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         vm.expectRevert(ISybil.InvalidDepositTransaction.selector);
         vm.prank(address(this));
@@ -194,8 +329,25 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
         uint48 initialLastIdx = 256;
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
         vm.prank(address(this));
-        sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         vm.prank(address(this));
         sybil.addL1Transaction {
@@ -208,8 +360,25 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
         uint48 initialLastIdx = 256;
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
         vm.prank(address(this));
-        sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         vm.expectRevert(ISybil.InvalidForceExitTransaction.selector);
         vm.prank(address(this));
@@ -224,8 +393,25 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
         uint48 initialLastIdx = 256;
 
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
         vm.prank(address(this));
-        sybil.forgeBatch(initialLastIdx, 0xabc, 0, 0, 0, false);
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
 
         vm.prank(address(this));
         sybil.addL1Transaction {

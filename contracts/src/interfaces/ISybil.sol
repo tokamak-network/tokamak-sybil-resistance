@@ -18,9 +18,15 @@ interface ISybil {
     error EthTransferFailed();
 
     // Initialization function
-    function initialize(uint8 _forgeL1L2BatchTimeout, address _poseidon2Elements,
+    function initialize(
+        address[] memory verifiers,
+        uint256[] memory maxTxs,
+        uint256[] memory nLevels,
+        uint8 _forgeL1L2BatchTimeout, 
+        address _poseidon2Elements,
         address _poseidon3Elements,
-        address _poseidon4Elements) external;
+        address _poseidon4Elements
+    ) external;
 
     // L1 Transaction functions
     function addL1Transaction(
@@ -38,7 +44,12 @@ interface ISybil {
         uint256 newVouchRoot,
         uint256 newScoreRoot,
         uint256 newExitRoot,
-        bool l1Batch
+        uint8 verifierIdx,
+        bool l1Batch,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC,
+        uint256 input
     ) external;
 
     // Governance function
