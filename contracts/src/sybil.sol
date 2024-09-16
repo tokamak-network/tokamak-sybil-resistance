@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8 .23;
+pragma solidity 0.8.23;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/ISybil.sol";
+import "./interfaces/IVerifierRollup.sol";
 import "./sybilHelpers.sol";
 
 contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
@@ -34,6 +35,15 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
     // rootId => (Idx => true/false)
     mapping(uint32 => mapping(uint48 => bool)) public exitNullifierMap;
 
+    struct VerifierRollup {
+        VerifierRollupInterface verifierInterface;
+        uint256 maxTxs; // maximum rollup transactions in a batch: L2-tx + L1-tx transactions
+        uint256 nLevels; // number of levels of the circuit
+    }
+
+    // Verifiers array
+    VerifierRollup[] public rollupVerifiers;
+
     event L1UserTxEvent(
         uint32 indexed queueIndex,
         uint8 indexed position,
@@ -48,15 +58,45 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
     );
     event Initialize(uint8 forgeL1L2BatchTimeout);
 
+    constructor(
+        address[] memory verifiers,
+        uint256[] memory maxTxs,
+        uint256[] memory nLevels,
+        uint8 _forgeL1L2BatchTimeout, 
+        address _poseidon2Elements,
+        address _poseidon3Elements,
+        address _poseidon4Elements
+    ) {
+        initialize(
+            verifiers,
+            maxTxs,
+            nLevels,
+            _forgeL1L2BatchTimeout, 
+            _poseidon2Elements, 
+            _poseidon3Elements, 
+            _poseidon4Elements
+        );
+    }
     /**
      * @notice Initializes the Sybil contract.
      * @param _forgeL1L2BatchTimeout Timeout value for batch creation in blocks.
      */
-    function initialize(uint8 _forgeL1L2BatchTimeout, address _poseidon2Elements,
+    function initialize(
+        address[] memory verifiers,
+        uint256[] memory maxTxs,
+        uint256[] memory nLevels,
+        uint8 _forgeL1L2BatchTimeout, 
+        address _poseidon2Elements,
         address _poseidon3Elements,
-        address _poseidon4Elements) external initializer {
+        address _poseidon4Elements) public initializer {
         lastIdx = _RESERVED_IDX;
         nextL1FillingQueue = 1;
+
+        _initializeVerifiers(
+            verifiers,
+            maxTxs,
+            nLevels
+        );
 
         _initializeHelpers(
             _poseidon2Elements,
@@ -190,7 +230,12 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
         uint256 newVouchRoot,
         uint256 newScoreRoot,
         uint256 newExitRoot,
-        bool l1Batch
+        uint8 verifierIdx,
+        bool l1Batch,
+        uint256[2] calldata proofA,
+        uint256[2][2] calldata proofB,
+        uint256[2] calldata proofC,
+        uint256 input
     ) external virtual {
         lastForgedBatch++;
         lastIdx = newLastIdx;
@@ -198,6 +243,17 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
         vouchRootMap[lastForgedBatch] = newVouchRoot;
         scoreRootMap[lastForgedBatch] = newScoreRoot;
         exitRootsMap[lastForgedBatch] = newExitRoot;
+
+        // verify proof
+        require(
+            rollupVerifiers[verifierIdx].verifierInterface.verifyProof(
+                proofA,
+                proofB,
+                proofC,
+                [input]
+            ),
+            "Sybil::forgeBatch: INVALID_PROOF"
+        );
 
         uint16 l1UserTxsLen;
         if (l1Batch) {
@@ -333,5 +389,27 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
      */
     function _float2Fix(uint40 floatVal) internal pure returns(uint256) {
         return uint256(floatVal) * 10 ** (18 - 8);
+    }
+
+    /**
+     * @dev Initialize verifiers
+     * @param _verifiers verifiers address array
+     * @param _maxTxs encoeded maxTx of the verifier
+     * @param _nLevels encoeded nlevels of the verifier 
+     */
+    function _initializeVerifiers(
+        address[] memory _verifiers,
+        uint256[] memory _maxTxs,
+        uint256[] memory _nLevels
+    ) internal {
+        for (uint256 i = 0; i < _verifiers.length; i++) {
+            rollupVerifiers.push(
+                VerifierRollup({
+                    verifierInterface: VerifierRollupInterface(_verifiers[i]),
+                    maxTxs: _maxTxs[i],
+                    nLevels: _nLevels[i]
+                })
+            );
+        }
     }
 }
