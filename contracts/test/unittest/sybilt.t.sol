@@ -23,17 +23,17 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         // Deploy verifier stub
         VerifierRollupStub verifierStub = new VerifierRollupStub(); 
 
-        address[] memory verifieres = new address[](1);
+        address[] memory verifiers = new address[](1);
         uint256[] memory maxTx = new uint256[](1);
         uint256[] memory nLevels = new uint256[](1);
 
-        verifieres[0] = address(verifierStub);
+        verifiers[0] = address(verifierStub);
         maxTx[0] = uint(256);
         nLevels[0] = uint(1);
 
         // Initialize the Sybil contract with mock Poseidon addresses
         sybil = new Sybil(
-            verifieres, 
+            verifiers, 
             maxTx, 
             nLevels, 
             120, 
@@ -217,16 +217,16 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         // Deploy verifier stub
         VerifierRollupStub verifierStub = new VerifierRollupStub(); 
         
-        address[] memory verifieres = new address[](1);
+        address[] memory verifiers = new address[](1);
         uint256[] memory maxTx = new uint256[](1);
         uint256[] memory nLevels = new uint256[](1);
 
-        verifieres[0] = address(verifierStub);
+        verifiers[0] = address(verifierStub);
         maxTx[0] = uint(256);
         nLevels[0] = uint(1);
 
         Sybil newSybil = new Sybil(
-            verifieres, 
+            verifiers, 
             maxTx, 
             nLevels, 
             120, 
@@ -434,5 +434,152 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         sybil.addL1Transaction {
             value: loadAmount
         }(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
+    }
+ // Test initializing with invalid Poseidon addresses
+    function testInitializeWithInvalidPoseidonAddresses() public {
+        PoseidonUnit2 mockPoseidon2 = new PoseidonUnit2();
+        PoseidonUnit3 mockPoseidon3 = new PoseidonUnit3();
+        PoseidonUnit4 mockPoseidon4 = new PoseidonUnit4();
+        // Deploy verifier stub
+        VerifierRollupStub verifierStub = new VerifierRollupStub(); 
+        
+           address[] memory verifiers = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
+
+        verifiers[0] = address(verifierStub);
+        maxTx[0] = uint(256);
+        nLevels[0] = uint(1);
+
+
+        address invalidAddress = address(0);
+
+        // Expect revert for invalid poseidon2Elements address
+        vm.expectRevert(bytes("Invalid poseidon2Elements address"));
+        new Sybil(
+            verifiers, 
+            maxTx, 
+            nLevels, 
+            120, 
+            invalidAddress, 
+            address(mockPoseidon3), 
+            address(mockPoseidon4)
+        );
+
+        // Expect revert for invalid poseidon3Elements address
+        vm.expectRevert(bytes("Invalid poseidon3Elements address"));
+        new Sybil(
+            verifiers, 
+            maxTx, 
+            nLevels, 
+            120, 
+            address(mockPoseidon2), 
+            invalidAddress, 
+            address(mockPoseidon4)
+        );
+
+        // Expect revert for invalid poseidon4Elements address
+        vm.expectRevert(bytes("Invalid poseidon4Elements address"));
+        new Sybil(
+            verifiers, 
+            maxTx, 
+            nLevels, 
+            120, 
+            address(mockPoseidon2), 
+            address(mockPoseidon3), 
+            invalidAddress
+        );
+    }
+      // Test setForgeL1L2BatchTimeout called by non-owner
+    function testSetForgeL1L2BatchTimeoutNonOwner() public {
+        uint8 newTimeout = 100;
+
+        // Set up a different address
+        address nonOwner = address(0x123);
+
+        vm.prank(nonOwner);
+        vm.expectRevert();
+        sybil.setForgeL1L2BatchTimeout(newTimeout);
+    }
+    // Test withdrawMerkleProof when exit nullifier is already set
+    function testWithdrawMerkleProofAlreadyDone() public {
+        uint192 amount = 1 ether;
+        uint256 babyPubKey = 0x1234;
+        uint32 numExitRoot = 1;
+        uint48 idx = 0;
+
+        bytes32 slot = keccak256(abi.encode(idx, keccak256(abi.encode(numExitRoot, uint256(keccak256("exitNullifierMap"))))));
+        vm.store(address(sybil), slot, bytes32(uint256(1)));
+
+    uint256 [] memory siblings; 
+
+        vm.expectRevert(0x6d963f88);
+        sybil.withdrawMerkleProof(
+            amount,
+            babyPubKey,
+            numExitRoot,
+            siblings,
+            idx
+        );
+    }
+    // Test withdrawMerkleProof with invalid SMT proof
+    function testWithdrawMerkleProofInvalidSmtProof() public {
+        uint192 amount = 1 ether;
+        uint256 babyPubKey = 0x1234;
+        uint32 numExitRoot = 1;
+        uint48 idx = 0;
+
+        // Directly set exitRootsMap[numExitRoot] to a dummy value
+        bytes32 slot = keccak256(abi.encode(numExitRoot, uint256(keccak256("exitRootsMap"))));
+        vm.store(address(sybil), slot, bytes32(uint256(0xdeadbeef)));
+
+    uint256 [] memory siblings; // Empty siblings
+
+        vm.expectRevert(0x6d963f88);
+        sybil.withdrawMerkleProof(
+            amount,
+            babyPubKey,
+            numExitRoot,
+            siblings,
+            idx
+        );
+    }
+
+        // Test withdrawMerkleProof where transfer fails
+function testWithdrawMerkleProofTransferFails() public {
+    // Deploy RevertingReceiver contract
+    RevertingReceiver receiver = new RevertingReceiver();
+
+    uint192 amount = 1 ether;
+    uint256 babyPubKey = 0x1234;
+    uint32 numExitRoot = 1;
+    uint48 idx = 0;
+
+    // Directly set exitRootsMap[numExitRoot] to a dummy value
+    bytes32 exitRootSlot = keccak256(abi.encode(numExitRoot, uint256(keccak256("exitRootsMap"))));
+    vm.store(address(sybil), exitRootSlot, bytes32(uint256(0xdeadbeef)));
+
+    // Ensure exitNullifierMap[numExitRoot][idx] is false
+    bytes32 nullifierSlot = keccak256(abi.encode(idx, keccak256(abi.encode(numExitRoot, uint256(keccak256("exitNullifierMap"))))));
+    vm.store(address(sybil), nullifierSlot, bytes32(uint256(0)));
+
+    uint256 [] memory siblings; // Empty siblings
+
+    // Expect revert due to ETH transfer failure
+    vm.prank(address(receiver));
+    vm.expectRevert(ISybil.EthTransferFailed.selector);
+    sybil.withdrawMerkleProof(
+        amount,
+        babyPubKey,
+        numExitRoot,
+        siblings,
+        idx
+    );
+}
+}
+// Helper contract that reverts on receiving ETH
+contract RevertingReceiver {
+    fallback() external payable {
+        revert("Transfer failed");
     }
 }
