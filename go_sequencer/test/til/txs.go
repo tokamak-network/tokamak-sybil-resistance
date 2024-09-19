@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/log"
 
@@ -410,22 +411,22 @@ func (tc *Context) checkIfAccountExists(tf string, inst Instruction) error {
 
 // GeneratePoolL2Txs returns an array of common.PoolL2Tx from a given set made
 // of a string. It uses the users (keys) of the Context.
-// func (tc *Context) GeneratePoolL2Txs(set string) ([]common.PoolL2Tx, error) {
-// 	parser := newParser(strings.NewReader(set))
-// 	parsedSet, err := parser.parse()
-// 	if err != nil {
-// 		return nil, common.Wrap(err)
-// 	}
-// 	if parsedSet.typ != SetTypePoolL2 {
-// 		return nil, common.Wrap(fmt.Errorf("Expected set type: %s, found: %s",
-// 			SetTypePoolL2, parsedSet.typ))
-// 	}
+func (tc *Context) GeneratePoolL2Txs(set string) ([]common.PoolL2Tx, error) {
+	parser := newParser(strings.NewReader(set))
+	parsedSet, err := parser.parse()
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+	if parsedSet.typ != SetTypePoolL2 {
+		return nil, common.Wrap(fmt.Errorf("Expected set type: %s, found: %s",
+			SetTypePoolL2, parsedSet.typ))
+	}
 
-// 	tc.instructions = parsedSet.instructions
-// 	tc.userNames = parsedSet.users
+	tc.instructions = parsedSet.instructions
+	tc.accountNames = parsedSet.users
 
-// 	return tc.generatePoolL2Txs()
-// }
+	return tc.generatePoolL2Txs()
+}
 
 // GeneratePoolL2TxsFromInstructions returns an array of common.PoolL2Tx from a
 // given set made of instructions. It uses the users (keys) of the Context.
@@ -450,102 +451,93 @@ func (tc *Context) checkIfAccountExists(tf string, inst Instruction) error {
 // 	return tc.generatePoolL2Txs()
 // }
 
-// func (tc *Context) generatePoolL2Txs() ([]common.PoolL2Tx, error) {
-// 	tc.generateKeys(tc.userNames)
+func (tc *Context) generatePoolL2Txs() ([]common.PoolL2Tx, error) {
+	tc.generateKeys(tc.accountNames)
 
-// 	txs := []common.PoolL2Tx{}
-// 	for _, inst := range tc.instructions {
-// 		switch inst.Typ {
-// 		case common.TxTypeTransfer, common.TxTypeTransferToEthAddr, common.TxTypeTransferToBJJ:
-// 			if err := tc.checkIfAccountExists(inst.From, inst); err != nil {
-// 				log.Error(err)
-// 				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
-// 			}
-// 			if inst.Typ == common.TxTypeTransfer {
-// 				// if TxTypeTransfer, need to exist the ToIdx account
-// 				if err := tc.checkIfAccountExists(inst.To, inst); err != nil {
-// 					log.Error(err)
-// 					return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
-// 				}
-// 			}
-// 			// if account of receiver does not exist, don't use
-// 			// ToIdx, and use only ToEthAddr & ToBJJ
-// 			tx := common.PoolL2Tx{
-// 				FromIdx:     tc.Users[inst.From].Accounts[inst.TokenID].Idx,
-// 				TokenID:     inst.TokenID,
-// 				Amount:      inst.Amount,
-// 				Fee:         common.FeeSelector(inst.Fee),
-// 				Nonce:       tc.Users[inst.From].Accounts[inst.TokenID].Nonce,
-// 				State:       common.PoolL2TxStatePending,
-// 				Timestamp:   time.Now(),
-// 				RqToEthAddr: common.EmptyAddr,
-// 				RqToBJJ:     common.EmptyBJJComp,
-// 				Type:        inst.Typ,
-// 			}
-// 			tc.Users[inst.From].Accounts[inst.TokenID].Nonce++
-// 			if tx.Type == common.TxTypeTransfer {
-// 				tx.ToIdx = tc.Users[inst.To].Accounts[inst.TokenID].Idx
-// 				tx.ToEthAddr = common.EmptyAddr
-// 				tx.ToBJJ = common.EmptyBJJComp
-// 			} else if tx.Type == common.TxTypeTransferToEthAddr {
-// 				tx.ToIdx = common.Idx(0)
-// 				tx.ToEthAddr = tc.Users[inst.To].Addr
-// 				tx.ToBJJ = common.EmptyBJJComp
-// 			} else if tx.Type == common.TxTypeTransferToBJJ {
-// 				tx.ToIdx = common.Idx(0)
-// 				tx.ToEthAddr = common.FFAddr
-// 				tx.ToBJJ = tc.Users[inst.To].BJJ.Public().Compress()
-// 			}
-// 			nTx, err := common.NewPoolL2Tx(&tx)
-// 			if err != nil {
-// 				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
-// 			}
-// 			tx = *nTx
-// 			// perform signature and set it to tx.Signature
-// 			toSign, err := tx.HashToSign(tc.chainID)
-// 			if err != nil {
-// 				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
-// 			}
-// 			sig := tc.Users[inst.From].BJJ.SignPoseidon(toSign)
-// 			tx.Signature = sig.Compress()
+	txs := []common.PoolL2Tx{}
+	for _, inst := range tc.instructions {
+		switch inst.Typ {
+		case common.TxTypeCreateVouch, common.TxTypeDeleteVouch:
+			if err := tc.checkIfAccountExists(inst.From, inst); err != nil {
+				log.Error(err)
+				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
+			}
+			if inst.Typ == common.TxTypeTransfer {
+				// if TxTypeTransfer, need to exist the ToIdx account
+				if err := tc.checkIfAccountExists(inst.To, inst); err != nil {
+					log.Error(err)
+					return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
+				}
+			}
+			// if account of receiver does not exist, don't use
+			// ToIdx, and use only ToEthAddr & ToBJJ
+			tx := common.PoolL2Tx{
+				FromIdx:     tc.Accounts[inst.From].Idx,
+				Amount:      inst.Amount,
+				Fee:         common.FeeSelector(inst.Fee),
+				Nonce:       tc.Accounts[inst.From].Nonce,
+				State:       common.PoolL2TxStatePending,
+				Timestamp:   time.Now(),
+				RqToEthAddr: common.EmptyAddr,
+				RqToBJJ:     common.EmptyBJJComp,
+				Type:        inst.Typ,
+			}
+			tc.Accounts[inst.From].Nonce++
+			if tx.Type == common.TxTypeCreateVouch || tx.Type == common.TxTypeDeleteVouch {
+				tx.ToIdx = tc.Accounts[inst.To].Idx
+				tx.ToEthAddr = common.EmptyAddr
+				tx.ToBJJ = common.EmptyBJJComp
+			}
+			nTx, err := common.NewPoolL2Tx(&tx)
+			if err != nil {
+				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
+			}
+			tx = *nTx
+			// perform signature and set it to tx.Signature
+			toSign, err := tx.HashToSign(tc.chainID)
+			if err != nil {
+				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
+			}
+			sig := tc.Accounts[inst.From].BJJ.SignPoseidon(toSign)
+			tx.Signature = sig.Compress()
 
-// 			txs = append(txs, tx)
-// 		case common.TxTypeExit:
-// 			tx := common.PoolL2Tx{
-// 				FromIdx:   tc.Users[inst.From].Accounts[inst.TokenID].Idx,
-// 				ToIdx:     common.Idx(1), // as is an Exit
-// 				Fee:       common.FeeSelector(inst.Fee),
-// 				TokenID:   inst.TokenID,
-// 				Amount:    inst.Amount,
-// 				ToEthAddr: common.EmptyAddr,
-// 				ToBJJ:     common.EmptyBJJComp,
-// 				Nonce:     tc.Users[inst.From].Accounts[inst.TokenID].Nonce,
-// 				State:     common.PoolL2TxStatePending,
-// 				Type:      common.TxTypeExit,
-// 			}
-// 			tc.Users[inst.From].Accounts[inst.TokenID].Nonce++
-// 			nTx, err := common.NewPoolL2Tx(&tx)
-// 			if err != nil {
-// 				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
-// 			}
-// 			tx = *nTx
-// 			// perform signature and set it to tx.Signature
-// 			toSign, err := tx.HashToSign(tc.chainID)
-// 			if err != nil {
-// 				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
-// 			}
-// 			sig := tc.Users[inst.From].BJJ.SignPoseidon(toSign)
-// 			tx.Signature = sig.Compress()
-// 			txs = append(txs, tx)
-// 		default:
-// 			return nil,
-// 				common.Wrap(fmt.Errorf("Line %d: instruction type unrecognized: %s",
-// 					inst.LineNum, inst.Typ))
-// 		}
-// 	}
+			txs = append(txs, tx)
 
-// 	return txs, nil
-// }
+		case common.TxTypeExit:
+			tx := common.PoolL2Tx{
+				FromIdx:   tc.Accounts[inst.From].Idx,
+				ToIdx:     common.Idx(1), // as is an Exit
+				Fee:       common.FeeSelector(inst.Fee),
+				Amount:    inst.Amount,
+				ToEthAddr: common.EmptyAddr,
+				ToBJJ:     common.EmptyBJJComp,
+				Nonce:     tc.Accounts[inst.From].Nonce,
+				State:     common.PoolL2TxStatePending,
+				Type:      common.TxTypeExit,
+			}
+			tc.Accounts[inst.From].Nonce++
+			nTx, err := common.NewPoolL2Tx(&tx)
+			if err != nil {
+				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
+			}
+			tx = *nTx
+			// perform signature and set it to tx.Signature
+			toSign, err := tx.HashToSign(tc.chainID)
+			if err != nil {
+				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
+			}
+			sig := tc.Accounts[inst.From].BJJ.SignPoseidon(toSign)
+			tx.Signature = sig.Compress()
+			txs = append(txs, tx)
+		default:
+			return nil,
+				common.Wrap(fmt.Errorf("Line %d: instruction type unrecognized: %s",
+					inst.LineNum, inst.Typ))
+		}
+	}
+
+	return txs, nil
+}
 
 // RestartNonces sets all the Users.Accounts.Nonces to 0
 func (tc *Context) RestartNonces() {

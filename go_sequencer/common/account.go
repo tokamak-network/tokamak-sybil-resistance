@@ -47,6 +47,13 @@ const (
 	IdxUserThreshold = Idx(UserThreshold)
 )
 
+var (
+	// FFAddr is used to check if an ethereum address is 0xff..ff
+	FFAddr = ethCommon.HexToAddress("0xffffffffffffffffffffffffffffffffffffffff")
+	// EmptyAddr is used to check if an ethereum address is 0
+	EmptyAddr = ethCommon.HexToAddress("0x0000000000000000000000000000000000000000")
+)
+
 // Bytes returns a byte array representing the Idx
 func (idx Idx) Bytes() ([6]byte, error) {
 	if idx > maxIdxValue {

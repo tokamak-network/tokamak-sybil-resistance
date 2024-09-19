@@ -334,18 +334,14 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		}
 	} else if setType == SetTypePoolL2 {
 		switch lit {
-		// case "PoolTransfer":
-		// 	c.Typ = common.TxTypeTransfer
-		// 	transferring = true
-		// 	fee = true
-		// case "PoolTransferToEthAddr":
-		// 	c.Typ = common.TxTypeTransferToEthAddr
-		// 	transferring = true
-		// 	fee = true
-		// case "PoolTransferToBJJ":
-		// 	c.Typ = common.TxTypeTransferToBJJ
-		// 	transferring = true
-		// 	fee = true
+		case "PoolCreateVouch":
+			c.Typ = common.TxTypeCreateVouch
+			vouch = true
+			fee = true
+		case "PoolDeleteVouch":
+			c.Typ = common.TxTypeDeleteVouch
+			vouch = true
+			fee = true
 		case "PoolExit":
 			c.Typ = common.TxTypeExit
 			fee = true

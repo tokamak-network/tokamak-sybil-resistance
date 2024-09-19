@@ -129,11 +129,9 @@ func TestBatches(t *testing.T) {
 		Type: Blockchain
 		
 		CreateAccountDeposit A: 2000
-		CreateAccountDeposit A: 2000
 		CreateAccountDeposit B: 1000
-		CreateAccountDeposit B: 1000
-		> batchL1 
-		> batchL1 
+		> batchL1
+		> batchL1
 		CreateVouch A-B
 		CreateVouch B-A
 		> batch   // batchNum=2, L2 only batch, forges createVouches
