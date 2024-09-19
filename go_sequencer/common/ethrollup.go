@@ -3,8 +3,6 @@ package common
 import (
 	"fmt"
 	"math/big"
-
-	"github.com/hermeznetwork/tracerr"
 )
 
 const (
@@ -101,7 +99,7 @@ func (c *RollupConstants) FindVerifierIdx(MaxTx, NLevels int64) (int, error) {
 			return i, nil
 		}
 	}
-	return 0, tracerr.Wrap(fmt.Errorf("verifier not found for MaxTx: %v, NLevels: %v",
+	return 0, Wrap(fmt.Errorf("verifier not found for MaxTx: %v, NLevels: %v",
 		MaxTx, NLevels))
 }
 

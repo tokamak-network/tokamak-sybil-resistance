@@ -11,7 +11,6 @@ import (
 	"tokamak-sybil-resistance/synchronizer"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/hermeznetwork/tracerr"
 )
 
 // TxManager handles everything related to ethereum transactions:  It makes the
@@ -70,15 +69,15 @@ func NewTxManager(ctx context.Context, cfg *Config, ethClient eth.ClientInterfac
 	*TxManager, error) {
 	chainID, err := ethClient.EthChainID()
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	address, err := ethClient.EthAddress()
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	accNonce, err := ethClient.EthNonceAt(ctx, *address, nil)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	log.Infow("TxManager started", "nonce", accNonce)
 	return &TxManager{

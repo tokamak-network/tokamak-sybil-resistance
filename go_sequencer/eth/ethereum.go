@@ -14,7 +14,6 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/tracerr"
 )
 
 var (
@@ -220,7 +219,7 @@ func NewEthereumClient(client *ethclient.Client, account *accounts.Account,
 	}
 	chainID, err := c.EthChainID()
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	c.chainID = chainID
 	return c, nil

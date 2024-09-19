@@ -6,7 +6,6 @@ import (
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database/kvdb"
 
-	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-merkletree"
 	"github.com/iden3/go-merkletree/db/pebble"
 )
@@ -141,7 +140,7 @@ func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error)
 	cfg.NoLast = true
 	s, err := NewStateDB(cfg)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	return &LocalStateDB{
 		s,

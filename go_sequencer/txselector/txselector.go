@@ -64,12 +64,12 @@ package txselector
 // current: very simple version of TxSelector
 
 import (
+	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database/kvdb"
 	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/database/statedb"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
@@ -103,7 +103,7 @@ func NewTxSelector(coordAccount *CoordAccount, dbpath string,
 		},
 		synchronizerStateDB) // without merkletree
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	return &TxSelector{

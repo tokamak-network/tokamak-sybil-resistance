@@ -1,11 +1,12 @@
 package eth
 
 import (
+	"tokamak-sybil-resistance/common"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	ethKeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/tracerr"
 )
 
 // ClientInterface is the eth Client interface used by hermez-node modules to
@@ -41,11 +42,11 @@ func NewClient(client *ethclient.Client, account *accounts.Account, ks *ethKeyst
 	cfg *ClientConfig) (*Client, error) {
 	ethereumClient, err := NewEthereumClient(client, account, ks, &cfg.Ethereum)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	rollupClient, err := NewRollupClient(ethereumClient, cfg.Rollup.Address)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	return &Client{
 		EthereumClient: *ethereumClient,

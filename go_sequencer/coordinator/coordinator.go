@@ -60,7 +60,6 @@ import (
 	"tokamak-sybil-resistance/txselector"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/tracerr"
 )
 
 var errSkipBatchByPolicy = fmt.Errorf("skip batch by policy")
@@ -258,7 +257,7 @@ func NewCoordinator(cfg Config,
 ) (*Coordinator, error) {
 	if cfg.DebugBatchPath != "" {
 		if err := os.MkdirAll(cfg.DebugBatchPath, 0744); err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 	}
 
@@ -301,7 +300,7 @@ func NewCoordinator(cfg Config,
 	txManager, err := NewTxManager(ctxTimeout, &cfg, ethClient, l2DB, &c,
 		scConsts, initSCVars, etherscanService)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	c.txManager = txManager
 	// Set Eth LastBlockNum to -1 in stats so that stats.Synced() is

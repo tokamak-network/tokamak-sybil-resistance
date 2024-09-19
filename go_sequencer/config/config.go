@@ -11,7 +11,6 @@ import (
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/go-playground/validator"
-	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
@@ -420,11 +419,11 @@ func LoadNode(path string, coordinator bool) (*Node, error) {
 	}
 	validate := validator.New()
 	if err := validate.Struct(cfg); err != nil {
-		return nil, tracerr.Wrap(fmt.Errorf("error validating configuration file: %w", err))
+		return nil, common.Wrap(fmt.Errorf("error validating configuration file: %w", err))
 	}
 	if coordinator {
 		if err := validate.Struct(cfg.Coordinator); err != nil {
-			return nil, tracerr.Wrap(fmt.Errorf("error validating configuration file: %w", err))
+			return nil, common.Wrap(fmt.Errorf("error validating configuration file: %w", err))
 		}
 	}
 	log.Printf("Loaded Configuration: %+v", cfg)

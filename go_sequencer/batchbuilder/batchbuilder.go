@@ -5,8 +5,6 @@ import (
 	"tokamak-sybil-resistance/database/kvdb"
 	"tokamak-sybil-resistance/database/statedb"
 	"tokamak-sybil-resistance/txprocessor"
-
-	"github.com/hermeznetwork/tracerr"
 )
 
 // ConfigCircuit contains the circuit configuration
@@ -40,7 +38,7 @@ func NewBatchBuilder(dbpath string, synchronizerStateDB *statedb.StateDB, batchN
 		},
 		synchronizerStateDB)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	bb := BatchBuilder{
@@ -48,7 +46,7 @@ func NewBatchBuilder(dbpath string, synchronizerStateDB *statedb.StateDB, batchN
 	}
 
 	err = bb.Reset(batchNum, true)
-	return &bb, tracerr.Wrap(err)
+	return &bb, common.Wrap(err)
 }
 
 // Reset tells the BatchBuilder to reset it's internal state to the required
