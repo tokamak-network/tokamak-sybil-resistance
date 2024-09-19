@@ -10,15 +10,19 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/config"
 	"tokamak-sybil-resistance/log"
 	"tokamak-sybil-resistance/node"
 >>>>>>> d06ea65 (Added node initialisation for sequencer and initialisation cmd in main)
 
 	"github.com/gin-gonic/gin"
+<<<<<<< HEAD
 	"github.com/hermeznetwork/tracerr"
 
 	// "github.com/hermeznetwork/tracerr"
+=======
+>>>>>>> 7ea8c9c (Removed tracer imports from hermuz and used helpers)
 	"github.com/urfave/cli"
 )
 
@@ -47,7 +51,7 @@ func parseCli(c *cli.Context) (*Config, error) {
 		if err := cli.ShowAppHelp(c); err != nil {
 			panic(err)
 		}
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	return cfg, nil
 }
@@ -62,16 +66,16 @@ func getConfig(c *cli.Context) (*Config, error) {
 		cfg.mode = node.ModeSynchronizer
 		cfg.node, err = config.LoadNode(nodeCfgPath, false)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 	case modeCoord:
 		cfg.mode = node.ModeCoordinator
 		cfg.node, err = config.LoadNode(nodeCfgPath, true)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 	default:
-		return nil, tracerr.Wrap(fmt.Errorf("invalid mode \"%v\"", mode))
+		return nil, common.Wrap(fmt.Errorf("invalid mode \"%v\"", mode))
 	}
 
 	return &cfg, nil
@@ -103,13 +107,13 @@ func waitSigInt() {
 func cmdRun(c *cli.Context) error {
 	cfg, err := parseCli(c)
 	if err != nil {
-		return tracerr.Wrap(fmt.Errorf("error parsing flags and config: %w", err))
+		return common.Wrap(fmt.Errorf("error parsing flags and config: %w", err))
 	}
 	// TODO: Initialize lof library
 	// log.Init(cfg.node.Log.Level, cfg.node.Log.Out)
 	innerNode, err := node.NewNode(cfg.mode, cfg.node, c.App.Version)
 	if err != nil {
-		return tracerr.Wrap(fmt.Errorf("error starting node: %w", err))
+		return common.Wrap(fmt.Errorf("error starting node: %w", err))
 	}
 	innerNode.Start()
 	waitSigInt()
@@ -156,7 +160,7 @@ func main() {
 =======
 	err := app.Run(os.Args)
 	if err != nil {
-		fmt.Printf("\nError: %v\n", tracerr.Sprint(err))
+		fmt.Printf("\nError: %v\n", common.Wrap(err))
 		os.Exit(1)
 	}
 

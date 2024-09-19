@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"tokamak-sybil-resistance/api/coordinatornetwork"
+	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database/historydb"
 	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/database/statedb"
@@ -12,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
-	"github.com/hermeznetwork/tracerr"
 	"github.com/multiformats/go-multiaddr"
 )
 
@@ -50,10 +50,10 @@ type Config struct {
 func NewAPI(setup Config) (*API, error) {
 	// Check input
 	if setup.CoordinatorEndpoints && setup.L2DB == nil {
-		return nil, tracerr.Wrap(errors.New("cannot serve Coordinator endpoints without L2DB"))
+		return nil, common.Wrap(errors.New("cannot serve Coordinator endpoints without L2DB"))
 	}
 	if setup.ExplorerEndpoints && setup.HistoryDB == nil {
-		return nil, tracerr.Wrap(errors.New("cannot serve Explorer endpoints without HistoryDB"))
+		return nil, common.Wrap(errors.New("cannot serve Explorer endpoints without HistoryDB"))
 	}
 	consts, err := setup.HistoryDB.GetConstants()
 	if err != nil {

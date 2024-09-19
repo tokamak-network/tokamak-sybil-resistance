@@ -13,8 +13,6 @@ import (
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database/historydb"
 	"tokamak-sybil-resistance/log"
-
-	"github.com/hermeznetwork/tracerr"
 )
 
 // Updater is an utility object to facilitate updating the StateAPI
@@ -90,7 +88,7 @@ func (u *Updater) SetSCVars(vars *common.SCVariablesPtr) {
 func NewUpdater(hdb *historydb.HistoryDB, config *historydb.NodeConfig, vars *common.SCVariables,
 	consts *historydb.Constants, rfp *RecommendedFeePolicy, maxTxPerBatch int64) (*Updater, error) {
 	if ok := rfp.valid(); !ok {
-		return nil, tracerr.Wrap(fmt.Errorf("Invalid recommended fee policy: %v", rfp.PolicyType))
+		return nil, common.Wrap(fmt.Errorf("Invalid recommended fee policy: %v", rfp.PolicyType))
 	}
 	u := Updater{
 		hdb:    hdb,

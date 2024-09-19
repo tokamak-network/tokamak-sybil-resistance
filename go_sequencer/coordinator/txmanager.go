@@ -49,3 +49,56 @@ type Queue struct {
 	// nonceByBatchNum map[common.BatchNum]uint64
 	next int
 }
+<<<<<<< HEAD
+=======
+
+// NewQueue returns a new queue
+func NewQueue() Queue {
+	return Queue{
+		list: make([]*BatchInfo, 0),
+		// nonceByBatchNum: make(map[common.BatchNum]uint64),
+		next: 0,
+	}
+}
+
+// NewTxManager creates a new TxManager
+func NewTxManager(ctx context.Context, cfg *Config, ethClient eth.ClientInterface, l2DB *l2db.L2DB,
+	coord *Coordinator, scConsts *common.SCConsts, initSCVars *common.SCVariables, etherscanService *etherscan.Service) (
+	*TxManager, error) {
+	chainID, err := ethClient.EthChainID()
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+	address, err := ethClient.EthAddress()
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+	accNonce, err := ethClient.EthNonceAt(ctx, *address, nil)
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+	log.Infow("TxManager started", "nonce", accNonce)
+	return &TxManager{
+		cfg: *cfg,
+		// ethClient:         ethClient,
+		// etherscanService:  etherscanService,
+		l2DB:              l2DB,
+		coord:             coord,
+		batchCh:           make(chan *BatchInfo, queueLen),
+		statsVarsCh:       make(chan statsVars, queueLen),
+		discardPipelineCh: make(chan int, queueLen),
+		account: accounts.Account{
+			Address: *address,
+		},
+		chainID: chainID,
+		consts:  *scConsts,
+
+		vars: *initSCVars,
+
+		minPipelineNum: 0,
+		queue:          NewQueue(),
+		accNonce:       accNonce,
+		accNextNonce:   accNonce,
+	}, nil
+}
+>>>>>>> 5abb445 (Removed tracer imports from hermuz and used helpers)

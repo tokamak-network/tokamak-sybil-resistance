@@ -8,9 +8,12 @@ import (
 	"log"
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"github.com/cockroachdb/pebble"
 =======
 	"github.com/hermeznetwork/tracerr"
+=======
+>>>>>>> 5abb445 (Removed tracer imports from hermuz and used helpers)
 	"github.com/iden3/go-merkletree"
 	"github.com/iden3/go-merkletree/db/pebble"
 >>>>>>> e0ccd8a (Updated util functionalities for database and apis)
@@ -109,7 +112,7 @@ func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error)
 	cfg.NoLast = true
 	s, err := NewStateDB(cfg)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	return &LocalStateDB{
 		s,

@@ -44,7 +44,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/jmoiron/sqlx"
 	"github.com/russross/meddler"
@@ -117,7 +116,7 @@ func NewNodeAPI(
 ) (*NodeAPI, error) {
 	_api, err := api.NewAPI(apiConfig)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	return &NodeAPI{
 		addr:                                    addr,
@@ -142,13 +141,13 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		cfg.PostgreSQL.NameWrite,
 	)
 	if err != nil {
-		return nil, tracerr.Wrap(fmt.Errorf("dbUtils.InitSQLDB: %w", err))
+		return nil, common.Wrap(fmt.Errorf("dbUtils.InitSQLDB: %w", err))
 	}
 	var dbRead *sqlx.DB
 	if cfg.PostgreSQL.HostRead == "" {
 		dbRead = dbWrite
 	} else if cfg.PostgreSQL.HostRead == cfg.PostgreSQL.HostWrite {
-		return nil, tracerr.Wrap(fmt.Errorf(
+		return nil, common.Wrap(fmt.Errorf(
 			"PostgreSQL.HostRead and PostgreSQL.HostWrite must be different",
 		))
 	} else {
@@ -160,7 +159,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 			cfg.PostgreSQL.NameRead,
 		)
 		if err != nil {
-			return nil, tracerr.Wrap(fmt.Errorf("dbUtils.InitSQLDB: %w", err))
+			return nil, common.Wrap(fmt.Errorf("dbUtils.InitSQLDB: %w", err))
 		}
 	}
 	var apiConnCon *dbUtils.APIConnectionController
@@ -175,7 +174,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 
 	ethClient, err := ethclient.Dial(cfg.Web3.URL)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	var ethCfg eth.EthereumConfig
 	var account *accounts.Account
@@ -197,12 +196,12 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 
 		balance, err := ethClient.BalanceAt(context.TODO(), cfg.Coordinator.ForgerAddress, nil)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 
 		minForgeBalance := cfg.Coordinator.MinimumForgeAddressBalance
 		if minForgeBalance != nil && balance.Cmp(minForgeBalance) == -1 {
-			return nil, tracerr.Wrap(fmt.Errorf(
+			return nil, common.Wrap(fmt.Errorf(
 				"forger account balance is less than cfg.Coordinator.MinimumForgeAddressBalance: %v < %v",
 				balance, minForgeBalance))
 		}
@@ -215,7 +214,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		// Unlock Coordinator ForgerAddr in the keystore to make calls
 		// to ForgeBatch in the smart contract
 		if !keyStore.HasAddress(cfg.Coordinator.ForgerAddress) {
-			return nil, tracerr.Wrap(fmt.Errorf(
+			return nil, common.Wrap(fmt.Errorf(
 				"ethereum keystore doesn't have the key for address %v",
 				cfg.Coordinator.ForgerAddress))
 		}
@@ -224,7 +223,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		}
 		if err := keyStore.Unlock(*account,
 			cfg.Coordinator.EthClient.Keystore.Password); err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 		log.Infow("Forger ethereum account unlocked in the keystore",
 			"addr", cfg.Coordinator.ForgerAddress)
@@ -236,20 +235,20 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		},
 	})
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	chainID, err := client.EthChainID()
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	if !chainID.IsUint64() {
-		return nil, tracerr.Wrap(fmt.Errorf("chainID cannot be represented as uint64"))
+		return nil, common.Wrap(fmt.Errorf("chainID cannot be represented as uint64"))
 	}
 	chainIDU64 := chainID.Uint64()
 	const maxUint16 uint64 = 0xffff
 	if chainIDU64 > maxUint16 {
-		return nil, tracerr.Wrap(fmt.Errorf("chainID overflows uint16"))
+		return nil, common.Wrap(fmt.Errorf("chainID overflows uint16"))
 	}
 	chainIDU16 := uint16(chainIDU64)
 
@@ -260,7 +259,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		NLevels: statedb.MaxNLevels,
 	})
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	var l2DB *l2db.L2DB
@@ -282,7 +281,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		ChainID:                          chainIDU16,
 	})
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	initSCVars := sync.SCVars()
 
@@ -297,7 +296,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		ForgeDelay: cfg.Coordinator.ForgeDelay.Duration.Seconds(),
 	}
 	if err := historyDB.SetNodeConfig(&hdbNodeCfg); err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	hdbConsts := historydb.Constants{
 		SCConsts: common.SCConsts{
@@ -307,7 +306,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		HermezAddress: cfg.SmartContracts.Rollup,
 	}
 	if err := historyDB.SetConstants(&hdbConsts); err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	var etherScanService *etherscan.Service
 	if cfg.Coordinator.Etherscan.URL != "" && cfg.Coordinator.Etherscan.APIKey != "" {
@@ -327,7 +326,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		cfg.Coordinator.Circuit.MaxTx,
 	)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	var coord *coordinator.Coordinator
@@ -335,7 +334,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		// Unlock FeeAccount EthAddr in the keystore to generate the
 		// account creation authorization
 		if !keyStore.HasAddress(cfg.Coordinator.FeeAccount.Address) {
-			return nil, tracerr.Wrap(fmt.Errorf(
+			return nil, common.Wrap(fmt.Errorf(
 				"ethereum keystore doesn't have the key for address %v",
 				cfg.Coordinator.FeeAccount.Address))
 		}
@@ -344,13 +343,13 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		}
 		if err := keyStore.Unlock(feeAccount,
 			cfg.Coordinator.EthClient.Keystore.Password); err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 		//Swap bjj endianness
 		decodedBjjPubKey, err := hex.DecodeString(cfg.Coordinator.FeeAccount.BJJ.String())
 		if err != nil {
 			log.Error("Error decoding BJJ public key from config file. Error: ", err.Error())
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 		bSwapped := common.SwapEndianness(decodedBjjPubKey)
 		var bjj babyjub.PublicKeyComp
@@ -366,7 +365,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		// if err := auth.Sign(func(msg []byte) ([]byte, error) {
 		// 	return keyStore.SignHash(feeAccount, msg)
 		// }, chainIDU16, cfg.SmartContracts.Rollup); err != nil {
-		// 	return nil, tracerr.Wrap(err)
+		// 	return nil, common.Wrap(err)
 		// }
 
 		coordAccount := txselector.CoordAccount{
@@ -377,12 +376,12 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 		txSelector, err := txselector.NewTxSelector(&coordAccount,
 			cfg.Coordinator.TxSelector.Path, stateDB, l2DB)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 		batchBuilder, err := batchbuilder.NewBatchBuilder(cfg.Coordinator.BatchBuilder.Path,
 			stateDB, 0, uint64(cfg.Coordinator.Circuit.NLevels))
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 
 		//TODO: Initialize server proofs
@@ -406,14 +405,14 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 				cfg.Coordinator.Circuit.NLevels,
 			)
 			if err != nil {
-				return nil, tracerr.Wrap(err)
+				return nil, common.Wrap(err)
 			}
 			log.Infow("Found verifier that matches circuit config", "verifierIdx", verifierIdx)
 		} else {
 			verifierIdx = *cfg.Coordinator.Debug.RollupVerifierIndex
 			log.Infow("Using debug verifier index from config", "verifierIdx", verifierIdx)
 			if verifierIdx >= len(scConsts.Rollup.Verifiers) {
-				return nil, tracerr.Wrap(
+				return nil, common.Wrap(
 					fmt.Errorf("verifierIdx (%v) >= "+
 						"len(scConsts.Rollup.Verifiers) (%v)",
 						verifierIdx, len(scConsts.Rollup.Verifiers)))
@@ -421,7 +420,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 			verifier := scConsts.Rollup.Verifiers[verifierIdx]
 			if verifier.MaxTx != cfg.Coordinator.Circuit.MaxTx ||
 				verifier.NLevels != cfg.Coordinator.Circuit.NLevels {
-				return nil, tracerr.Wrap(
+				return nil, common.Wrap(
 					fmt.Errorf("Circuit config and verifier params don't match.  "+
 						"circuit.MaxTx = %v, circuit.NLevels = %v, "+
 						"verifier.MaxTx = %v, verifier.NLevels = %v",
@@ -475,7 +474,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 			etherScanService,
 		)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 	}
 	var nodeAPI *NodeAPI
@@ -504,11 +503,11 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 				// Get Ethereum private key of the coordinator
 				keyJSON, err := keyStore.Export(*account, cfg.Coordinator.EthClient.Keystore.Password, cfg.Coordinator.EthClient.Keystore.Password)
 				if err != nil {
-					return nil, tracerr.Wrap(err)
+					return nil, common.Wrap(err)
 				}
 				key, err := keystore.DecryptKey(keyJSON, cfg.Coordinator.EthClient.Keystore.Password)
 				if err != nil {
-					return nil, tracerr.Wrap(err)
+					return nil, common.Wrap(err)
 				}
 				coordnetConfig = &api.CoordinatorNetworkConfig{
 					BootstrapPeers: nil,
@@ -530,7 +529,7 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 			CoordinatorNetworkConfig: coordnetConfig,
 		}, cfg.API.CoordinatorNetwork, cfg.API.FindPeersCoordinatorNetworkInterval.Duration)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 	}
 

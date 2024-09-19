@@ -27,7 +27,6 @@ var (
 	ethMath "github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	ethSigner "github.com/ethereum/go-ethereum/signer/core"
-	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
@@ -89,11 +88,11 @@ func (a *AccountCreationAuth) toHash(chainID uint16,
 
 	domainSeparator, err := signerData.HashStruct("EIP712Domain", signerData.Domain.Map())
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, Wrap(err)
 	}
 	typedDataHash, err := signerData.HashStruct(signerData.PrimaryType, signerData.Message)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, Wrap(err)
 	}
 
 	rawData := []byte{0x19, 0x01} // "\x19\x01"
@@ -108,7 +107,7 @@ func (a *AccountCreationAuth) HashToSign(chainID uint16,
 	hermezContractAddr ethCommon.Address) ([]byte, error) {
 	b, err := a.toHash(chainID, hermezContractAddr)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, Wrap(err)
 	}
 	return ethCrypto.Keccak256(b), nil
 }
@@ -124,11 +123,11 @@ func (a *AccountCreationAuth) Sign(signHash func(hash []byte) ([]byte, error),
 	chainID uint16, hermezContractAddr ethCommon.Address) error {
 	hash, err := a.HashToSign(chainID, hermezContractAddr)
 	if err != nil {
-		return tracerr.Wrap(err)
+		return Wrap(err)
 	}
 	sig, err := signHash(hash)
 	if err != nil {
-		return tracerr.Wrap(err)
+		return Wrap(err)
 	}
 	sig[64] += 27
 	a.Signature = sig

@@ -14,7 +14,6 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/tracerr"
 )
 
 // RollupForgeBatchArgs are the arguments to the ForgeBatch function in the Rollup Smart Contract
@@ -241,15 +240,15 @@ func (c *RollupClient) RollupEventInit(genesisBlockNum int64) (*RollupEventIniti
 func NewRollupClient(client *EthereumClient, address ethCommon.Address) (*RollupClient, error) {
 	contractAbi, err := abi.JSON(strings.NewReader(string(tokamak.TokamakABI)))
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	tokamak, err := tokamak.NewTokamak(address, client.Client())
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	chainID, err := client.EthChainID()
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	c := &RollupClient{
 		client:      client,
@@ -261,12 +260,12 @@ func NewRollupClient(client *EthereumClient, address ethCommon.Address) (*Rollup
 	}
 	consts, err := c.RollupConstants()
 	if err != nil {
-		return nil, tracerr.Wrap(fmt.Errorf("RollupConstants at %v: %w", address, err))
+		return nil, common.Wrap(fmt.Errorf("RollupConstants at %v: %w", address, err))
 	}
 	c.consts = consts
 	// c.token, err = NewTokenClient(client, consts.TokenHEZ)
 	// if err != nil {
-	// 	return nil, tracerr.Wrap(fmt.Errorf("new token client at %v: %w", address, err))
+	// 	return nil, common.Wrap(fmt.Errorf("new token client at %v: %w", address, err))
 	// }
 	return c, nil
 }
@@ -277,22 +276,22 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 	if err := c.client.Call(func(ec *ethclient.Client) error {
 		absoluteMaxL1L2BatchTimeout, err := c.tokamak.ABSOLUTEMAXL1L2BATCHTIMEOUT(c.opts)
 		if err != nil {
-			return tracerr.Wrap(err)
+			return common.Wrap(err)
 		}
 		rollupConstants.AbsoluteMaxL1L2BatchTimeout = int64(absoluteMaxL1L2BatchTimeout)
 		// rollupConstants.TokenHEZ, err = c.tokamak.TokenHEZ(c.opts)
 		if err != nil {
-			return tracerr.Wrap(err)
+			return common.Wrap(err)
 		}
 		rollupVerifiersLength, err := c.tokamak.RollupVerifiersLength(c.opts)
 		if err != nil {
-			return tracerr.Wrap(err)
+			return common.Wrap(err)
 		}
 		for i := int64(0); i < rollupVerifiersLength.Int64(); i++ {
 			var newRollupVerifier common.RollupVerifierStruct
 			rollupVerifier, err := c.tokamak.RollupVerifiers(c.opts, big.NewInt(i))
 			if err != nil {
-				return tracerr.Wrap(err)
+				return common.Wrap(err)
 			}
 			newRollupVerifier.MaxTx = rollupVerifier.MaxTx.Int64()
 			newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
@@ -301,16 +300,16 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 		}
 		// rollupConstants.HermezAuctionContract, err = c.hermez.HermezAuctionContract(c.opts)
 		// if err != nil {
-		// 	return tracerr.Wrap(err)
+		// 	return common.Wrap(err)
 		// }
 		// rollupConstants.HermezGovernanceAddress, err = c.hermez.HermezGovernanceAddress(c.opts)
 		// if err != nil {
-		// 	return tracerr.Wrap(err)
+		// 	return common.Wrap(err)
 		// }
 		// rollupConstants.WithdrawDelayerContract, err = c.hermez.WithdrawDelayerContract(c.opts)
-		return tracerr.Wrap(err)
+		return common.Wrap(err)
 	}); err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	return rollupConstants, nil
 }
@@ -320,9 +319,9 @@ func (c *RollupClient) RollupLastForgedBatch() (lastForgedBatch int64, err error
 	if err := c.client.Call(func(ec *ethclient.Client) error {
 		_lastForgedBatch, err := c.tokamak.LastForgedBatch(c.opts)
 		lastForgedBatch = int64(_lastForgedBatch)
-		return tracerr.Wrap(err)
+		return common.Wrap(err)
 	}); err != nil {
-		return 0, tracerr.Wrap(err)
+		return 0, common.Wrap(err)
 	}
 	return lastForgedBatch, nil
 }

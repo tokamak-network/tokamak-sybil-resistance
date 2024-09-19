@@ -64,6 +64,11 @@ package txselector
 // current: very simple version of TxSelector
 
 import (
+<<<<<<< HEAD
+=======
+	"tokamak-sybil-resistance/common"
+	"tokamak-sybil-resistance/database/kvdb"
+>>>>>>> 5abb445 (Removed tracer imports from hermuz and used helpers)
 	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/database/statedb"
 
@@ -88,3 +93,28 @@ type TxSelector struct {
 
 	coordAccount *CoordAccount
 }
+<<<<<<< HEAD
+=======
+
+// NewTxSelector returns a *TxSelector
+func NewTxSelector(coordAccount *CoordAccount, dbpath string,
+	synchronizerStateDB *statedb.StateDB, l2 *l2db.L2DB) (*TxSelector, error) {
+	localAccountsDB, err := statedb.NewLocalStateDB(
+		statedb.Config{
+			Path:    dbpath,
+			Keep:    kvdb.DefaultKeep,
+			Type:    statedb.TypeTxSelector,
+			NLevels: 0,
+		},
+		synchronizerStateDB) // without merkletree
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+
+	return &TxSelector{
+		l2db:            l2,
+		localAccountsDB: localAccountsDB,
+		coordAccount:    coordAccount,
+	}, nil
+}
+>>>>>>> 5abb445 (Removed tracer imports from hermuz and used helpers)
