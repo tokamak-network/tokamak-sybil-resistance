@@ -87,14 +87,14 @@ type Config struct {
 // Synchronizer implements the Synchronizer type
 type Synchronizer struct {
 	EthClient        eth.ClientInterface
-	consts           *common.RollupConstants
+	consts           *common.SCConsts
 	historyDB        *historydb.HistoryDB
 	l2DB             *l2db.L2DB
 	stateDB          *statedb.StateDB
 	cfg              Config
-	initVars         common.RollupVariables
+	initVars         common.SCVariables
 	startBlockNum    int64
-	vars             common.RollupVariables
+	vars             common.SCVariables
 	stats            *StatsHolder
 	resetStateFailed bool
 }
@@ -108,7 +108,11 @@ func NewSynchronizer(ethClient eth.ClientInterface, historyDB *historydb.History
 			err))
 	}
 
-	initVars, startBlockNum, err := getInitialVariables(ethClient, rollupConstants)
+	consts := common.SCConsts{
+		Rollup: *rollupConstants,
+	}
+
+	initVars, startBlockNum, err := getInitialVariables(ethClient, &consts)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -116,7 +120,7 @@ func NewSynchronizer(ethClient eth.ClientInterface, historyDB *historydb.History
 	stats := NewStatsHolder(startBlockNum, cfg.StatsUpdateBlockNumDiffThreshold, cfg.StatsUpdateFrequencyDivider)
 	s := &Synchronizer{
 		EthClient:     ethClient,
-		consts:        rollupConstants,
+		consts:        &consts,
 		historyDB:     historyDB,
 		l2DB:          l2DB,
 		stateDB:       stateDB,
@@ -133,13 +137,15 @@ func (s *Synchronizer) Sync(ctx context.Context, lastSavedBlock *common.Block) (
 }
 
 func getInitialVariables(ethClient eth.ClientInterface,
-	consts *common.RollupConstants) (*common.RollupVariables, int64, error) {
-	rollupInit, rollupInitBlock, err := ethClient.RollupEventInit(consts.GenesisBlockNum)
+	consts *common.SCConsts) (*common.SCVariables, int64, error) {
+	rollupInit, rollupInitBlock, err := ethClient.RollupEventInit(consts.Rollup.GenesisBlockNum) //TODO: Check this with hermuz code
 	if err != nil {
 		return nil, 0, common.Wrap(fmt.Errorf("RollupEventInit: %w", err))
 	}
 	rollupVars := rollupInit.RollupVariables()
-	return rollupVars, rollupInitBlock, nil
+	return &common.SCVariables{
+		Rollup: *rollupVars,
+	}, rollupInitBlock, nil
 }
 
 func (s *Synchronizer) init() error {
@@ -207,22 +213,22 @@ func (s *Synchronizer) resetState(block *common.Block) error {
 	if common.Unwrap(err) == sql.ErrNoRows {
 		vars := s.initVars
 		log.Info("Setting initial SCVars in HistoryDB")
-		if err = s.historyDB.SetInitialSCVars(&vars); err != nil {
+		if err = s.historyDB.SetInitialSCVars(&vars.Rollup); err != nil {
 			return common.Wrap(fmt.Errorf("historyDB.SetInitialSCVars: %w", err))
 		}
-		s.vars = *vars.Copy()
+		s.vars.Rollup = *vars.Rollup.Copy()
 		// Add initial boot coordinator to HistoryDB
 		if err := s.historyDB.AddCoordinators([]common.Coordinator{{
 			Forger:      ethCommon.HexToAddress(os.Getenv("BootCoordinator")),
 			URL:         os.Getenv("BootCoordinatorURL"),
-			EthBlockNum: s.initVars.EthBlockNum,
+			EthBlockNum: s.initVars.Rollup.EthBlockNum, //TODO: Check this with Eth Block
 		}}); err != nil {
 			return common.Wrap(err)
 		}
 	} else if err != nil {
 		return common.Wrap(err)
 	} else {
-		s.vars = *rollup
+		s.vars.Rollup = *rollup
 	}
 
 	batch, err := s.historyDB.GetLastBatch()
@@ -257,4 +263,18 @@ func (s *Synchronizer) resetState(block *common.Block) error {
 
 	s.stats.UpdateSync(block, batch, &lastL1BatchBlockNum, lastForgeL1TxsNum)
 	return nil
+}
+
+// TODO: Update consts variable above to SConsts
+// RollupConstants returns the RollupConstants read from the smart contract
+func (s *Synchronizer) RollupConstants() *common.RollupConstants {
+	return &s.consts.Rollup
+}
+
+// TODO: Need to check and Update type initialised above in Synchronizer struct RollupVariables -> to SCVariables
+// SCVars returns a copy of the Smart Contract Variables
+func (s *Synchronizer) SCVars() *common.SCVariables {
+	return &common.SCVariables{
+		Rollup: *s.vars.Rollup.Copy(),
+	}
 }
