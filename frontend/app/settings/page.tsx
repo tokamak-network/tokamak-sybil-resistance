@@ -1,5 +1,4 @@
 import React from "react";
-import * as Checkbox from "@radix-ui/react-checkbox";
 import AccountInfo from "../components/AccountInfo";
 import SecuritySettings from "../components/SecuritySettings";
 
