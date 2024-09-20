@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import React from "react";
+import { ChakraProvider } from "@chakra-ui/react";
 import "./globals.css";
 import Header from "./components/Header";
 
@@ -16,14 +17,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="flex flex-col min-h-screen">
-        {/* Header */}
-        <Header />
-        {/* Main content area */}
-        <main className="flex-grow container mx-auto p-4">{children}</main>
-        {/* Footer or additional layout */}
-        <footer className="bg-gray-800 text-white p-4 text-center">
-          @ {`${new Date().getUTCFullYear()} SYB. All rights reserved.`}
-        </footer>
+        <ChakraProvider>
+          {/* Header */}
+          <Header />
+          {/* Main content area */}
+          <main className="flex-grow container mx-auto p-4">{children}</main>
+          {/* Footer or additional layout */}
+          <footer className="bg-gray-800 text-white p-4 text-center">
+            @ {`${new Date().getUTCFullYear()} SYB. All rights reserved.`}
+          </footer>
+        </ChakraProvider>
       </body>
     </html>
   );
