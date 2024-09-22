@@ -100,10 +100,14 @@ LANGUAGE plpgsql;
 CREATE TABLE account (
     item_id SERIAL,
     idx BIGINT PRIMARY KEY,
-    token_id INT NOT NULL REFERENCES token (token_id) ON DELETE CASCADE,
+    -- token_id INT NOT NULL REFERENCES token (token_id) ON DELETE CASCADE,
     batch_num BIGINT NOT NULL REFERENCES batch (batch_num) ON DELETE CASCADE,
     bjj BYTEA NOT NULL,
-    eth_addr BYTEA NOT NULL
+    -- sign BOOLEAN,
+    -- ay BIGINT,
+    eth_addr BYTEA NOT NULL,
+    nonce BIGINT NOT NULL,
+    balance DECIMAL(78, 0) NOT NULL
 );
 
 CREATE TABLE account_update (

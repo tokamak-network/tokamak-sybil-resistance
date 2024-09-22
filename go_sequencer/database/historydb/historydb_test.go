@@ -75,7 +75,7 @@ func TestBlocks(t *testing.T) {
 		// block 0 is stored as default in the DB
 		// block 1 does not exist
 		> block // blockNum=2
-		> block // blockNum=3 
+		> block // blockNum=3
 		> block // blockNum=4
 		> block // blockNum=5
 		> block // blockNum=6
@@ -153,7 +153,6 @@ func TestBatches(t *testing.T) {
 	require.NoError(t, err)
 	// Insert to DB
 	batches := []common.Batch{}
-	tokensValue := make(map[common.TokenID]float64)
 	lastL1TxsNum := new(int64)
 	lastL1BatchBlockNum := int64(0)
 	for _, block := range blocks {
@@ -172,16 +171,7 @@ func TestBatches(t *testing.T) {
 	}
 	// Insert batches
 	assert.NoError(t, historyDB.AddBatches(batches))
-	// Set expected total fee
-	for _, batch := range batches {
-		total := .0
-		for tokenID, amount := range batch.CollectedFees {
-			af := new(big.Float).SetInt(amount)
-			amountFloat, _ := af.Float64()
-			total += tokensValue[tokenID] * amountFloat
-		}
-		// batch.TotalFeesUSD = &total
-	}
+
 	// Get batches from the DB
 	fetchedBatches, err := historyDB.GetBatches(0, common.BatchNum(len(batches)+1))
 	assert.NoError(t, err)

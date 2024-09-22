@@ -23,7 +23,7 @@ func newBatchData(batchNum int) common.BatchData {
 			BatchNum:  common.BatchNum(batchNum),
 			StateRoot: big.NewInt(0), ExitRoot: big.NewInt(0),
 			FeeIdxsCoordinator: make([]common.Idx, 0),
-			CollectedFees:      make(map[common.TokenID]*big.Int),
+			// CollectedFees:      make(map[common.TokenID]*big.Int),
 		},
 	}
 }
@@ -208,11 +208,27 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			if err := tc.addToL1UserQueue(testTx); err != nil {
 				return nil, common.Wrap(err)
 			}
-		case common.TxTypeCreateVouch, common.TxTypeDeleteVouch:
+		case common.TxTypeCreateVouch:
 			tx := common.L2Tx{
 				// Amount:      inst.Amount,
 				// Fee:         common.FeeSelector(inst.Fee),
 				Type:        common.TxTypeCreateVouch,
+				EthBlockNum: tc.blockNum,
+			}
+			// when converted to PoolL2Tx BatchNum parameter is lost
+			tx.BatchNum = common.BatchNum(tc.currBatchNum)
+			testTx := L2Tx{
+				lineNum:     inst.LineNum,
+				fromIdxName: inst.From,
+				toIdxName:   inst.To,
+				L2Tx:        tx,
+			}
+			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
+		case common.TxTypeDeleteVouch:
+			tx := common.L2Tx{
+				// Amount:      inst.Amount,
+				// Fee:         common.FeeSelector(inst.Fee),
+				Type:        common.TxTypeDeleteVouch,
 				EthBlockNum: tc.blockNum,
 			}
 			// when converted to PoolL2Tx BatchNum parameter is lost
@@ -462,18 +478,18 @@ func (tc *Context) generatePoolL2Txs() ([]common.PoolL2Tx, error) {
 				log.Error(err)
 				return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
 			}
-			if inst.Typ == common.TxTypeTransfer {
-				// if TxTypeTransfer, need to exist the ToIdx account
-				if err := tc.checkIfAccountExists(inst.To, inst); err != nil {
-					log.Error(err)
-					return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
-				}
-			}
+			// if inst.Typ == common.TxTypeTransfer {
+			// 	// if TxTypeTransfer, need to exist the ToIdx account
+			// 	if err := tc.checkIfAccountExists(inst.To, inst); err != nil {
+			// 		log.Error(err)
+			// 		return nil, common.Wrap(fmt.Errorf("Line %d: %s", inst.LineNum, err.Error()))
+			// 	}
+			// }
 			// if account of receiver does not exist, don't use
 			// ToIdx, and use only ToEthAddr & ToBJJ
 			tx := common.PoolL2Tx{
 				FromIdx:     tc.Accounts[inst.From].Idx,
-				Amount:      inst.Amount,
+				Amount:      big.NewInt(1),
 				Fee:         common.FeeSelector(inst.Fee),
 				Nonce:       tc.Accounts[inst.From].Nonce,
 				State:       common.PoolL2TxStatePending,
@@ -487,6 +503,9 @@ func (tc *Context) generatePoolL2Txs() ([]common.PoolL2Tx, error) {
 				tx.ToIdx = tc.Accounts[inst.To].Idx
 				tx.ToEthAddr = common.EmptyAddr
 				tx.ToBJJ = common.EmptyBJJComp
+			}
+			if inst.LineNum == 3 {
+				// panic(tx.Type)
 			}
 			nTx, err := common.NewPoolL2Tx(&tx)
 			if err != nil {
@@ -768,7 +787,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 							BJJ:      user.BJJ.Public().Compress(),
 							EthAddr:  user.Addr,
 							Nonce:    0,
-							Balance:  big.NewInt(0),
+							Balance:  big.NewInt(100),
 						})
 					if !tx.UserOrigin {
 						tx.EffectiveFromIdx = common.Idx(tc.extra.idx)

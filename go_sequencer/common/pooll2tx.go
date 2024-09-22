@@ -2,7 +2,6 @@ package common
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -90,15 +89,6 @@ const (
 // NewPoolL2Tx returns the given L2Tx with the TxId & Type parameters calculated
 // from the L2Tx values
 func NewPoolL2Tx(tx *PoolL2Tx) (*PoolL2Tx, error) {
-	txTypeOld := tx.Type
-	if err := tx.SetType(); err != nil {
-		return nil, Wrap(err)
-	}
-	// If original Type doesn't match the correct one, return error
-	if txTypeOld != "" && txTypeOld != tx.Type {
-		return nil, Wrap(fmt.Errorf("L2Tx.Type: %s, should be: %s",
-			txTypeOld, tx.Type))
-	}
 
 	txIDOld := tx.TxID
 	if err := tx.SetID(); err != nil {
@@ -111,20 +101,6 @@ func NewPoolL2Tx(tx *PoolL2Tx) (*PoolL2Tx, error) {
 	}
 
 	return tx, nil
-}
-
-// SetType sets the type of the transaction
-func (tx *PoolL2Tx) SetType() error {
-	if tx.ToIdx >= IdxUserThreshold {
-		tx.Type = TxTypeCreateVouch
-	} else if tx.ToIdx == 1 {
-		tx.Type = TxTypeExit
-	} else if tx.ToIdx == 0 {
-		return Wrap(errors.New("malformed transaction"))
-	} else {
-		return Wrap(errors.New("malformed transaction"))
-	}
-	return nil
 }
 
 // SetID sets the ID of the transaction
@@ -275,7 +251,7 @@ func (tx *PoolL2Tx) HashToSign(chainID uint16) (*big.Int, error) {
 	}
 
 	// e1: [4 bytes MaxBatchNum | 5 bytes AmountFloat40 | 20 bytes ToEthAddr]
-	var e1B [29]byte
+	var e1B [24]byte
 	maxNumBatchBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(maxNumBatchBytes, tx.MaxNumBatch)
 	amountFloat40, err := NewFloat40(tx.Amount)
@@ -288,7 +264,7 @@ func (tx *PoolL2Tx) HashToSign(chainID uint16) (*big.Int, error) {
 	}
 	copy(e1B[0:4], maxNumBatchBytes)
 	copy(e1B[4:9], amountFloat40Bytes)
-	copy(e1B[9:29], tx.ToEthAddr[:])
+	copy(e1B[4:24], tx.ToEthAddr[:])
 	e1 := new(big.Int).SetBytes(e1B[:])
 	rqToEthAddr := EthAddrToBigInt(tx.RqToEthAddr)
 

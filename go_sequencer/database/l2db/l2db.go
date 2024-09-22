@@ -196,6 +196,7 @@ func (l2db *L2DB) addTxs(txs []common.PoolL2Tx, checkPoolIsFull bool) error {
 			queryVarsPart += ", " + queryVarsPartPerTx
 		}
 		// Add values that will replace the ?
+		// caution: hardcoded tokenID and amount as 0
 		queryVars = append(queryVars,
 			txs[i].TxID, txs[i].FromIdx, txs[i].ToIdx, toEthAddr, toBJJ, txs[i].TokenID,
 			txs[i].Amount.String(), txs[i].Fee, txs[i].Nonce, txs[i].State, info, txs[i].Signature, rqFromIdx,

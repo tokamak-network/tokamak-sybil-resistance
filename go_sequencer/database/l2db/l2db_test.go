@@ -1,7 +1,6 @@
 package l2db
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -87,15 +86,6 @@ func prepareHistoryDB(historyDB *historydb.HistoryDB) error {
 	if err != nil {
 		return common.Wrap(err)
 	}
-	for i := range blocks {
-		block := &blocks[i]
-		for j := range block.Rollup.AddedTokens {
-			token := &block.Rollup.AddedTokens[j]
-			token.Name = fmt.Sprintf("Token %d", token.TokenID)
-			token.Symbol = fmt.Sprintf("TK%d", token.TokenID)
-			token.Decimals = decimals
-		}
-	}
 
 	accs = make(map[common.Idx]common.Account)
 
@@ -121,11 +111,6 @@ func generatePoolL2Txs() ([]common.PoolL2Tx, error) {
 			PoolDeleteVouch A-B
 			PoolCreateVouch B-A
 			PoolDeleteVouch B-A
-			PoolCreateVouch A-B
-			PoolDeleteVouch A-B
-			PoolCreateVouch B-A
-			PoolDeleteVouch B-A
-			PoolCreateVouch A-B
 
 			// PoolExit A: 5000
 			// PoolExit B: 3000

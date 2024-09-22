@@ -5,6 +5,8 @@ import (
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/jmoiron/sqlx"
 	"github.com/russross/meddler"
 )
@@ -227,15 +229,39 @@ func (hdb *HistoryDB) addAccounts(d meddler.DB, accounts []common.Account) error
 	if len(accounts) == 0 {
 		return nil
 	}
+	type TestAccounts struct {
+		Idx      common.Idx
+		BatchNum common.BatchNum
+		BJJ      babyjub.PublicKeyComp
+		EthAddr  ethCommon.Address
+		Nonce    common.Nonce
+		Balance  string
+	}
+
+	var testAccounts []TestAccounts
+
+	for _, account := range accounts {
+		testAccounts = append(testAccounts, TestAccounts{
+			Idx:      account.Idx,
+			BatchNum: account.BatchNum,
+			BJJ:      account.BJJ,
+			EthAddr:  account.EthAddr,
+			Nonce:    account.Nonce,
+			Balance:  account.Balance.String(),
+		})
+	}
+
 	return common.Wrap(database.BulkInsert(
 		d,
 		`INSERT INTO account (
 			idx,
 			batch_num,
 			bjj,
-			eth_addr
+			eth_addr,
+			nonce,
+			balance
 		) VALUES %s;`,
-		accounts,
+		testAccounts,
 	))
 }
 
@@ -499,6 +525,7 @@ func (hdb *HistoryDB) AddBlockSCData(blockData *common.BlockData) (err error) {
 	// Add Batches
 	for i := range blockData.Rollup.Batches {
 		batch := &blockData.Rollup.Batches[i]
+		batch.Batch.GasPrice = big.NewInt(0)
 
 		// Add Batch: this will trigger an update on the DB
 		// that will set the batch num of forged L1 txs in this batch
