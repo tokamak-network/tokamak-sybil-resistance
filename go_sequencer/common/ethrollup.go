@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"math/big"
 )
 
@@ -36,6 +37,16 @@ const (
 	RollupConstMaxWithdrawalDelay = 2 * 7 * 24 * 60 * 60
 	// RollupConstExchangeMultiplier exchange multiplier
 	RollupConstExchangeMultiplier = 1e14
+)
+
+// TODO: Check and Set the following
+var (
+	// RollupConstLimitDepositAmount Max deposit amount allowed (depositAmount: L1 --> L2)
+	RollupConstLimitDepositAmount, _ = new(big.Int).SetString(
+		"", 10)
+	// RollupConstLimitL2TransferAmount Max amount allowed (amount L2 --> L2)
+	RollupConstLimitL2TransferAmount, _ = new(big.Int).SetString(
+		"", 10)
 )
 
 // BucketParams are the parameter variables of each Bucket of Rollup Smart
@@ -78,6 +89,18 @@ type RollupConstants struct {
 	Verifiers                   []RollupVerifierStruct `json:"verifiers"`
 	// First block where the first slot begins
 	GenesisBlockNum int64 `json:"genesisBlockNum"`
+}
+
+// FindVerifierIdx tries to find a matching verifier in the RollupConstants and
+// returns its index
+func (c *RollupConstants) FindVerifierIdx(MaxTx, NLevels int64) (int, error) {
+	for i, verifier := range c.Verifiers {
+		if verifier.MaxTx == MaxTx && verifier.NLevels == NLevels {
+			return i, nil
+		}
+	}
+	return 0, Wrap(fmt.Errorf("verifier not found for MaxTx: %v, NLevels: %v",
+		MaxTx, NLevels))
 }
 
 // Copy returns a deep copy of the Variables

@@ -24,6 +24,12 @@ var (
 	ErrBlockHashMismatchEvent = fmt.Errorf("block hash mismatch in event log")
 )
 
+const (
+	// default values
+	defaultCallGasLimit = 300000
+	defaultGasPriceDiv  = 100
+)
+
 // ERC20Consts are the constants defined in a particular ERC20 Token instance
 type ERC20Consts struct {
 	Name     string
@@ -192,4 +198,34 @@ func newCallOpts() *bind.CallOpts {
 	return &bind.CallOpts{
 		From: ethCommon.HexToAddress("0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"),
 	}
+}
+
+// NewEthereumClient creates a EthereumClient instance.  The account is not mandatory (it can
+// be nil).  If the account is nil, CallAuth will fail with ErrAccountNil.
+func NewEthereumClient(client *ethclient.Client, account *accounts.Account,
+	ks *ethKeystore.KeyStore, config *EthereumConfig) (*EthereumClient, error) {
+	if config == nil {
+		config = &EthereumConfig{
+			CallGasLimit: defaultCallGasLimit,
+			GasPriceDiv:  defaultGasPriceDiv,
+		}
+	}
+	c := &EthereumClient{
+		client:  client,
+		account: account,
+		ks:      ks,
+		config:  config,
+		opts:    newCallOpts(),
+	}
+	chainID, err := c.EthChainID()
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+	c.chainID = chainID
+	return c, nil
+}
+
+// Client returns the internal ethclient.Client
+func (c *EthereumClient) Client() *ethclient.Client {
+	return c.client
 }

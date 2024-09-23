@@ -90,6 +90,14 @@ type StateDB struct {
 	LinkTree    *merkletree.MerkleTree
 }
 
+// LocalStateDB represents the local StateDB which allows to make copies from
+// the synchronizer StateDB, and is used by the tx-selector and the
+// batch-builder. LocalStateDB is an in-memory storage.
+type LocalStateDB struct {
+	*StateDB
+	synchronizerStateDB *StateDB
+}
+
 // initializeDB initializes and returns a Pebble DB instance.
 func initializeDB(path string) (*pebble.Storage, error) {
 	db, err := pebble.NewPebbleStorage(path, false)
@@ -122,6 +130,22 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 // Close closes the StateDB.
 func (sdb *StateDB) Close() {
 	sdb.DB.Close()
+}
+
+// NewLocalStateDB returns a new LocalStateDB connected to the given
+// synchronizerDB.  Checkpoints older than the value defined by `keep` will be
+// deleted.
+func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error) {
+	cfg.noGapsCheck = true
+	cfg.NoLast = true
+	s, err := NewStateDB(cfg)
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+	return &LocalStateDB{
+		s,
+		synchronizerDB,
+	}, nil
 }
 
 // Reset resets the StateDB to the checkpoint at the given batchNum. Reset
