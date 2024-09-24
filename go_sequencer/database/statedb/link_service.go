@@ -57,7 +57,7 @@ func (sdb *StateDB) PutLink(l *models.Link) (*merkletree.CircomProcessorProof, e
 	linkHash, _ := PoseidonHashLink(l)
 	fmt.Println(linkHash, "---------------  Poseidon Hash Account ---------------")
 
-	tx, err := sdb.DB.NewTx()
+	tx, err := sdb.db.NewTx()
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +83,12 @@ func (sdb *StateDB) GetLink(linkIdx int) (*models.Link, error) {
 	// Convert Idx into [2]byte
 	binary.LittleEndian.PutUint32(linkIdxBytes[0:4], uint32(linkIdx))
 
-	linkHashBytes, err := sdb.DB.Get(append(PrefixKeyLinkIdx, linkIdxBytes[:]...))
+	linkHashBytes, err := sdb.db.Get(append(PrefixKeyLinkIdx, linkIdxBytes[:]...))
 	if err != nil {
 		return nil, err
 	}
 
-	linkBytes, err := sdb.DB.Get(append(PrefixKeyLinkHash, linkHashBytes...))
+	linkBytes, err := sdb.db.Get(append(PrefixKeyLinkHash, linkHashBytes...))
 	if err != nil {
 		return nil, err
 	}

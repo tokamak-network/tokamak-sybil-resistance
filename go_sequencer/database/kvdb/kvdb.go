@@ -124,7 +124,6 @@ func (k *Last) close() {
 
 // NewKVDB creates a new KVDB, allowing to use an in-memory or in-disk storage.
 // Checkpoints older than the value defined by `keep` will be deleted.
-// func NewKVDB(pathDB string, keep int) (*KVDB, error) {
 func NewKVDB(cfg Config) (*KVDB, error) {
 	var sto *pebble.Storage
 	var err error

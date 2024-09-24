@@ -2,12 +2,11 @@ package statedb
 
 import (
 	"errors"
-	"log"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database/kvdb"
+	"tokamak-sybil-resistance/log"
 
 	"github.com/iden3/go-merkletree"
-	"github.com/iden3/go-merkletree/db/pebble"
 )
 
 const (
@@ -85,7 +84,7 @@ var (
 // StateDB represents the state database with an integrated Merkle tree.
 type StateDB struct {
 	cfg         Config
-	DB          *kvdb.KVDB
+	db          *kvdb.KVDB
 	AccountTree *merkletree.MerkleTree
 	LinkTree    *merkletree.MerkleTree
 }
@@ -98,14 +97,14 @@ type LocalStateDB struct {
 	synchronizerStateDB *StateDB
 }
 
-// initializeDB initializes and returns a Pebble DB instance.
-func initializeDB(path string) (*pebble.Storage, error) {
-	db, err := pebble.NewPebbleStorage(path, false)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}
+// // initializeDB initializes and returns a Pebble DB instance.
+// func initializeDB(path string) (*pebble.Storage, error) {
+// 	db, err := pebble.NewPebbleStorage(path, false)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return db, nil
+// }
 
 // NewStateDB initializes a new StateDB.
 func NewStateDB(cfg Config) (*StateDB, error) {
@@ -121,7 +120,7 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
 	mtLink, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
 	return &StateDB{
-		DB:          kv,
+		db:          kv,
 		AccountTree: mtAccount,
 		LinkTree:    mtLink,
 	}, nil
@@ -129,7 +128,7 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 
 // Close closes the StateDB.
 func (sdb *StateDB) Close() {
-	sdb.DB.Close()
+	sdb.db.Close()
 }
 
 // NewLocalStateDB returns a new LocalStateDB connected to the given
@@ -154,12 +153,12 @@ func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error)
 // deleted when MakeCheckpoint overwrites them.
 func (s *StateDB) Reset(batchNum common.BatchNum) error {
 	log.Fatalf("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
-	if err := s.DB.Reset(batchNum); err != nil {
+	if err := s.db.Reset(batchNum); err != nil {
 		return common.Wrap(err)
 	}
 	if s.AccountTree != nil {
 		// open the MT for the current s.db
-		accountTree, err := merkletree.NewMerkleTree(s.DB.StorageWithPrefix(PrefixKeyMT), s.AccountTree.MaxLevels())
+		accountTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.AccountTree.MaxLevels())
 		if err != nil {
 			return common.Wrap(err)
 		}
@@ -167,7 +166,7 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 	}
 	if s.LinkTree != nil {
 		// open the MT for the current s.db
-		linkTree, err := merkletree.NewMerkleTree(s.DB.StorageWithPrefix(PrefixKeyMT), s.LinkTree.MaxLevels())
+		linkTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.LinkTree.MaxLevels())
 		if err != nil {
 			return common.Wrap(err)
 		}
