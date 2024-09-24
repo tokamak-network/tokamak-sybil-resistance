@@ -16,6 +16,9 @@ interface ISybil {
     error WithdrawAlreadyDone();
     error SmtProofInvalid();
     error EthTransferFailed();
+    error InvalidProof();
+
+
 
     // Initialization function
     function initialize(

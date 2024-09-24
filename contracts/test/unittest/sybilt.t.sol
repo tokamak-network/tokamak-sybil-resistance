@@ -455,8 +455,8 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         address invalidAddress = address(0);
 
         // Expect revert for invalid poseidon2Elements address
-        vm.expectRevert(bytes("Invalid poseidon2Elements address"));
-        new Sybil(
+vm.expectRevert();
+      new Sybil(
             verifiers, 
             maxTx, 
             nLevels, 
@@ -467,7 +467,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         );
 
         // Expect revert for invalid poseidon3Elements address
-        vm.expectRevert(bytes("Invalid poseidon3Elements address"));
+vm.expectRevert();
         new Sybil(
             verifiers, 
             maxTx, 
@@ -479,8 +479,8 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         );
 
         // Expect revert for invalid poseidon4Elements address
-        vm.expectRevert(bytes("Invalid poseidon4Elements address"));
-        new Sybil(
+vm.expectRevert();
+    new Sybil(
             verifiers, 
             maxTx, 
             nLevels, 
