@@ -11,7 +11,6 @@ require (
 	github.com/gin-gonic/gin v1.7.2
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/gobuffalo/packr/v2 v2.8.1
-	github.com/hermeznetwork/tracerr v0.3.1-0.20210120162744-5da60b576169
 	github.com/iden3/go-iden3-crypto v0.0.6-0.20210308142348-8f85683b2cef
 	github.com/iden3/go-merkletree v0.0.0-20210308143313-8b63ca866189
 	github.com/jmoiron/sqlx v1.2.1-0.20200615141059-0794cb1f47ee
@@ -97,7 +96,6 @@ require (
 	github.com/libp2p/go-netroute v0.1.6 // indirect
 	github.com/libp2p/go-openssl v0.0.7 // indirect
 	github.com/libp2p/go-sockaddr v0.1.1 // indirect
-	github.com/logrusorgru/aurora v0.0.0-20181002194514-a7b3b318ed4e // indirect
 	github.com/markbates/errx v1.1.0 // indirect
 	github.com/markbates/oncer v1.0.0 // indirect
 	github.com/markbates/safe v1.0.1 // indirect
