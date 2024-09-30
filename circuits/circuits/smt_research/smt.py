@@ -10,13 +10,13 @@ def Num2Bits_strict(n, bits):
     return [int(b) for b in bin(int(n))[2:].zfill(bits)]
 
 def XOR(a, b):
-    return FR(int(a) ^ int(b))
+    return FR(a + b - 2*a*b)
 
 def IsEqual(a, b):
     return FR(1) if a == b else FR(0)
 
 def AND(a, b):
-    return FR(int(a) & int(b))
+    return FR(a * b)
 
 def MultiAND(*args):
     result = FR(1)
@@ -41,22 +41,47 @@ def SMTHash2(L, R):
 def SMTLevIns(siblings, enabled):
     n_levels = len(siblings)
     lev_ins = [FR(0)] * n_levels
-    prev = enabled
-    for i in range(n_levels):
-        lev_ins[i] = prev * (FR(1) - IsEqual(siblings[i], FR(0)))
-        prev = lev_ins[i]
+    done = [FR(0)] * (n_levels - 1)
+
+    # Check last level
+    if enabled:
+        assert IsEqual(siblings[-1], FR(0)), "Last sibling must be zero if enabled"
+
+    # Calculate from highest to lowest level
+    lev_ins[-1] = FR(1) - IsEqual(siblings[-2], FR(0))
+    done[-1] = lev_ins[-1]
+
+    for i in range(n_levels - 2, 0, -1):
+        lev_ins[i] = (FR(1) - done[i]) * (FR(1) - IsEqual(siblings[i-1], FR(0)))
+        done[i-1] = lev_ins[i] + done[i]
+
+    lev_ins[0] = FR(1) - done[0]
+
     return lev_ins
 
 # SMTProcessorSM
 def SMTProcessorSM(prev_state, is0, xor, fnc, lev_ins):
-    st_top = prev_state['prev_top'] * (FR(1) - xor)
-    st_old0 = prev_state['prev_top'] * xor * is0 + prev_state['prev_old0'] * (FR(1) - xor)
-    st_bot = (prev_state['prev_top'] * xor * (FR(1) - is0) + prev_state['prev_old0'] * xor + 
-              prev_state['prev_bot'] * (FR(1) - xor))
-    st_new1 = prev_state['prev_new1'] + lev_ins * (FR(1) - fnc[1])
-    st_na = prev_state['prev_na']
-    st_upd = prev_state['prev_upd'] + lev_ins * fnc[1] * (FR(1) - fnc[0])
+    # Input state
+    prev_top = prev_state['prev_top']
+    prev_old0 = prev_state['prev_old0']
+    prev_bot = prev_state['prev_bot']
+    prev_new1 = prev_state['prev_new1']
+    prev_na = prev_state['prev_na']
+    prev_upd = prev_state['prev_upd']
 
+    # Auxiliary calculation
+    aux1 = prev_top * lev_ins
+    aux2 = aux1 * fnc[0]
+
+    # State calculation
+    st_top = prev_top - aux1
+    st_old0 = aux2 * is0
+    st_new1 = (aux2 - st_old0 + prev_bot) * xor
+    st_bot = (FR(1) - xor) * (aux2 - st_old0 + prev_bot)
+    st_upd = aux1 - aux2
+    st_na = prev_new1 + prev_old0 + prev_na + prev_upd
+
+    # Return result
     return {
         'st_top': st_top,
         'st_old0': st_old0,
@@ -95,10 +120,15 @@ def SMTProcessor(old_root, siblings, old_key, old_value, is_old0, new_key, new_v
 
     n2b_old = Num2Bits_strict(old_key, n_levels)
     n2b_new = Num2Bits_strict(new_key, n_levels)
+    print("old_key", old_key)
+    print("new_key", new_key)
+    print("n2b_old", n2b_old)
+    print("n2b_new", n2b_new)
 
     lev_ins = SMTLevIns(siblings, enabled)
 
     xors = [XOR(FR(a), FR(b)) for a, b in zip(n2b_old, n2b_new)]
+    print("xors", xors)
 
     sm = [{}] * n_levels
     for i in range(n_levels):
@@ -128,7 +158,10 @@ def SMTProcessor(old_root, siblings, old_key, old_value, is_old0, new_key, new_v
     keys_ok = MultiAND(FR(1) - fnc[0], fnc[1], FR(1) - are_keys_equal)
 
     assert keys_ok == FR(0), "Keys do not match for update operation"
-    assert sm[n_levels-1]['st_na'] + sm[n_levels-1]['st_new1'] + sm[n_levels-1]['st_old0'] + sm[n_levels-1]['st_upd'] == FR(1), "Invalid state at the last level"
+
+    print("sm", sm)
+    total_state = sm[n_levels-1]['st_na'] + sm[n_levels-1]['st_new1'] + sm[n_levels-1]['st_old0'] + sm[n_levels-1]['st_upd']
+    assert total_state == FR(1), f"Invalid state at the last level: {total_state}"
 
     ForceEqualIfEnabled(enabled, old_root, top_switcher_l)
 
