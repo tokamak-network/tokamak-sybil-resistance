@@ -5,11 +5,11 @@ import "forge-std/Test.sol";
 import "../../src/Sybil.sol";
 import "../_helpers/constants.sol";
 import "../_helpers/transactionTypes.sol";
-import "../../src/sybilHelpers.sol";
 import "../../src/stub/VerifierRollupStub.sol";
 
 contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
     Sybil public sybil;
+    bytes32[] public hashes;
 
     function setUp() public {
         // Deploy Poseidon contracts
@@ -435,7 +435,8 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
             value: loadAmount
         }(babyPubKey, fromIdx, loadAmountF, amountF, toIdx);
     }
- // Test initializing with invalid Poseidon addresses
+
+    // Test initializing with invalid Poseidon addresses
     function testInitializeWithInvalidPoseidonAddresses() public {
         PoseidonUnit2 mockPoseidon2 = new PoseidonUnit2();
         PoseidonUnit3 mockPoseidon3 = new PoseidonUnit3();
@@ -443,7 +444,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         // Deploy verifier stub
         VerifierRollupStub verifierStub = new VerifierRollupStub(); 
         
-           address[] memory verifiers = new address[](1);
+        address[] memory verifiers = new address[](1);
         uint256[] memory maxTx = new uint256[](1);
         uint256[] memory nLevels = new uint256[](1);
 
@@ -501,6 +502,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         vm.expectRevert();
         sybil.setForgeL1L2BatchTimeout(newTimeout);
     }
+
     // Test withdrawMerkleProof when exit nullifier is already set
     function testWithdrawMerkleProofAlreadyDone() public {
         uint192 amount = 1 ether;
@@ -511,7 +513,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         bytes32 slot = keccak256(abi.encode(idx, keccak256(abi.encode(numExitRoot, uint256(keccak256("exitNullifierMap"))))));
         vm.store(address(sybil), slot, bytes32(uint256(1)));
 
-    uint256 [] memory siblings; 
+        uint256 [] memory siblings; 
 
         vm.expectRevert(0x6d963f88);
         sybil.withdrawMerkleProof(
@@ -533,7 +535,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         bytes32 slot = keccak256(abi.encode(numExitRoot, uint256(keccak256("exitRootsMap"))));
         vm.store(address(sybil), slot, bytes32(uint256(0xdeadbeef)));
 
-    uint256 [] memory siblings; // Empty siblings
+        uint256 [] memory siblings; // Empty siblings
 
         vm.expectRevert(0x6d963f88);
         sybil.withdrawMerkleProof(
@@ -545,38 +547,160 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         );
     }
 
-        // Test withdrawMerkleProof where transfer fails
-function testWithdrawMerkleProofTransferFails() public {
-    // Deploy RevertingReceiver contract
-    RevertingReceiver receiver = new RevertingReceiver();
+    // Test withdrawMerkleProof where transfer fails
+    function testWithdrawMerkleProofTransferFails() public {
+        // Deploy RevertingReceiver contract
+        RevertingReceiver receiver = new RevertingReceiver();
 
-    uint192 amount = 1 ether;
-    uint256 babyPubKey = 0x1234;
-    uint32 numExitRoot = 1;
-    uint48 idx = 0;
+        uint192 amount = 1 ether;
+        uint256 babyPubKey = 0x1234;
+        uint32 numExitRoot = 1;
+        uint48 idx = 0;
 
-    // Directly set exitRootsMap[numExitRoot] to a dummy value
-    bytes32 exitRootSlot = keccak256(abi.encode(numExitRoot, uint256(keccak256("exitRootsMap"))));
-    vm.store(address(sybil), exitRootSlot, bytes32(uint256(0xdeadbeef)));
+        // Directly set exitRootsMap[numExitRoot] to a dummy value
+        bytes32 exitRootSlot = keccak256(abi.encode(numExitRoot, uint256(keccak256("exitRootsMap"))));
+        vm.store(address(sybil), exitRootSlot, bytes32(uint256(0xdeadbeef)));
 
-    // Ensure exitNullifierMap[numExitRoot][idx] is false
-    bytes32 nullifierSlot = keccak256(abi.encode(idx, keccak256(abi.encode(numExitRoot, uint256(keccak256("exitNullifierMap"))))));
-    vm.store(address(sybil), nullifierSlot, bytes32(uint256(0)));
+        // Ensure exitNullifierMap[numExitRoot][idx] is false
+        bytes32 nullifierSlot = keccak256(abi.encode(idx, keccak256(abi.encode(numExitRoot, uint256(keccak256("exitNullifierMap"))))));
+        vm.store(address(sybil), nullifierSlot, bytes32(uint256(0)));
 
-    uint256 [] memory siblings; // Empty siblings
+        uint256 [] memory siblings; // Empty siblings
 
-    // Expect revert due to ETH transfer failure
-    vm.prank(address(receiver));
-    vm.expectRevert(ISybil.EthTransferFailed.selector);
-    sybil.withdrawMerkleProof(
-        amount,
-        babyPubKey,
-        numExitRoot,
-        siblings,
-        idx
-    );
+        // Expect revert due to ETH transfer failure
+        vm.prank(address(receiver));
+        vm.expectRevert(ISybil.EthTransferFailed.selector);
+        sybil.withdrawMerkleProof(
+            amount,
+            babyPubKey,
+            numExitRoot,
+            siblings,
+            idx
+        );
+    }
+
+    function testWithdrawMerkleProofTransferPasses() public {
+        uint192 amount = 1 ether;
+        uint256 babyPubKey = 0x1234;
+        uint32 numExitRoot = 1;
+        uint48 idx = 2;
+        
+        // Calcuate exit root
+        bytes32 exitRoot = calculateTestExitTreeRoot();
+        
+        // forge batch with exit root
+        uint256 input = uint(1);
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+
+        vm.prank(address(this));
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            uint(exitRoot), 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
+
+        /* verify
+            3rd leaf
+            0xdca3326ad7e8121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b
+
+            root
+            0xcc086fcc038189b4641db2cc4f1de3bb132aefbd65d510d817591550937818c7
+
+            index
+            2
+
+            proof
+            0x8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950
+            0x995788ffc103b987ad50f5e5707fd094419eb12d9552cc423bd0cd86a3861433
+        */
+        // Calculate proof (sibling)
+        uint[] memory siblings = new uint[](2);
+        siblings[0] = uint(0x8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950);
+        siblings[1] = uint(0x995788ffc103b987ad50f5e5707fd094419eb12d9552cc423bd0cd86a3861433);
+
+        bytes32 leaf = bytes32(0xdca3326ad7e8121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b);
+
+        // verify proof
+        bool isVerified = verify(
+            siblings,
+            exitRoot,
+            leaf,
+            idx
+        );
+
+        assert(isVerified == true);
+
+        // call withdrawMerkleProof
+        vm.expectRevert(ISybil.EthTransferFailed.selector);
+        sybil.withdrawMerkleProof(
+            amount,
+            babyPubKey,
+            numExitRoot,
+            siblings,
+            idx
+        );   
+    }
+
+    function calculateTestExitTreeRoot() internal returns (bytes32) {
+        uint256[4] memory transactions = [uint(0), uint(1), uint(2), uint(3)];
+        uint256[4] memory keys = [uint(0), uint(1), uint(2), uint(3)];
+
+        for (uint256 i = 0; i < transactions.length; i++) {
+            uint256 hashValue = sybil._hashNode(keys[i], transactions[i]);
+            hashes.push(bytes32(hashValue));
+        }
+
+        uint256 n = transactions.length;
+        uint256 offset = 0;
+
+        while (n > 0) {
+            for (uint256 i = 0; i < n - 1; i += 2) {
+                uint256 res = sybil._hashNode(uint(hashes[offset + i]), uint(hashes[offset + i + 1]));
+                hashes.push(
+                    bytes32(res)
+                );
+            }
+            offset += n;
+            n = n / 2;
+        }
+
+        return hashes[hashes.length - 1];
+    }
+
+    function verify(
+        uint[] memory proof,
+        bytes32 root,
+        bytes32 leaf,
+        uint256 index
+    ) internal view returns (bool) {
+        uint256 hash = uint(leaf);
+
+        for (uint256 i = 0; i < proof.length; i++) {
+            uint256 proofElement = uint(proof[i]);
+
+            if (index % 2 == 0) {
+                hash = sybil._hashNode(hash, proofElement);
+            } else {
+                hash = sybil._hashNode(proofElement, hash);
+            }
+
+            index = index / 2;
+        }
+
+        return hash == uint(root);
+    }
 }
-}
+
 // Helper contract that reverts on receiving ETH
 contract RevertingReceiver {
     fallback() external payable {

@@ -118,7 +118,7 @@ contract SybilHelpers {
      * @return Poseidon hash1
      */
     function _hashFinalNode(uint256 key, uint256 value)
-    internal
+    public
     view
     returns(uint256) {
         uint256[3] memory inputs;
@@ -164,7 +164,7 @@ contract SybilHelpers {
      * @return Poseidon hash
      */
     function _hashNode(uint256 left, uint256 right)
-    internal
+    public
     view
     returns(uint256) {
         uint256[2] memory inputs;
