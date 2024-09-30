@@ -282,6 +282,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
      * @param amount Amount to retrieve
      * @param babyPubKey Public key babyjubjub represented as point: sign + (Ay)
      * @param numExitRoot Batch number where the exit transaction has been done
+     * @param siblings Exit tree inclusion proof
      * @param idx Index of the exit tree account
      * Events: `WithdrawEvent`
      */
