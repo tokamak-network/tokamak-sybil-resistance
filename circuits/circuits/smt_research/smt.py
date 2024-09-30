@@ -18,11 +18,21 @@ def IsEqual(a, b):
 def AND(a, b):
     return FR(a * b)
 
-def MultiAND(*args):
-    result = FR(1)
-    for arg in args:
-        result *= arg
-    return result
+def MultiAND(inputs):
+    n = len(inputs)
+    
+    if n == 1:
+        return inputs[0]
+    elif n == 2:
+        return AND(inputs[0], inputs[1])
+    else:
+        n1 = n // 2
+        n2 = n - n1
+        
+        left_result = MultiAND(inputs[:n1])
+        right_result = MultiAND(inputs[n1:])
+        
+        return AND(left_result, right_result)
 
 def Switcher(sel, L, R):
     return sel * R + (FR(1) - sel) * L
@@ -155,7 +165,7 @@ def SMTProcessor(old_root, siblings, old_key, old_value, is_old0, new_key, new_v
     new_root = Switcher(enabled, old_root, Switcher(top_switcher_sel, top_switcher_l, top_switcher_r))
 
     are_keys_equal = IsEqual(old_key, new_key)
-    keys_ok = MultiAND(FR(1) - fnc[0], fnc[1], FR(1) - are_keys_equal)
+    keys_ok = MultiAND([FR(1) - fnc[0], fnc[1], FR(1) - are_keys_equal])
 
     assert keys_ok == FR(0), "Keys do not match for update operation"
 
