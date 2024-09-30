@@ -12,10 +12,7 @@ import (
 )
 
 func loadDefault(defaultValues string, cfg interface{}) error {
-	// fmt.Println(defaultValues, "----------------------- Default String")
-	fmt.Println(cfg, "----------------------------------- CFG")
 	if _, err := toml.Decode(defaultValues, cfg); err != nil {
-		fmt.Println(err, "-------------- ERR load default ------------------------------")
 		return err
 	}
 	return nil
@@ -27,14 +24,9 @@ func loadFile(path string, cfg interface{}) error {
 		return err
 	}
 	cfgToml := string(bs)
-	fmt.Println(cfgToml, "------------------------ cfgToml -----------------------------------")
-	fmt.Println(cfg, "------------------------ cfg -----------------------------------")
-	output, err := toml.Decode(cfgToml, cfg)
-	if err != nil {
-		fmt.Println(err, "-------------------------- ERR ----------------------------------")
+	if _, err := toml.Decode(cfgToml, cfg); err != nil {
 		return err
 	}
-	fmt.Println(output, "output--------------------------")
 	return nil
 }
 
@@ -49,7 +41,6 @@ func loadEnv(cfg interface{}) error {
 func LoadConfig(filePath string, defaultValues string, cfg interface{}) error {
 	//Get default configuration
 	if err := loadDefault(defaultValues, cfg); err != nil {
-		fmt.Println(err, "--------------- ERR CONFIG -------------------")
 		return fmt.Errorf("error loading default configuration: %w", err)
 	}
 	// Get file configuration

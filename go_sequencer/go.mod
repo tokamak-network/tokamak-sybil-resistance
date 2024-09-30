@@ -3,7 +3,7 @@ module tokamak-sybil-resistance
 go 1.22.5
 
 require (
-	github.com/BurntSushi/toml v0.3.1
+	github.com/BurntSushi/toml v1.4.0
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/dghubble/sling v1.3.0
 	github.com/ethereum/go-ethereum v1.10.6

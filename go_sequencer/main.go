@@ -48,7 +48,6 @@ func getConfig(c *cli.Context) (*Config, error) {
 	mode := c.String(flagMode)
 	nodeCfgPath := c.String(flagCfg)
 	var err error
-	println(mode, flagCfg)
 	switch mode {
 	case modeSync:
 		cfg.mode = node.ModeSynchronizer
@@ -94,7 +93,6 @@ func waitSigInt() {
 
 func cmdRun(c *cli.Context) error {
 	cfg, err := parseCli(c)
-	fmt.Println(cfg, "----------------- OutSide config -----------------------------------")
 	if err != nil {
 		return common.Wrap(fmt.Errorf("error parsing flags and config: %w", err))
 	}
@@ -102,6 +100,7 @@ func cmdRun(c *cli.Context) error {
 	// log.Init(cfg.node.Log.Level, cfg.node.Log.Out)
 	innerNode, err := node.NewNode(cfg.mode, cfg.node, c.App.Version)
 	if err != nil {
+		fmt.Println(err, "--------------- ERROR Starting Node ---------------")
 		return common.Wrap(fmt.Errorf("error starting node: %w", err))
 	}
 	innerNode.Start()
