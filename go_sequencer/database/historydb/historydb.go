@@ -234,7 +234,7 @@ func (hdb *HistoryDB) addAccounts(d meddler.DB, accounts []common.Account) error
 		return nil
 	}
 	type TestAccounts struct {
-		Idx      common.Idx
+		Idx      common.AccountIdx
 		BatchNum common.BatchNum
 		BJJ      babyjub.PublicKeyComp
 		EthAddr  ethCommon.Address
@@ -312,7 +312,7 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 		amountFloat, _ := af.Float64()
 		laf := new(big.Float).SetInt(l1txs[i].DepositAmount)
 		depositAmountFloat, _ := laf.Float64()
-		var effectiveFromIdx *common.Idx
+		var effectiveFromIdx *common.AccountIdx
 		if l1txs[i].UserOrigin {
 			if l1txs[i].Type != common.TxTypeCreateAccountDeposit &&
 				l1txs[i].Type != common.TxTypeCreateAccountDepositTransfer {
@@ -424,10 +424,10 @@ func (hdb *HistoryDB) setExtraInfoForgedL1UserTxs(d sqlx.Ext, txs []common.L1Tx)
 	// updated to become false.  At the same time, all the txs that contain
 	// accounts (FromIdx == 0) are updated to set the EffectiveFromIdx.
 	type txUpdate struct {
-		ID                   common.TxID `db:"id"`
-		AmountSuccess        bool        `db:"amount_success"`
-		DepositAmountSuccess bool        `db:"deposit_amount_success"`
-		EffectiveFromIdx     common.Idx  `db:"effective_from_idx"`
+		ID                   common.TxID       `db:"id"`
+		AmountSuccess        bool              `db:"amount_success"`
+		DepositAmountSuccess bool              `db:"deposit_amount_success"`
+		EffectiveFromIdx     common.AccountIdx `db:"effective_from_idx"`
 	}
 	txUpdates := []txUpdate{}
 	equal := func(a *big.Int, b *big.Int) bool {

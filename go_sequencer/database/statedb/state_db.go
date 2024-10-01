@@ -26,6 +26,7 @@ type TreeNode struct {
 	Right *TreeNode
 }
 
+<<<<<<< HEAD
 // MerkleTree represents a Merkle tree.
 type MerkleTree struct {
 	Root *TreeNode
@@ -50,6 +51,31 @@ type Link struct {
 func hashData(data string) string {
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
+=======
+var (
+	// ErrStateDBWithoutMT is used when a method that requires a MerkleTree
+	// is called in a StateDB that does not have a MerkleTree defined
+	ErrStateDBWithoutMT = errors.New(
+		"Can not call method to use MerkleTree in a StateDB without MerkleTree")
+	// ErrIdxNotFound is used when trying to get the Idx from EthAddr or
+	// EthAddr&ToBJJ
+	ErrIdxNotFound = errors.New("Idx can not be found")
+	// ErrGetIdxNoCase is used when trying to get the Idx from EthAddr &
+	// BJJ with not compatible combination
+	ErrGetIdxNoCase = errors.New(
+		"Can not get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
+
+	// PrefixKeyMT is the key prefix for merkle tree in the db
+	PrefixKeyMT = []byte("m:")
+)
+
+// StateDB represents the state database with an integrated Merkle tree.
+type StateDB struct {
+	cfg         Config
+	db          *kvdb.KVDB
+	AccountTree *merkletree.MerkleTree
+	VouchTree   *merkletree.MerkleTree
+>>>>>>> d31cee2 (feat/go-synchronizer initial construction of stateDB)
 }
 
 // LocalStateDB represents the local StateDB which allows to make copies from
@@ -87,8 +113,14 @@ func NewStateDB(dbPath string) (*StateDB, error) {
 		return nil, err
 	}
 	return &StateDB{
+<<<<<<< HEAD
 		DB:   db,
 		Tree: &MerkleTree{},
+=======
+		db:          kv,
+		AccountTree: mtAccount,
+		VouchTree:   mtLink,
+>>>>>>> d31cee2 (feat/go-synchronizer initial construction of stateDB)
 	}, nil
 }
 
@@ -135,12 +167,22 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 	if err != nil {
 		return err
 	}
+<<<<<<< HEAD
 
 	leaf := &TreeNode{Hash: hashData(string(accountBytes))}
 	if sdb.Tree.Root == nil {
 		sdb.Tree.Root = leaf
 	} else {
 		updateMerkleTree(sdb.Tree, leaf)
+=======
+	if s.VouchTree != nil {
+		// open the MT for the current s.db
+		vouchTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.VouchTree.MaxLevels())
+		if err != nil {
+			return common.Wrap(err)
+		}
+		s.VouchTree = vouchTree
+>>>>>>> d31cee2 (feat/go-synchronizer initial construction of stateDB)
 	}
 
 	return nil

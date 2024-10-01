@@ -29,7 +29,7 @@ type ZKMetadata struct {
 	L2TxsData             [][]byte
 	ChainID               uint16
 
-	NewLastIdxRaw   Idx
+	NewLastIdxRaw   AccountIdx
 	NewStateRootRaw *merkletree.Hash
 	NewExitRootRaw  *merkletree.Hash
 }

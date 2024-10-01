@@ -193,12 +193,12 @@ func TestGenerateBlocks(t *testing.T) {
 func (tc *Context) checkL1TxParams(t *testing.T, tx common.L1Tx, typ common.TxType,
 	from, to string, depositAmount, amount *big.Int) {
 	assert.Equal(t, typ, tx.Type)
-	if tx.FromIdx != common.Idx(0) {
+	if tx.FromIdx != common.AccountIdx(0) {
 		assert.Equal(t, tc.Accounts[from].Idx, tx.FromIdx)
 	}
 	assert.Equal(t, tc.Accounts[from].Addr.Hex(), tx.FromEthAddr.Hex())
 	assert.Equal(t, tc.Accounts[from].BJJ.Public().Compress(), tx.FromBJJ)
-	if tx.ToIdx != common.Idx(0) {
+	if tx.ToIdx != common.AccountIdx(0) {
 		assert.Equal(t, tc.Accounts[to].Idx, tx.ToIdx)
 =======
 	assert.Equal(t, 5, len(blocks[0].Rollup.Batches))

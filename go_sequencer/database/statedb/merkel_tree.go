@@ -5,10 +5,35 @@ import (
 	"fmt"
 )
 
+<<<<<<< HEAD
 // buildMerkleTree constructs a Merkle tree from a list of leaf nodes.
 func buildMerkleTree(leaves []*TreeNode) *TreeNode {
 	if len(leaves) == 1 {
 		return leaves[0]
+=======
+type enum string
+
+const (
+	Account enum = "Account"
+	Link    enum = "Link"
+)
+
+type TreeNodeHash interface {
+}
+
+// BigInt returns a *big.Int representing the Idx
+func BigInt(idx int) *big.Int {
+	return big.NewInt(int64(idx))
+}
+
+// GetMTRoot returns the root of the Merkle Tree
+func (s *StateDB) GetMTRoot(treeType enum) *big.Int {
+	var root *big.Int
+	if treeType == Account {
+		root = s.AccountTree.Root().BigInt()
+	} else {
+		root = s.VouchTree.Root().BigInt()
+>>>>>>> d31cee2 (feat/go-synchronizer initial construction of stateDB)
 	}
 
 	var nextLevel []*TreeNode
