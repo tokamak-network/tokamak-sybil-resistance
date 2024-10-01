@@ -24,7 +24,7 @@ var l2DBWithACC *L2DB
 var historyDB *historydb.HistoryDB
 var tc *til.Context
 
-var accs map[common.Idx]common.Account
+var accs map[common.AccountIdx]common.Account
 
 // WipeDB redo all the migrations of the SQL DB (HistoryDB and L2DB),
 // efectively recreating the original state
@@ -87,7 +87,7 @@ func prepareHistoryDB(historyDB *historydb.HistoryDB) error {
 		return common.Wrap(err)
 	}
 
-	accs = make(map[common.Idx]common.Account)
+	accs = make(map[common.AccountIdx]common.Account)
 
 	// Add all blocks except for the last one
 	for i := range blocks[:len(blocks)-1] {
@@ -145,12 +145,12 @@ func TestAddTxTest(t *testing.T) {
 	fetchedTx, err := l2DB.GetTx(tx.TxID)
 	require.NoError(t, err)
 	assert.Equal(t, fetchedTx.ToIdx, tx.ToIdx)
-	tx.ToIdx = common.Idx(1)
+	tx.ToIdx = common.AccountIdx(1)
 	err = l2DBWithACC.UpdateTxAPI(tx)
 	require.NoError(t, err)
 	fetchedTx, err = l2DB.GetTx(tx.TxID)
 	require.NoError(t, err)
-	assert.Equal(t, fetchedTx.ToIdx, common.Idx(1))
+	assert.Equal(t, fetchedTx.ToIdx, common.AccountIdx(1))
 }
 
 func assertTx(t *testing.T, expected, actual *common.PoolL2Tx) {

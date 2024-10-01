@@ -3,8 +3,10 @@ package statedb
 import (
 	"encoding/hex"
 	"math/big"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/log"
 
@@ -44,7 +46,7 @@ func newAccount(t *testing.T, i int) *common.Account {
 	address := ethCrypto.PubkeyToAddress(key.PublicKey)
 
 	return &common.Account{
-		Idx:     common.Idx(256 + i),
+		Idx:     common.AccountIdx(256 + i),
 		Nonce:   common.Nonce(i),
 		Balance: big.NewInt(1000),
 		BJJ:     pk.Compress(),
@@ -52,12 +54,21 @@ func newAccount(t *testing.T, i int) *common.Account {
 	}
 }
 
-func TestStateDBWithoutMT(t *testing.T) {
+func newVouch(i int) *common.Vouch {
+	r := rand.New(rand.NewSource(int64(time.Now().UnixNano())))
+	v := r.Intn(2) == 1
+	return &common.Vouch{
+		Idx:   common.VouchIdx(256257 + i),
+		Value: v,
+	}
+}
+
+func TestAccountInStateDB(t *testing.T) {
 	dir, err := os.MkdirTemp("", "tmpdb")
 	require.NoError(t, err)
 	deleteme = append(deleteme, dir)
 
-	sdb, err := NewStateDB(Config{Path: dir, Keep: 128, Type: TypeTxSelector, NLevels: 0})
+	sdb, err := NewStateDB(Config{Path: dir, Keep: 128, Type: TypeSynchronizer, NLevels: 0})
 	require.NoError(t, err)
 
 	// create test accounts
@@ -67,7 +78,7 @@ func TestStateDBWithoutMT(t *testing.T) {
 	}
 
 	// get non-existing account, expecting an error
-	unexistingAccount := common.Idx(1)
+	unexistingAccount := common.AccountIdx(1)
 	_, err = sdb.GetAccount(unexistingAccount)
 	assert.NotNil(t, err)
 	assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
@@ -86,12 +97,15 @@ func TestStateDBWithoutMT(t *testing.T) {
 	}
 
 	// try already existing idx and get error
-	existingAccount := common.Idx(256)
+	existingAccount := common.AccountIdx(256)
 	_, err = sdb.GetAccount(existingAccount) // check that exist
 	require.NoError(t, err)
-	_, err = sdb.CreateAccount(common.Idx(256), accounts[1]) // check that can not be created twice
+	_, err = sdb.CreateAccount(common.AccountIdx(256), accounts[1]) // check that can not be created twice
 	assert.NotNil(t, err)
 	assert.Equal(t, ErrAccountAlreadyExists, common.Unwrap(err))
+
+	_, err = sdb.MTGetAccountProof(common.AccountIdx(256))
+	require.NoError(t, err)
 
 	// update accounts
 	for i := 0; i < len(accounts); i++ {
@@ -101,9 +115,60 @@ func TestStateDBWithoutMT(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	proof, _ := sdb.MTGetProof(common.Idx(1))
-	assert.NotNil(t, proof)
-	// assert.Equal(t, ErrStateDBWithoutMT, common.Unwrap(err))
+	sdb.Close()
+}
+
+func TestVouchInStateDB(t *testing.T) {
+	dir, err := os.MkdirTemp("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	sdb, err := NewStateDB(Config{Path: dir, Keep: 128, Type: TypeSynchronizer, NLevels: 32})
+	require.NoError(t, err)
+
+	// create test vouches
+	var vouches []*common.Vouch
+	for i := 0; i < 4; i++ {
+		vouches = append(vouches, newVouch(i))
+	}
+
+	// get non-existing vouch, expecting an error
+	unexistingVouch := common.VouchIdx(001001)
+	_, err = sdb.GetVouch(unexistingVouch)
+	assert.NotNil(t, err)
+	assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
+
+	// add test vouches
+	for i := 0; i < len(vouches); i++ {
+		_, err = sdb.CreateVouch(vouches[i].Idx, vouches[i])
+		require.NoError(t, err)
+	}
+
+	for i := 0; i < len(vouches); i++ {
+		existingVouch := vouches[i].Idx
+		vocGetted, err := sdb.GetVouch(existingVouch)
+		require.NoError(t, err)
+		assert.Equal(t, vouches[i], vocGetted)
+	}
+
+	// try already existing idx and get error
+	existingVouch := common.VouchIdx(256257)
+	_, err = sdb.GetVouch(existingVouch) // check that exist
+	require.NoError(t, err)
+	_, err = sdb.CreateVouch(common.VouchIdx(256257), vouches[1]) // check that can not be created twice
+	assert.NotNil(t, err)
+	assert.Equal(t, ErrAlreadyVouched, common.Unwrap(err))
+
+	_, err = sdb.MTGetVouchProof(common.VouchIdx(256257))
+	require.NoError(t, err)
+
+	// update vouches
+	for i := 0; i < len(vouches); i++ {
+		vouches[i].Value = !vouches[i].Value
+		existingVouch = vouches[i].Idx
+		_, err = sdb.UpdateVouch(existingVouch, vouches[i])
+		require.NoError(t, err)
+	}
 
 	sdb.Close()
 }

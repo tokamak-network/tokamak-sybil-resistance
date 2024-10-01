@@ -1,98 +1,31 @@
 package statedb
 
 import (
-	"encoding/binary"
-	"fmt"
-	"math/big"
+	"errors"
 	"tokamak-sybil-resistance/common"
-	"tokamak-sybil-resistance/models"
 
-	"github.com/iden3/go-iden3-crypto/babyjub"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree"
 	"github.com/iden3/go-merkletree/db"
 )
 
-func stringToByte(s string, numByte int) []byte {
-	b := make([]byte, numByte)
-	copy(b[:], s)
-	return b
-}
-
-func BytesAccount(a *models.Account) [91]byte {
-	var b [91]byte
-	// Convert Idx into [2]byte
-	binary.LittleEndian.PutUint16(b[0:2], uint16(a.Idx))
-
-	// Convert EthAddr into [20]byte
-	addBytes := stringToByte(a.EthAddr, 20)
-	copy(b[2:22], addBytes)
-
-	//Unpack BJJ
-	// Conver pky into [32]byte and store pkSign
-	pkSign, pkY := babyjub.UnpackSignY([32]byte(stringToByte(a.BJJ, 32)))
-	if pkSign {
-		b[22] = 1
-	} else {
-		b[22] = 0
-	}
-
-	copy(b[23:57], pkY.Bytes())
-
-	// Convert balance into [24]byte
-	binary.LittleEndian.PutUint64(b[57:79], uint64(a.Balance))
-
-	// Convert score into [4]byte
-	binary.LittleEndian.PutUint32(b[79:83], uint32(a.Score))
-
-	// Convert nounce into [8]byte
-	binary.LittleEndian.PutUint64(b[83:91], uint64(a.Nonce))
-
-	return b
-}
-
-func AccountFromBytes(b [91]byte) models.Account {
-	var a models.Account
-
-	// Extract Idx from [0:2]
-	a.Idx = int(binary.LittleEndian.Uint16(b[0:2]))
-
-	// Extract EthAddr from [2:22]
-	a.EthAddr = string(b[2:22])
-
-	// Extract BJJ Sign and pkY from [22:57]
-	pkSign := b[22] == 1
-	pkY := new(big.Int).SetBytes(b[23:57])
-	bjj := babyjub.PackSignY(pkSign, pkY)
-	a.BJJ = string(bjj[:])
-	// Extract Balance from [57:79]
-	a.Balance = int(binary.LittleEndian.Uint64(b[57:79]))
-
-	// Extract Score from [79:83]
-	a.Score = int(binary.LittleEndian.Uint32(b[79:83]))
-
-	// Extract Nonce from [83:91]
-	a.Nonce = int(binary.LittleEndian.Uint64(b[83:91]))
-
-	return a
-}
-
-// Calculates poseidonHash for zk-Snark rollup Proof
-func PoseidonHashAccount(a *models.Account) (*big.Int, error) {
-	bigInt := make([]*big.Int, 3)
-	b := BytesAccount(a)
-
-	bigInt[0] = new(big.Int).SetBytes(b[0:32])
-	bigInt[1] = new(big.Int).SetBytes(b[32:64])
-	bigInt[2] = new(big.Int).SetBytes(b[64:91])
-
-	return poseidon.Hash(bigInt)
-}
+var (
+	// ErrAccountAlreadyExists is used when CreateAccount is called and the
+	// Account already exists
+	ErrAccountAlreadyExists = errors.New("Can not CreateAccount because Account already exists")
+	// PrefixKeyAccIdx is the key prefix for accountIdx in the db
+	PrefixKeyAccIdx = []byte("i:")
+	// PrefixKeyAccHash is the key prefix for account hash in the db
+	PrefixKeyAccHash = []byte("h:")
+	// PrefixKeyAddr is the key prefix for address in the db
+	PrefixKeyAddr = []byte("a:")
+	// PrefixKeyAddrBJJ is the key prefix for address-babyjubjub in the db
+	PrefixKeyAddrBJJ = []byte("ab:")
+)
 
 // CreateAccount creates a new Account in the StateDB for the given Idx.  If
 // StateDB.MT==nil, MerkleTree is not affected, otherwise updates the
 // MerkleTree, returning a CircomProcessorProof.
-func (s *StateDB) CreateAccount(idx common.Idx, account *common.Account) (
+func (s *StateDB) CreateAccount(idx common.AccountIdx, account *common.Account) (
 	*merkletree.CircomProcessorProof, error) {
 	cpp, err := CreateAccountInTreeDB(s.db.DB(), s.AccountTree, idx, account)
 	if err != nil {
@@ -107,7 +40,7 @@ func (s *StateDB) CreateAccount(idx common.Idx, account *common.Account) (
 // from ExitTree.  Creates a new Account in the StateDB for the given Idx.  If
 // StateDB.MT==nil, MerkleTree is not affected, otherwise updates the
 // MerkleTree, returning a CircomProcessorProof.
-func CreateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.Idx,
+func CreateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.AccountIdx,
 	account *common.Account) (*merkletree.CircomProcessorProof, error) {
 	// store at the DB the key: v, and value: leaf.Bytes()
 	v, err := account.HashValue()
@@ -129,7 +62,7 @@ func CreateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	_, err = tx.Get(append(PrefixKeyIdx, idxBytes[:]...))
+	_, err = tx.Get(append(PrefixKeyAccIdx, idxBytes[:]...))
 	if common.Unwrap(err) != db.ErrNotFound {
 		return nil, common.Wrap(ErrAccountAlreadyExists)
 	}
@@ -138,7 +71,7 @@ func CreateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	err = tx.Put(append(PrefixKeyIdx, idxBytes[:]...), v.Bytes())
+	err = tx.Put(append(PrefixKeyAccIdx, idxBytes[:]...), v.Bytes())
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -154,8 +87,8 @@ func CreateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 	return nil, nil
 }
 
-// MTGetProof returns the CircomVerifierProof for a given Idx
-func (s *StateDB) MTGetProof(idx common.Idx) (*merkletree.CircomVerifierProof, error) {
+// MTGetAccountProof returns the CircomVerifierProof for a given accountIdx
+func (s *StateDB) MTGetAccountProof(idx common.AccountIdx) (*merkletree.CircomVerifierProof, error) {
 	if s.AccountTree == nil {
 		return nil, common.Wrap(ErrStateDBWithoutMT)
 	}
@@ -166,54 +99,19 @@ func (s *StateDB) MTGetProof(idx common.Idx) (*merkletree.CircomVerifierProof, e
 	return p, nil
 }
 
-// Put stores an account in the database and updates the Merkle tree.
-func (sdb *StateDB) PutAccount(a *models.Account) (*merkletree.CircomProcessorProof, error) {
-	var idxBytes [2]byte
-
-	apHash, _ := PoseidonHashAccount(a)
-	fmt.Println(apHash, "---------------  Poseidon Hash Account ---------------")
-	accountBytes := BytesAccount(a)
-
-	binary.LittleEndian.PutUint16(idxBytes[:], uint16(a.Idx))
-
-	tx, err := sdb.db.NewTx()
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Put(append(PrefixKeyAccHash, apHash.Bytes()...), accountBytes[:])
-	if err != nil {
-		return nil, err
-	}
-	err = tx.Put(append(PrefixKeyAccountIdx, idxBytes[:]...), apHash.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	// Update the Merkle tree and return a CircomProcessorProof if the Merkle tree is not nil
-	if sdb.AccountTree != nil {
-		return sdb.AccountTree.AddAndGetCircomProof(BigInt(a.Idx), apHash)
-	}
-	return nil, nil
-}
-
 // GetAccount returns the account for the given Idx
-func (s *StateDB) GetAccount(idx common.Idx) (*common.Account, error) {
+func (s *StateDB) GetAccount(idx common.AccountIdx) (*common.Account, error) {
 	return GetAccountInTreeDB(s.db.DB(), idx)
 }
 
 // GetAccountInTreeDB is abstracted from StateDB to be used from StateDB and
 // from ExitTree.  GetAccount returns the account for the given Idx
-func GetAccountInTreeDB(sto db.Storage, idx common.Idx) (*common.Account, error) {
+func GetAccountInTreeDB(sto db.Storage, idx common.AccountIdx) (*common.Account, error) {
 	idxBytes, err := idx.Bytes()
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	vBytes, err := sto.Get(append(PrefixKeyIdx, idxBytes[:]...))
+	vBytes, err := sto.Get(append(PrefixKeyAccIdx, idxBytes[:]...))
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -221,7 +119,7 @@ func GetAccountInTreeDB(sto db.Storage, idx common.Idx) (*common.Account, error)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	var b [32 * common.NLeafElems]byte
+	var b [32 * common.NAccountLeafElems]byte
 	copy(b[:], accBytes)
 	account, err := common.AccountFromBytes(b)
 	if err != nil {
@@ -234,7 +132,7 @@ func GetAccountInTreeDB(sto db.Storage, idx common.Idx) (*common.Account, error)
 // UpdateAccount updates the Account in the StateDB for the given Idx.  If
 // StateDB.mt==nil, MerkleTree is not affected, otherwise updates the
 // MerkleTree, returning a CircomProcessorProof.
-func (s *StateDB) UpdateAccount(idx common.Idx, account *common.Account) (
+func (s *StateDB) UpdateAccount(idx common.AccountIdx, account *common.Account) (
 	*merkletree.CircomProcessorProof, error) {
 	return UpdateAccountInTreeDB(s.db.DB(), s.AccountTree, idx, account)
 }
@@ -243,7 +141,7 @@ func (s *StateDB) UpdateAccount(idx common.Idx, account *common.Account) (
 // from ExitTree.  Updates the Account in the StateDB for the given Idx.  If
 // StateDB.mt==nil, MerkleTree is not affected, otherwise updates the
 // MerkleTree, returning a CircomProcessorProof.
-func UpdateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.Idx,
+func UpdateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.AccountIdx,
 	account *common.Account) (*merkletree.CircomProcessorProof, error) {
 	// store at the DB the key: v, and value: account.Bytes()
 	v, err := account.HashValue()
@@ -267,7 +165,7 @@ func UpdateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	err = tx.Put(append(PrefixKeyIdx, idxBytes[:]...), v.Bytes())
+	err = tx.Put(append(PrefixKeyAccIdx, idxBytes[:]...), v.Bytes())
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -282,3 +180,114 @@ func UpdateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 	}
 	return nil, nil
 }
+
+// func stringToByte(s string, numByte int) []byte {
+// 	b := make([]byte, numByte)
+// 	copy(b[:], s)
+// 	return b
+// }
+
+// func BytesAccount(a *models.Account) [91]byte {
+// 	var b [91]byte
+// 	// Convert Idx into [2]byte
+// 	binary.LittleEndian.PutUint16(b[0:2], uint16(a.Idx))
+
+// 	// Convert EthAddr into [20]byte
+// 	addBytes := stringToByte(a.EthAddr, 20)
+// 	copy(b[2:22], addBytes)
+
+// 	//Unpack BJJ
+// 	// Conver pky into [32]byte and store pkSign
+// 	pkSign, pkY := babyjub.UnpackSignY([32]byte(stringToByte(a.BJJ, 32)))
+// 	if pkSign {
+// 		b[22] = 1
+// 	} else {
+// 		b[22] = 0
+// 	}
+
+// 	copy(b[23:57], pkY.Bytes())
+
+// 	// Convert balance into [24]byte
+// 	binary.LittleEndian.PutUint64(b[57:79], uint64(a.Balance))
+
+// 	// Convert score into [4]byte
+// 	binary.LittleEndian.PutUint32(b[79:83], uint32(a.Score))
+
+// 	// Convert nounce into [8]byte
+// 	binary.LittleEndian.PutUint64(b[83:91], uint64(a.Nonce))
+
+// 	return b
+// }
+
+// func AccountFromBytes(b [91]byte) models.Account {
+// 	var a models.Account
+
+// 	// Extract Idx from [0:2]
+// 	a.Idx = int(binary.LittleEndian.Uint16(b[0:2]))
+
+// 	// Extract EthAddr from [2:22]
+// 	a.EthAddr = string(b[2:22])
+
+// 	// Extract BJJ Sign and pkY from [22:57]
+// 	pkSign := b[22] == 1
+// 	pkY := new(big.Int).SetBytes(b[23:57])
+// 	bjj := babyjub.PackSignY(pkSign, pkY)
+// 	a.BJJ = string(bjj[:])
+// 	// Extract Balance from [57:79]
+// 	a.Balance = int(binary.LittleEndian.Uint64(b[57:79]))
+
+// 	// Extract Score from [79:83]
+// 	a.Score = int(binary.LittleEndian.Uint32(b[79:83]))
+
+// 	// Extract Nonce from [83:91]
+// 	a.Nonce = int(binary.LittleEndian.Uint64(b[83:91]))
+
+// 	return a
+// }
+
+// // Calculates poseidonHash for zk-Snark rollup Proof
+// func PoseidonHashAccount(a *models.Account) (*big.Int, error) {
+// 	bigInt := make([]*big.Int, 3)
+// 	b := BytesAccount(a)
+
+// 	bigInt[0] = new(big.Int).SetBytes(b[0:32])
+// 	bigInt[1] = new(big.Int).SetBytes(b[32:64])
+// 	bigInt[2] = new(big.Int).SetBytes(b[64:91])
+
+// 	return poseidon.Hash(bigInt)
+// }
+
+// // Put stores an account in the database and updates the Merkle tree.
+// func (sdb *StateDB) PutAccount(a *models.Account) (*merkletree.CircomProcessorProof, error) {
+// 	var idxBytes [2]byte
+
+// 	apHash, _ := PoseidonHashAccount(a)
+// 	fmt.Println(apHash, "---------------  Poseidon Hash Account ---------------")
+// 	accountBytes := BytesAccount(a)
+
+// 	binary.LittleEndian.PutUint16(idxBytes[:], uint16(a.Idx))
+
+// 	tx, err := sdb.db.NewTx()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	err = tx.Put(append(PrefixKeyAccHash, apHash.Bytes()...), accountBytes[:])
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	err = tx.Put(append(PrefixKeyAccountIdx, idxBytes[:]...), apHash.Bytes())
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	if err := tx.Commit(); err != nil {
+// 		return nil, err
+// 	}
+
+// 	// Update the Merkle tree and return a CircomProcessorProof if the Merkle tree is not nil
+// 	if sdb.AccountTree != nil {
+// 		return sdb.AccountTree.AddAndGetCircomProof(BigInt(a.Idx), apHash)
+// 	}
+// 	return nil, nil
+// }

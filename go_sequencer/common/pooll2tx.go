@@ -25,13 +25,13 @@ type PoolL2Tx struct {
 	// TxID (12 bytes) for L2Tx is:
 	// bytes:  |  1   |    6    |   5   |
 	// values: | type | FromIdx | Nonce |
-	TxID    TxID `meddler:"tx_id"`
-	FromIdx Idx  `meddler:"from_idx"`
-	ToIdx   Idx  `meddler:"to_idx,zeroisnull"`
+	TxID    TxID       `meddler:"tx_id"`
+	FromIdx AccountIdx `meddler:"from_idx"`
+	ToIdx   AccountIdx `meddler:"to_idx,zeroisnull"`
 	// AuxToIdx is only used internally at the StateDB to avoid repeated
 	// computation when processing transactions (from Synchronizer,
 	// TxSelector, BatchBuilder)
-	AuxToIdx    Idx                   `meddler:"-"`
+	AuxToIdx    AccountIdx            `meddler:"-"`
 	ToEthAddr   ethCommon.Address     `meddler:"to_eth_addr,zeroisnull"`
 	ToBJJ       babyjub.PublicKeyComp `meddler:"to_bjj,zeroisnull"`
 	TokenID     TokenID               `meddler:"token_id"`
@@ -51,8 +51,8 @@ type PoolL2Tx struct {
 	Timestamp time.Time             `meddler:"timestamp,utctime"` // time when added to the tx pool
 	// Stored in DB: optional fields, may be uninitialized
 	AtomicGroupID     AtomicGroupID         `meddler:"atomic_group_id,zeroisnull"`
-	RqFromIdx         Idx                   `meddler:"rq_from_idx,zeroisnull"`
-	RqToIdx           Idx                   `meddler:"rq_to_idx,zeroisnull"`
+	RqFromIdx         AccountIdx            `meddler:"rq_from_idx,zeroisnull"`
+	RqToIdx           AccountIdx            `meddler:"rq_to_idx,zeroisnull"`
 	RqToEthAddr       ethCommon.Address     `meddler:"rq_to_eth_addr,zeroisnull"`
 	RqToBJJ           babyjub.PublicKeyComp `meddler:"rq_to_bjj,zeroisnull"`
 	RqTokenID         TokenID               `meddler:"rq_token_id,zeroisnull"`
@@ -159,8 +159,8 @@ func (tx *PoolL2Tx) TxCompressedData(chainID uint16) (*big.Int, error) {
 
 // L2Tx returns a *L2Tx from the PoolL2Tx
 func (tx PoolL2Tx) L2Tx() L2Tx {
-	var toIdx Idx
-	if tx.ToIdx == Idx(0) {
+	var toIdx AccountIdx
+	if tx.ToIdx == AccountIdx(0) {
 		toIdx = tx.AuxToIdx
 	} else {
 		toIdx = tx.ToIdx

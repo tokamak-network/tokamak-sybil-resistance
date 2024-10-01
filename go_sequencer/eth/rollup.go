@@ -25,7 +25,7 @@ type RollupForgeBatchArgs struct {
 	L1CoordinatorTxs      []common.L1Tx
 	L1CoordinatorTxsAuths [][]byte // Authorization for accountCreations for each L1CoordinatorTx
 	L2TxsData             []common.L2Tx
-	FeeIdxCoordinator     []common.Idx
+	FeeIdxCoordinator     []common.AccountIdx
 	// Circuit selector
 	VerifierIdx uint8
 	L1Batch     bool

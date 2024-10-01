@@ -125,8 +125,8 @@ func (l2db *L2DB) addTxs(txs []common.PoolL2Tx, checkPoolIsFull bool) error {
 			// Info (always nil)
 			info *string
 			// Rq fields, nil unless tx.RqFromIdx != 0
-			rqFromIdx     *common.Idx
-			rqToIdx       *common.Idx
+			rqFromIdx     *common.AccountIdx
+			rqToIdx       *common.AccountIdx
 			rqToEthAddr   *ethCommon.Address
 			rqToBJJ       *babyjub.PublicKeyComp
 			rqTokenID     *common.TokenID

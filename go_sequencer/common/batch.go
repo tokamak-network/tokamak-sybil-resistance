@@ -18,7 +18,7 @@ type Batch struct {
 	EthBlockNum        int64                `meddler:"eth_block_num"`
 	ForgerAddr         ethCommon.Address    `meddler:"forger_addr"`
 	CollectedFees      map[TokenID]*big.Int `meddler:"fees_collected,json"`
-	FeeIdxsCoordinator []Idx                `meddler:"fee_idxs_coordinator,json"`
+	FeeIdxsCoordinator []AccountIdx         `meddler:"fee_idxs_coordinator,json"`
 	StateRoot          *big.Int             `meddler:"state_root,bigint"`
 	NumAccounts        int                  `meddler:"num_accounts"`
 	LastIdx            int64                `meddler:"last_idx"`
@@ -51,11 +51,11 @@ type BatchData struct {
 // AccountUpdate represents an account balance and/or nonce update after a
 // processed batch
 type AccountUpdate struct {
-	EthBlockNum int64    `meddler:"eth_block_num"`
-	BatchNum    BatchNum `meddler:"batch_num"`
-	Idx         Idx      `meddler:"idx"`
-	Nonce       Nonce    `meddler:"nonce"`
-	Balance     *big.Int `meddler:"balance,bigint"`
+	EthBlockNum int64      `meddler:"eth_block_num"`
+	BatchNum    BatchNum   `meddler:"batch_num"`
+	Idx         AccountIdx `meddler:"idx"`
+	Nonce       Nonce      `meddler:"nonce"`
+	Balance     *big.Int   `meddler:"balance,bigint"`
 }
 
 // BatchNumFromBytes returns BatchNum from a []byte

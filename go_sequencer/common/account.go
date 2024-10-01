@@ -18,28 +18,20 @@ import (
 // Is the data structure that generates the Value stored in
 // the leaf of the MerkleTree
 type Account struct {
-	Idx      Idx                   `meddler:"idx"`
+	Idx      AccountIdx            `meddler:"idx"`
 	BatchNum BatchNum              `meddler:"batch_num"`
 	BJJ      babyjub.PublicKeyComp `meddler:"bjj"`
-	Sign     Sign                  `meddler:"sign"`
-	Ay       *big.Int              `meddler:"ay"` // max of 253 bits used
 	EthAddr  ethCommon.Address     `meddler:"eth_addr"`
 	Nonce    Nonce                 `meddler:"-"` // max of 40 bits used
 	Balance  *big.Int              `meddler:"-"` // max of 192 bits used
 }
 
-// Idx represents the account Index in the MerkleTree
-type Idx uint64
-
-// Sign represents the 1 bit of baby jubjub
-type Sign bool
-
-// Ay represents the ay of baby jubjub of 253 bits
-type Ay *big.Int
+// AccountIdx represents the account Index in the MerkleTree
+type AccountIdx uint64
 
 const (
-	// NLeafElems is the number of elements for a leaf
-	NLeafElems = 4
+	// NAccountLeafElems is the number of elements for a leaf in account tree
+	NAccountLeafElems = 4
 
 	// maxBalanceBytes is the maximum bytes that can use the
 	// Account.Balance *big.Int
@@ -48,15 +40,15 @@ const (
 	// IdxBytesLen idx bytes
 	IdxBytesLen = 6
 
-	// maxIdxValue is the maximum value that Idx can have (48 bits:
-	// maxIdxValue=2**48-1)
-	maxIdxValue = 0xffffffffffff
+	// maxAccountIdxValue is the maximum value that AccountIdx can have (48 bits:
+	// maxAccountIdxValue=2**48-1)
+	maxAccountIdxValue = 0xffffffffffff
 
 	// UserThreshold determines the threshold from the User Idxs can be
 	UserThreshold = 256
 	// IdxUserThreshold is a Idx type value that determines the threshold
 	// from the User Idxs can be
-	IdxUserThreshold = Idx(UserThreshold)
+	IdxUserThreshold = AccountIdx(UserThreshold)
 )
 
 var (
@@ -66,32 +58,32 @@ var (
 	EmptyAddr = ethCommon.HexToAddress("0x0000000000000000000000000000000000000000")
 )
 
-// Bytes returns a byte array representing the Idx
-func (idx Idx) Bytes() ([6]byte, error) {
-	if idx > maxIdxValue {
-		return [6]byte{}, Wrap(ErrIdxOverflow)
+// Bytes returns a byte array representing the accountIdx
+func (idx AccountIdx) Bytes() ([NLevelsAsBytes]byte, error) {
+	if idx > maxAccountIdxValue {
+		return [NLevelsAsBytes]byte{}, Wrap(ErrIdxOverflow)
 	}
 	var idxBytes [8]byte
 	binary.BigEndian.PutUint64(idxBytes[:], uint64(idx))
-	var b [6]byte
-	copy(b[:], idxBytes[2:])
+	var b [NLevelsAsBytes]byte
+	copy(b[:], idxBytes[8-NLevelsAsBytes:])
 	return b, nil
 }
 
-// IdxFromBytes returns Idx from a byte array
-func IdxFromBytes(b []byte) (Idx, error) {
+// AccountIdxFromBytes returns Idx from a byte array
+func AccountIdxFromBytes(b []byte) (AccountIdx, error) {
 	if len(b) != IdxBytesLen {
 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
 			len(b), IdxBytesLen))
 	}
 	var idxBytes [8]byte
-	copy(idxBytes[2:], b[:])
+	copy(idxBytes[8-NLevelsAsBytes:], b[:])
 	idx := binary.BigEndian.Uint64(idxBytes[:])
-	return Idx(idx), nil
+	return AccountIdx(idx), nil
 }
 
 // BigInt returns a *big.Int representing the Idx
-func (idx Idx) BigInt() *big.Int {
+func (idx AccountIdx) BigInt() *big.Int {
 	return big.NewInt(int64(idx))
 }
 
@@ -99,8 +91,8 @@ func (idx Idx) BigInt() *big.Int {
 // is represented by 32 bytes, in spite of the BigInt could be represented in
 // less bytes (due a small big.Int), so in this way each BigInt is always 32
 // bytes and can be automatically parsed from a byte array.
-func (a *Account) Bytes() ([32 * NLeafElems]byte, error) {
-	var b [32 * NLeafElems]byte
+func (a *Account) Bytes() ([32 * NAccountLeafElems]byte, error) {
+	var b [32 * NAccountLeafElems]byte
 
 	if a.Nonce > nonce.MaxNonceValue {
 		return b, Wrap(fmt.Errorf("%s Nonce", ErrNumOverflow))
@@ -150,8 +142,8 @@ func (a *Account) HashValue() (*big.Int, error) {
 }
 
 // BigInts returns the [5]*big.Int, where each *big.Int is inside the Finite Field
-func (a *Account) BigInts() ([NLeafElems]*big.Int, error) {
-	e := [NLeafElems]*big.Int{}
+func (a *Account) BigInts() ([NAccountLeafElems]*big.Int, error) {
+	e := [NAccountLeafElems]*big.Int{}
 
 	b, err := a.Bytes()
 	if err != nil {
@@ -167,7 +159,7 @@ func (a *Account) BigInts() ([NLeafElems]*big.Int, error) {
 }
 
 // AccountFromBytes returns a Account from a byte array
-func AccountFromBytes(b [32 * NLeafElems]byte) (*Account, error) {
+func AccountFromBytes(b [32 * NAccountLeafElems]byte) (*Account, error) {
 	// tokenID, err := TokenIDFromBytes(b[28:32])
 	// if err != nil {
 	// 	return nil, Wrap(err)

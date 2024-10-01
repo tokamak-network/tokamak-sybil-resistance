@@ -30,12 +30,12 @@ type L1Tx struct {
 	UserOrigin bool `meddler:"user_origin"`
 	// FromIdx is used by L1Tx/Deposit to indicate the Idx receiver of the L1Tx.DepositAmount
 	// (deposit)
-	FromIdx          Idx                   `meddler:"from_idx,zeroisnull"`
-	EffectiveFromIdx Idx                   `meddler:"effective_from_idx,zeroisnull"`
+	FromIdx          AccountIdx            `meddler:"from_idx,zeroisnull"`
+	EffectiveFromIdx AccountIdx            `meddler:"effective_from_idx,zeroisnull"`
 	FromEthAddr      ethCommon.Address     `meddler:"from_eth_addr,zeroisnull"`
 	FromBJJ          babyjub.PublicKeyComp `meddler:"from_bjj,zeroisnull"`
 	// ToIdx is ignored in L1Tx/Deposit, but used in the L1Tx/DepositAndTransfer
-	ToIdx Idx `meddler:"to_idx"`
+	ToIdx AccountIdx `meddler:"to_idx"`
 	// TokenID TokenID  `meddler:"token_id"`
 	Amount *big.Int `meddler:"amount,bigint"`
 	// EffectiveAmount only applies to L1UserTx.
@@ -80,7 +80,7 @@ func NewL1Tx(tx *L1Tx) (*L1Tx, error) {
 // SetType sets the type of the transaction
 func (tx *L1Tx) SetType() error {
 	if tx.FromIdx == 0 {
-		if tx.ToIdx == Idx(0) {
+		if tx.ToIdx == AccountIdx(0) {
 			tx.Type = TxTypeCreateAccountDeposit
 		} else if tx.ToIdx >= IdxUserThreshold {
 			tx.Type = TxTypeCreateAccountDepositTransfer
@@ -89,9 +89,9 @@ func (tx *L1Tx) SetType() error {
 				"Can not determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
 		}
 	} else if tx.FromIdx >= IdxUserThreshold {
-		if tx.ToIdx == Idx(0) {
+		if tx.ToIdx == AccountIdx(0) {
 			tx.Type = TxTypeDeposit
-		} else if tx.ToIdx == Idx(1) {
+		} else if tx.ToIdx == AccountIdx(1) {
 			tx.Type = TxTypeForceExit
 		} else if tx.ToIdx >= IdxUserThreshold {
 			if tx.DepositAmount.Int64() == int64(0) {

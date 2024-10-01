@@ -6,6 +6,11 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 )
 
+const (
+	// BytesLength to represent the depth of merkle tree
+	NLevelsAsBytes = 3
+)
+
 // EthAddrToBigInt returns a *big.Int from a given ethereum common.Address.
 func EthAddrToBigInt(a ethCommon.Address) *big.Int {
 	return new(big.Int).SetBytes(a.Bytes())

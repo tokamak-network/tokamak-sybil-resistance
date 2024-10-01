@@ -85,7 +85,7 @@ type BatchInfo struct {
 	L1CoordTxs            []common.L1Tx
 	L1CoordinatorTxsAuths [][]byte
 	L2Txs                 []common.L2Tx
-	CoordIdxs             []common.Idx
+	CoordIdxs             []common.AccountIdx
 	ForgeBatchArgs        *eth.RollupForgeBatchArgs
 	Auth                  *bind.TransactOpts `json:"-"`
 	EthTxs                []*types.Transaction
