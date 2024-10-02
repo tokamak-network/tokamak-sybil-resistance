@@ -5,7 +5,9 @@ from poseidon import Poseidon
 class FR(FQ):
     field_modulus = bn128.curve_order
 
-# Utility functions
+###################################################
+#Utility functions
+###################################################
 def Num2Bits_strict(n, bits):
     return [int(b) for b in bin(int(n))[2:].zfill(bits)]
 
@@ -39,6 +41,10 @@ def Switcher(sel, L, R):
 
 def ForceEqualIfEnabled(enabled, in1, in2):
     return enabled * (in1 - in2)
+
+###################################################
+#SMT Circuits: https://github.com/iden3/circomlib/tree/master/circuits/smt
+###################################################
 
 # SMTHash1 and SMTHash2
 def SMTHash1(key, value):
@@ -171,13 +177,16 @@ def SMTProcessor(old_root, siblings, old_key, old_value, is_old0, new_key, new_v
 
     print("sm", sm)
     total_state = sm[n_levels-1]['st_na'] + sm[n_levels-1]['st_new1'] + sm[n_levels-1]['st_old0'] + sm[n_levels-1]['st_upd']
+
     assert total_state == FR(1), f"Invalid state at the last level: {total_state}"
 
     ForceEqualIfEnabled(enabled, old_root, top_switcher_l)
 
     return new_root
 
-# Example usage (assuming FR values are passed)
+###################################################
+# Example usage
+###################################################
 old_root = 0  # Initial root hash
 siblings = [0, 0]  # Example with 2 levels
 old_key = 1
