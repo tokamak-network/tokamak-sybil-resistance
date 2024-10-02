@@ -100,7 +100,6 @@ func cmdRun(c *cli.Context) error {
 	// log.Init(cfg.node.Log.Level, cfg.node.Log.Out)
 	innerNode, err := node.NewNode(cfg.mode, cfg.node, c.App.Version)
 	if err != nil {
-		fmt.Println(err, "--------------- ERROR Starting Node ---------------")
 		return common.Wrap(fmt.Errorf("error starting node: %w", err))
 	}
 	innerNode.Start()
