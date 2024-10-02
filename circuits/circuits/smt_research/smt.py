@@ -48,7 +48,7 @@ def ForceEqualIfEnabled(enabled, in1, in2):
 
 # SMTHash1 and SMTHash2
 def SMTHash1(key, value):
-    return Poseidon([1, key, value])
+    return Poseidon([key, value, 1])
 
 def SMTHash2(L, R):
     return Poseidon([L, R])
@@ -216,5 +216,5 @@ fnc = [1, 1]  # Delete
 new_root = SMTProcessor(old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
 print(f"New root after deletion: {new_root}")
 
-z = SMTHash2(1, 2)
-print(z)
+# z = SMTHash2(0, 0)
+# print(z)
