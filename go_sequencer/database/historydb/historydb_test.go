@@ -1,6 +1,8 @@
 package historydb
 
 import (
+	"database/sql"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -73,7 +75,7 @@ func TestBlocks(t *testing.T) {
 		// block 0 is stored as default in the DB
 		// block 1 does not exist
 		> block // blockNum=2
-		> block // blockNum=3 
+		> block // blockNum=3
 		> block // blockNum=4
 		> block // blockNum=5
 		> block // blockNum=6
@@ -117,6 +119,88 @@ func TestBlocks(t *testing.T) {
 	lastBlock, err := historyDB.GetLastBlock()
 	assert.NoError(t, err)
 	assertEqualBlock(t, &blocks[len(blocks)-1].Block, lastBlock)
+}
+
+func TestBatches(t *testing.T) {
+	// Reset DB
+	WipeDB(historyDB.DB())
+	// Generate batches using til (and blocks for foreign key)
+	set := `
+		Type: Blockchain
+		
+		CreateAccountDeposit A: 2000
+		CreateAccountDeposit B: 1000
+		> batchL1
+		> batchL1
+		CreateVouch A-B
+		CreateVouch B-A
+		> batch   // batchNum=2, L2 only batch, forges createVouches
+		> block
+		DeleteVouch A-B
+		> batch   // batchNum=3, L2 only batch, forges deleteVouch
+		DeleteVouch B-A
+		> batch   // batchNum=4, L2 only batch, forges delteVouch
+		> block
+	`
+	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	tilCfgExtra := til.ConfigExtra{
+		BootCoordAddr: ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"),
+		CoordUser:     "A",
+	}
+	blocks, err := tc.GenerateBlocks(set)
+	require.NoError(t, err)
+	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
+	require.NoError(t, err)
+	// Insert to DB
+	batches := []common.Batch{}
+	lastL1TxsNum := new(int64)
+	lastL1BatchBlockNum := int64(0)
+	for _, block := range blocks {
+		// Insert block
+		assert.NoError(t, historyDB.AddBlock(&block.Block))
+		// Combine all generated batches into single array
+		for _, batch := range block.Rollup.Batches {
+			batch.Batch.GasPrice = big.NewInt(0)
+			batches = append(batches, batch.Batch)
+			forgeTxsNum := batch.Batch.ForgeL1TxsNum
+			if forgeTxsNum != nil && (lastL1TxsNum == nil || *lastL1TxsNum < *forgeTxsNum) {
+				*lastL1TxsNum = *forgeTxsNum
+				lastL1BatchBlockNum = batch.Batch.EthBlockNum
+			}
+		}
+	}
+	// Insert batches
+	assert.NoError(t, historyDB.AddBatches(batches))
+
+	// Get batches from the DB
+	fetchedBatches, err := historyDB.GetBatches(0, common.BatchNum(len(batches)+1))
+	assert.NoError(t, err)
+	assert.Equal(t, len(batches), len(fetchedBatches))
+	for i, fetchedBatch := range fetchedBatches {
+		assert.Equal(t, batches[i], fetchedBatch)
+	}
+	// Test GetLastBatchNum
+	fetchedLastBatchNum, err := historyDB.GetLastBatchNum()
+	assert.NoError(t, err)
+	assert.Equal(t, batches[len(batches)-1].BatchNum, fetchedLastBatchNum)
+	// Test GetLastBatch
+	fetchedLastBatch, err := historyDB.GetLastBatch()
+	assert.NoError(t, err)
+	assert.Equal(t, &batches[len(batches)-1], fetchedLastBatch)
+	// Test GetLastL1TxsNum
+	fetchedLastL1TxsNum, err := historyDB.GetLastL1TxsNum()
+	assert.NoError(t, err)
+	assert.Equal(t, lastL1TxsNum, fetchedLastL1TxsNum)
+	// Test GetLastL1BatchBlockNum
+	fetchedLastL1BatchBlockNum, err := historyDB.GetLastL1BatchBlockNum()
+	assert.NoError(t, err)
+	assert.Equal(t, lastL1BatchBlockNum, fetchedLastL1BatchBlockNum)
+	// Test GetBatch
+	fetchedBatch, err := historyDB.GetBatch(1)
+	require.NoError(t, err)
+	assert.Equal(t, &batches[0], fetchedBatch)
+	_, err = historyDB.GetBatch(common.BatchNum(len(batches) + 1))
+	assert.Equal(t, sql.ErrNoRows, common.Unwrap(err))
 }
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {

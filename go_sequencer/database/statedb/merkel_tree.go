@@ -25,7 +25,7 @@ func (s *StateDB) GetMTRoot(treeType enum) *big.Int {
 	if treeType == Account {
 		root = s.AccountTree.Root().BigInt()
 	} else {
-		root = s.LinkTree.Root().BigInt()
+		root = s.VouchTree.Root().BigInt()
 	}
 	return root
 }

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/big"
@@ -137,6 +138,18 @@ func NewAPIConnectionController(maxConnections int, timeout time.Duration) *APIC
 		smphr:   semaphore.NewWeighted(int64(maxConnections)),
 		timeout: timeout,
 	}
+}
+
+// Acquire reserves a SQL connection. If the connection is not acquired
+// within the timeout, the function will return an error
+func (acc *APIConnectionController) Acquire() (context.CancelFunc, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), acc.timeout) //nolint:govet
+	return cancel, acc.smphr.Acquire(ctx, 1)
+}
+
+// Release frees a SQL connection
+func (acc *APIConnectionController) Release() {
+	acc.smphr.Release(1)
 }
 
 // Rollback an sql transaction, and log the error if it's not nil

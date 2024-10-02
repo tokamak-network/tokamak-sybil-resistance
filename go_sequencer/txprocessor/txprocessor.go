@@ -95,10 +95,10 @@ type TxProcessor struct {
 	txIndex int
 	// AccumulatedFees contains the accumulated fees for each token (Coord
 	// Idx) in the processed batch
-	AccumulatedFees map[common.Idx]*big.Int
+	AccumulatedFees map[common.AccountIdx]*big.Int
 	// updatedAccounts stores the last version of the account when it has
 	// been created/updated by any of the processed transactions.
-	updatedAccounts map[common.Idx]*common.Account
+	updatedAccounts map[common.AccountIdx]*common.Account
 	config          Config
 }
 
@@ -116,7 +116,7 @@ type Config struct {
 type processedExit struct {
 	exit    bool
 	newExit bool
-	idx     common.Idx
+	idx     common.AccountIdx
 	acc     common.Account
 }
 
@@ -125,9 +125,9 @@ type ProcessTxOutput struct {
 	ZKInputs           *common.ZKInputs
 	ExitInfos          []common.ExitInfo
 	CreatedAccounts    []common.Account
-	CoordinatorIdxsMap map[common.TokenID]common.Idx
+	CoordinatorIdxsMap map[common.TokenID]common.AccountIdx
 	CollectedFees      map[common.TokenID]*big.Int
 	// UpdatedAccounts returns the current state of each account
 	// created/updated by any of the processed transactions.
-	UpdatedAccounts map[common.Idx]*common.Account
+	UpdatedAccounts map[common.AccountIdx]*common.Account
 }

@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"math/big"
 
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 )
@@ -9,13 +10,14 @@ import (
 // L2Tx is a struct that represents an already forged L2 tx
 type L2Tx struct {
 	// Stored in DB: mandatory fields
-	TxID     TxID     `meddler:"id"`
-	BatchNum BatchNum `meddler:"batch_num"` // batchNum in which this tx was forged.
-	Position int      `meddler:"position"`
-	FromIdx  Idx      `meddler:"from_idx"`
-	ToIdx    Idx      `meddler:"to_idx"`
-	Nonce Nonce `meddler:"nonce"`
-	Type  TxType      `meddler:"type"`
+	TxID     TxID       `meddler:"id"`
+	BatchNum BatchNum   `meddler:"batch_num"` // batchNum in which this tx was forged.
+	Position int        `meddler:"position"`
+	FromIdx  AccountIdx `meddler:"from_idx"`
+	ToIdx    AccountIdx `meddler:"to_idx"`
+	Nonce    Nonce      `meddler:"nonce"`
+	Type     TxType     `meddler:"type"`
+	Amount   *big.Int   `meddler:"amount,bigint"`
 	// EthBlockNum in which this L2Tx was added to the queue
 	EthBlockNum int64 `meddler:"eth_block_num"`
 }
@@ -48,11 +50,9 @@ func NewL2Tx(tx *L2Tx) (*L2Tx, error) {
 
 // SetType sets the type of the transaction.  Uses (FromIdx, Nonce).
 func (tx *L2Tx) SetType() error {
-	if tx.ToIdx == Idx(1) {
+	if tx.ToIdx == AccountIdx(1) {
 		tx.Type = TxTypeExit
-	} else if tx.ToIdx >= IdxUserThreshold {
-		tx.Type = TxTypeTransfer
-	} else {
+	} else if tx.ToIdx < IdxUserThreshold {
 		return Wrap(fmt.Errorf(
 			"cannot determine type of L2Tx, invalid ToIdx value: %d", tx.ToIdx))
 	}

@@ -44,7 +44,7 @@ type KVDB struct {
 	cfg Config
 	db  *pebble.Storage
 	// CurrentIdx holds the current Idx that the BatchBuilder is using
-	CurrentIdx      common.Idx
+	CurrentIdx      common.AccountIdx
 	CurrentBatch    common.BatchNum
 	mutexCheckpoint sync.Mutex
 	mutexDelOld     sync.Mutex
@@ -124,7 +124,6 @@ func (k *Last) close() {
 
 // NewKVDB creates a new KVDB, allowing to use an in-memory or in-disk storage.
 // Checkpoints older than the value defined by `keep` will be deleted.
-// func NewKVDB(pathDB string, keep int) (*KVDB, error) {
 func NewKVDB(cfg Config) (*KVDB, error) {
 	var sto *pebble.Storage
 	var err error
@@ -264,7 +263,7 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 
 // GetCurrentIdx returns the stored Idx from the KVDB, which is the last Idx
 // used for an Account in the k.
-func (k *KVDB) GetCurrentIdx() (common.Idx, error) {
+func (k *KVDB) GetCurrentIdx() (common.AccountIdx, error) {
 	idxBytes, err := k.db.Get(keyCurrentIdx)
 	if common.Unwrap(err) == db.ErrNotFound {
 		return common.RollupConstReservedIDx, nil // 255, nil
@@ -272,7 +271,7 @@ func (k *KVDB) GetCurrentIdx() (common.Idx, error) {
 	if err != nil {
 		return 0, common.Wrap(err)
 	}
-	return common.IdxFromBytes(idxBytes[:])
+	return common.AccountIdxFromBytes(idxBytes[:])
 }
 
 // GetCurrentBatch returns the current BatchNum stored in the KVDB
