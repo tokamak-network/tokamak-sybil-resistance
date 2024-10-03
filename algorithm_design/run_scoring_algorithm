@@ -59,3 +59,33 @@ polytopeverts =
       3]] <= (a + b)^2 && #[[2]] + #[[3]] <= (q + a)^2 && #[[1]] + #[[
        2]] + #[[3]] <= (p + q)^2 && #[[1]] + #[[3]] <= (p + b)^2 &]
 paretoverts = -Internal`ListMin[-polytopeverts]
+
+
+(* sequencer will run this algorithm to sompute scores vector *)
+
+ Compute_Personalisedpagrankvector[W_, v_, e_, p_] := 
+ Module[{mass, rank, queue, node, val, rem, prev, s},
+  mass = ConstantArray[0, Length[W]];
+  rank = ConstantArray[0, Length[W]];
+  mass[[v]] = 1;
+  queue = 
+   Select[Range[Length[W]], mass[[#]] >= e Total[W[[v]]] &];
+  s = 0;
+  While[s < 100 && Length[queue] > 0,
+   node = queue[[1]];
+   val = mass[[node]];
+   rank[[node]] += p val;
+   mass[[node]] = 0.5 (1 - p) val;
+   mass += 0.5 (1 - p) val W[[node]]/Total[W[[node]]];
+   queue = 
+    Select[Range[Length[W]], mass[[#]] >= e Total[W[[v]]] &];
+   s += 1;
+   ];
+  Print[s];
+  SortBy[Range[Length[W]], -rank[[#]] &]
+  ]
+
+
+(*  circuit will check the following equation for the scoring vector *)
+
+Compute_Personalisedpagrankvector[W,v,e,p]==p.IdentityMatrix[Length[v]]+(1-p)Compute_Personalisedpagrankvector[W,v,e,p](IdentityMatrix[Length[v]]+W)/2
