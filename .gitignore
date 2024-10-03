@@ -17,3 +17,5 @@ verifier.sol
 proof.json
 public.json
 *.wtns
+
+node_modules
