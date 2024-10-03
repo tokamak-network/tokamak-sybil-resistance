@@ -12,7 +12,7 @@ import {
 
 contract MyScript is Script {
     function run() external {
-    address verfier = DevOpsTools.get_most_recent_deployment(
+    address verifier = DevOpsTools.get_most_recent_deployment(
             "VerifierRollupStub",
             block.chainid
         );
@@ -44,7 +44,6 @@ contract MyScript is Script {
         );
         vm.stopBroadcast();
 
-        console.log("VerifierRollupStub deployed at:", address(verifier));
-        console.log("Sybil contract deployed at:", address(sybilContract));
+        console2.log("Sybil contract deployed at:", address(sybilContract));
     }
 }
