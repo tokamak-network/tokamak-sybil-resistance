@@ -8,17 +8,23 @@ class FR(FQ):
 ###################################################
 #Utility functions
 ###################################################
-def Num2Bits_strict(n, bits):
-    return [int(b) for b in bin(int(n))[2:].zfill(bits)]
+def Num2Bits_strict(in_value):
+    n = int(in_value)
+    out = [0] * 254 #Num2Bits_strict output is 254bit array
+    if n >= (1 << 254):
+        raise ValueError("Input is too large for 254 bits")
+    for i in range(254):
+        out[i] = (n >> i) & 1
+    return out
 
 def XOR(a, b):
-    return FR(a + b - 2*a*b)
+    return a + b - 2*a*b
 
 def IsEqual(a, b):
-    return FR(1) if a == b else FR(0)
+    return 1 if a == b else 0
 
 def AND(a, b):
-    return FR(a * b)
+    return a * b
 
 def MultiAND(inputs):
     n = len(inputs)
@@ -37,7 +43,10 @@ def MultiAND(inputs):
         return AND(left_result, right_result)
 
 def Switcher(sel, L, R):
-    return sel * R + (FR(1) - sel) * L
+    aux = (R - L) * sel
+    outL = aux + L
+    outR = -aux + R
+    return outL, outR
 
 def ForceEqualIfEnabled(enabled, in1, in2):
     return enabled * (in1 - in2)
@@ -48,14 +57,13 @@ def ForceEqualIfEnabled(enabled, in1, in2):
 
 # SMTHash1 and SMTHash2
 def SMTHash1(key, value):
-    return Poseidon([key, value, 1])
+    return Poseidon([int(key), int(value), 1])
 
 def SMTHash2(L, R):
-    return Poseidon([L, R])
+    return Poseidon([int(L), int(R)])
 
 # SMTLevIns
-def SMTLevIns(siblings, enabled):
-    n_levels = len(siblings)
+def SMTLevIns(n_levels, siblings, enabled):
     lev_ins = [FR(0)] * n_levels
     done = [FR(0)] * (n_levels - 1)
 
@@ -76,28 +84,22 @@ def SMTLevIns(siblings, enabled):
     return lev_ins
 
 # SMTProcessorSM
-def SMTProcessorSM(prev_state, is0, xor, fnc, lev_ins):
-    # Input state
-    prev_top = prev_state['prev_top']
-    prev_old0 = prev_state['prev_old0']
-    prev_bot = prev_state['prev_bot']
-    prev_new1 = prev_state['prev_new1']
-    prev_na = prev_state['prev_na']
-    prev_upd = prev_state['prev_upd']
-
-    # Auxiliary calculation
-    aux1 = prev_top * lev_ins
+def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_new1, prev_na, prev_upd):
+    aux1 = prev_top * levIns
     aux2 = aux1 * fnc[0]
 
-    # State calculation
     st_top = prev_top - aux1
+
     st_old0 = aux2 * is0
+
     st_new1 = (aux2 - st_old0 + prev_bot) * xor
+
     st_bot = (FR(1) - xor) * (aux2 - st_old0 + prev_bot)
+
     st_upd = aux1 - aux2
+
     st_na = prev_new1 + prev_old0 + prev_na + prev_upd
 
-    # Return result
     return {
         'st_top': st_top,
         'st_old0': st_old0,
@@ -108,113 +110,143 @@ def SMTProcessorSM(prev_state, is0, xor, fnc, lev_ins):
     }
 
 # SMTProcessorLevel
-def SMTProcessorLevel(state, sibling, old1leaf, new1leaf, newlrbit, old_child, new_child):
-    old_root = (state['st_top'] * sibling + 
-                state['st_old0'] * old_child + 
-                state['st_bot'] * old1leaf + 
-                state['st_na'] * old_child)
+def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
+                      sibling, old1leaf, new1leaf, newlrbit, oldChild, newChild):
+    aux = [0] * 4
 
-    new_root = (state['st_top'] * sibling + 
-                state['st_old0'] * new_child + 
-                state['st_bot'] * ((FR(1) - newlrbit) * old1leaf + newlrbit * new1leaf) + 
-                state['st_new1'] * ((FR(1) - newlrbit) * new1leaf + newlrbit * old1leaf) + 
-                state['st_na'] * new_child + 
-                state['st_upd'] * new1leaf)
+    # Old side
+    oldSwitcher_L, oldSwitcher_R = Switcher(newlrbit, oldChild, sibling)
+    print(f"oldSwitcher_L: {oldSwitcher_L}, oldSwitcher_R: {oldSwitcher_R}")
+    oldProofHash = SMTHash2(oldSwitcher_L, oldSwitcher_R)
 
-    return {
-        'oldRoot': old_root,
-        'newRoot': new_root
-    }
+    print(f"oldProofHash: {oldProofHash}")
+
+    aux[0] = old1leaf * (st_bot + st_new1 + st_upd)
+    oldRoot = aux[0] + oldProofHash * st_top
+
+    # New side
+    aux[1] = newChild * (st_top + st_bot)
+    newSwitcher_L = aux[1] + new1leaf * st_new1
+
+    aux[2] = sibling * st_top
+    newSwitcher_R = aux[2] + old1leaf * st_new1
+
+    newSwitcher_outL, newSwitcher_outR = Switcher(newlrbit, newSwitcher_L, newSwitcher_R)
+    newProofHash = SMTHash2(newSwitcher_outL, newSwitcher_outR)
+    print(f"newProofHash: {newProofHash}")
+    aux[3] = newProofHash * (st_top + st_bot + st_new1)
+    newRoot = aux[3] + new1leaf * (st_old0 + st_upd)
+    print(f"newRoot: {newRoot}")
+    return {'oldRoot': oldRoot, 'newRoot': newRoot}
+
 
 # SMTProcessor
-def SMTProcessor(old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc):
-    n_levels = len(siblings)
+def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, newValue, fnc):
     enabled = fnc[0] + fnc[1] - fnc[0] * fnc[1]
 
-    hash1_old = SMTHash1(old_key, old_value)
-    hash1_new = SMTHash1(new_key, new_value)
+    hash1Old = SMTHash1(oldKey, oldValue)
+    hash1New = SMTHash1(newKey, newValue)
 
-    n2b_old = Num2Bits_strict(old_key, n_levels)
-    n2b_new = Num2Bits_strict(new_key, n_levels)
-    print("old_key", old_key)
-    print("new_key", new_key)
-    print("n2b_old", n2b_old)
-    print("n2b_new", n2b_new)
+    n2bOld = Num2Bits_strict(oldKey)
+    n2bNew = Num2Bits_strict(newKey)
 
-    lev_ins = SMTLevIns(siblings, enabled)
+    smtLevIns = SMTLevIns(nLevels, siblings, enabled)
 
-    xors = [XOR(FR(a), FR(b)) for a, b in zip(n2b_old, n2b_new)]
-    print("xors", xors)
+    xors = [XOR(n2bOld[i], n2bNew[i]) for i in range(nLevels)]
 
-    sm = [{}] * n_levels
-    for i in range(n_levels):
-        prev_state = {
-            'prev_top': enabled if i == 0 else sm[i-1]['st_top'],
-            'prev_old0': FR(0) if i == 0 else sm[i-1]['st_old0'],
-            'prev_bot': FR(0) if i == 0 else sm[i-1]['st_bot'],
-            'prev_new1': FR(0) if i == 0 else sm[i-1]['st_new1'],
-            'prev_na': FR(1) - enabled if i == 0 else sm[i-1]['st_na'],
-            'prev_upd': FR(0) if i == 0 else sm[i-1]['st_upd']
-        }
-        sm[i] = SMTProcessorSM(prev_state, FR(is_old0), xors[i], fnc, lev_ins[i])
+    sm = []
+    for i in range(nLevels):
+        if i == 0:
+            prev_top = enabled
+            prev_old0 = FR(0)
+            prev_bot = FR(0)
+            prev_new1 = FR(0)
+            prev_na = FR(1) - enabled
+            prev_upd = FR(0)
+        else:
+            prev_top = sm[i-1]['st_top']
+            prev_old0 = sm[i-1]['st_old0']
+            prev_bot = sm[i-1]['st_bot']
+            prev_new1 = sm[i-1]['st_new1']
+            prev_na = sm[i-1]['st_na']
+            prev_upd = sm[i-1]['st_upd']
 
-    levels = [{}] * n_levels
-    for i in range(n_levels - 1, -1, -1):
-        old_child = FR(0) if i == n_levels - 1 else levels[i+1]['oldRoot']
-        new_child = FR(0) if i == n_levels - 1 else levels[i+1]['newRoot']
-        levels[i] = SMTProcessorLevel(sm[i], siblings[i], hash1_old, hash1_new, FR(n2b_new[i]), old_child, new_child)
+        sm.append(SMTProcessorSM(
+            xors[i], isOld0, smtLevIns[i], fnc,
+            prev_top, prev_old0, prev_bot, prev_new1, prev_na, prev_upd
+        ))
 
-    top_switcher_sel = fnc[0] * fnc[1]
-    top_switcher_l = levels[0]['oldRoot']
-    top_switcher_r = levels[0]['newRoot']
+    assert sm[nLevels-1]['st_na'] + sm[nLevels-1]['st_new1'] + sm[nLevels-1]['st_old0'] + sm[nLevels-1]['st_upd'] == FR(1)
 
-    new_root = Switcher(enabled, old_root, Switcher(top_switcher_sel, top_switcher_l, top_switcher_r))
+    levels = [None] * nLevels
+    for i in range(nLevels - 1, -1, -1):
+        level = SMTProcessorLevel(
+            sm[i]['st_top'], sm[i]['st_old0'], sm[i]['st_bot'], sm[i]['st_new1'], sm[i]['st_na'], sm[i]['st_upd'],
+            siblings[i], hash1Old, hash1New, n2bNew[i],
+            FR(0) if i == nLevels - 1 else levels[i+1]['oldRoot'],
+            FR(0) if i == nLevels - 1 else levels[i+1]['newRoot']
+        )
+        levels[i] = level
 
-    are_keys_equal = IsEqual(old_key, new_key)
-    keys_ok = MultiAND([FR(1) - fnc[0], fnc[1], FR(1) - are_keys_equal])
+    print(f"levels: {levels}")
 
-    assert keys_ok == FR(0), "Keys do not match for update operation"
+    topSwitcher_L, topSwitcher_R = Switcher(fnc[0] * fnc[1],levels[0]['oldRoot'], levels[0]['newRoot'])
 
-    print("sm", sm)
-    total_state = sm[n_levels-1]['st_na'] + sm[n_levels-1]['st_new1'] + sm[n_levels-1]['st_old0'] + sm[n_levels-1]['st_upd']
+    print(f"topSwitcher_L: {topSwitcher_L}, topSwitcher_R: {topSwitcher_R}")
 
-    assert total_state == FR(1), f"Invalid state at the last level: {total_state}"
 
-    ForceEqualIfEnabled(enabled, old_root, top_switcher_l)
+    # print(f"oldRoot: {oldRoot}, type: {type(oldRoot)}, class: {oldRoot.__class__.__name__}")
+    # print(f"topSwitcher['outL']: {topSwitcher['outL']}, type: {type(topSwitcher['outL'])}, class: {topSwitcher['outL'].__class__.__name__}")
 
-    return new_root
+    checkOldInput = ForceEqualIfEnabled(enabled, oldRoot, topSwitcher_L)
+
+    print("oldRoot", oldRoot)
+
+    newRoot = enabled * (topSwitcher_R - oldRoot) + oldRoot
+    print(f"newRoot calculation: enabled={enabled}, topSwitcher_R={topSwitcher_R}, oldRoot={oldRoot}")
+    print(f"newRoot: {newRoot}")
+
+    # Check keys are equal if updating
+    areKeyEquals = IsEqual(oldKey, newKey)
+    keysOk = MultiAND([FR(1) - fnc[0], fnc[1], FR(1) - areKeyEquals])
+
+    assert keysOk == FR(0)
+
+    return newRoot
 
 ###################################################
 # Example usage
 ###################################################
-old_root = 0  # Initial root hash
-siblings = [0, 0]  # Example with 2 levels
-old_key = 1
-old_value = 0
-is_old0 = True
-new_key = 1
-new_value = 10
 fnc = [1, 0]  # Insert
+old_root = 0  # Initial root hash
+siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example with 2 levels
+nlevels = len(siblings)
+old_key = 0
+old_value = 0
+is_old0 = 1
+new_key = 0
+new_value = 0
 
-new_root = SMTProcessor(old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
+#new_root should be 9308772482099879945566979599408036177864352098141198065063141880905857869998
+new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
 print(f"New root after insertion: {new_root}")
 
-# Update
-old_root = new_root
-old_value = 10
-new_value = 20
-fnc = [0, 1]  # Update
+# # Update
+# old_root = new_root
+# old_value = 10
+# new_value = 20
+# fnc = [0, 1]  # Update
 
-new_root = SMTProcessor(old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
-print(f"New root after update: {new_root}")
+# new_root = SMTProcessor(old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
+# print(f"New root after update: {new_root}")
 
-# Delete
-old_root = new_root
-new_value = 0
-fnc = [1, 1]  # Delete
+# # Delete
+# old_root = new_root
+# new_value = 0
+# fnc = [1, 1]  # Delete
 
-new_root = SMTProcessor(old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
-print(f"New root after deletion: {new_root}")
+# new_root = SMTProcessor(old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
+# print(f"New root after deletion: {new_root}")
 
 # z = SMTHash2(0, 0)
 # print(z)
