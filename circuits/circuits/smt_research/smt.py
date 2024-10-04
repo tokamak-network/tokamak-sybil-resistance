@@ -8,6 +8,8 @@ class FR(FQ):
 ###################################################
 #Utility functions
 ###################################################
+
+#Number to bits
 def Num2Bits_strict(in_value):
     n = int(in_value)
     out = [0] * 254 #Num2Bits_strict output is 254bit array
@@ -17,9 +19,11 @@ def Num2Bits_strict(in_value):
         out[i] = (n >> i) & 1
     return out
 
+#XOR for bitwise
 def XOR(a, b):
     return a + b - 2*a*b
 
+#Check Is Equal
 def IsEqual(a, b):
     return 1 if a == b else 0
 
@@ -42,6 +46,8 @@ def MultiAND(inputs):
         
         return AND(left_result, right_result)
 
+#if sel == 0 then outL = L and outR=R
+#if sel == 1 then outL = R and outR=L
 def Switcher(sel, L, R):
     aux = (R - L) * sel
     outL = aux + L
@@ -49,7 +55,7 @@ def Switcher(sel, L, R):
     return outL, outR
 
 def ForceEqualIfEnabled(enabled, in1, in2):
-    return enabled * (in1 - in2)
+    assert enabled * (in1 - in2) == 0, "ForceEqualIfEnabled failed"
 
 ###################################################
 #SMT Circuits: https://github.com/iden3/circomlib/tree/master/circuits/smt
@@ -64,6 +70,25 @@ def SMTHash2(L, R):
 
 # SMTLevIns
 def SMTLevIns(n_levels, siblings, enabled):
+    """
+    Determines the insertion level for a new node in the Sparse Merkle Tree.
+
+    This function calculates which level of the tree requires a new node insertion.
+    It works from the bottom of the tree upwards, finding the deepest level where
+    insertion is needed while maintaining tree balance.
+
+    The algorithm ensures that new nodes are inserted at the lowest possible level,
+    which helps keep the tree balanced and minimizes the number of hash computations
+    needed for updates.
+
+    Args:
+        n_levels (int): The number of levels in the Sparse Merkle Tree.
+        siblings (list): The sibling nodes for each level of the path in the tree.
+        enabled (int): A flag indicating whether the insertion is enabled (1) or not (0).
+
+    Returns:
+        list: An array 'lev_ins' where lev_ins[i] == 1 if insertion is needed at level i, else 0.
+    """
     lev_ins = [FR(0)] * n_levels
     done = [FR(0)] * (n_levels - 1)
 
@@ -85,19 +110,30 @@ def SMTLevIns(n_levels, siblings, enabled):
 
 # SMTProcessorSM
 def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_new1, prev_na, prev_upd):
+    """
+    Implements the state machine for processing each level of the Sparse Merkle Tree.
+
+    This function calculates the state variables for each level of the tree during
+    an update operation. It determines how the update should propagate through the tree.
+
+    Args:
+        xor (int): XOR of old and new key bits at this level.
+        is0 (int): Flag indicating if the old value is zero.
+        levIns (int): Flag indicating if insertion is needed at this level.
+        fnc (list): Function flags [insert, update].
+        prev_* (int): Previous state variables from the level above.
+
+    Returns:
+        dict: New state variables for the current level.
+    """
     aux1 = prev_top * levIns
     aux2 = aux1 * fnc[0]
 
     st_top = prev_top - aux1
-
     st_old0 = aux2 * is0
-
     st_new1 = (aux2 - st_old0 + prev_bot) * xor
-
     st_bot = (FR(1) - xor) * (aux2 - st_old0 + prev_bot)
-
     st_upd = aux1 - aux2
-
     st_na = prev_new1 + prev_old0 + prev_na + prev_upd
 
     return {
@@ -112,14 +148,32 @@ def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_ne
 # SMTProcessorLevel
 def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
                       sibling, old1leaf, new1leaf, newlrbit, oldChild, newChild):
+    """
+    Processes a single level of the Sparse Merkle Tree during an update operation.
+
+    This function computes the old and new root hashes for the current level,
+    taking into account the various possible states of the update operation.
+
+    Args:
+        st_* (int): State variables from SMTProcessorSM.
+        sibling (int): The sibling node at this level.
+        old1leaf (int): Hash of the old leaf node.
+        new1leaf (int): Hash of the new leaf node.
+        newlrbit (int): Bit indicating left (0) or right (1) child for the new node.
+        oldChild (int): Old child node hash.
+        newChild (int): New child node hash.
+
+    Returns:
+        dict: Old and new root hashes for this level.
+    """
+
     aux = [0] * 4
 
     # Old side
-    oldSwitcher_L, oldSwitcher_R = Switcher(newlrbit, oldChild, sibling)
-    #print(f"oldSwitcher_L: {oldSwitcher_L}, oldSwitcher_R: {oldSwitcher_R}")
+    oldSwitcher_L, oldSwitcher_R = Switcher(newlrbit, oldChild, sibling) #newlrbit decide which one is left and right
     oldProofHash = SMTHash2(oldSwitcher_L, oldSwitcher_R)
 
-    #print(f"oldProofHash: {oldProofHash}")
+
 
     aux[0] = old1leaf * (st_bot + st_new1 + st_upd)
     oldRoot = aux[0] + oldProofHash * st_top
@@ -133,15 +187,36 @@ def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
 
     newSwitcher_outL, newSwitcher_outR = Switcher(newlrbit, newSwitcher_L, newSwitcher_R)
     newProofHash = SMTHash2(newSwitcher_outL, newSwitcher_outR)
-    #print(f"newProofHash: {newProofHash}")
+
     aux[3] = newProofHash * (st_top + st_bot + st_new1)
     newRoot = aux[3] + new1leaf * (st_old0 + st_upd)
-    #print(f"newRoot: {newRoot}")
+
     return {'oldRoot': oldRoot, 'newRoot': newRoot}
 
 
 # SMTProcessor
 def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, newValue, fnc):
+    """
+    Main function for processing updates in a Sparse Merkle Tree.
+
+    This function orchestrates the entire process of updating the SMT, including
+    insertion, update, and deletion operations. It computes the new root hash
+    after applying the specified operation.
+
+    Args:
+        nLevels (int): Number of levels in the tree.
+        oldRoot (int): Current root hash of the tree.
+        siblings (list): Sibling nodes along the path of the update.
+        oldKey (int): Key of the node being updated/deleted.
+        oldValue (int): Current value of the node being updated/deleted.
+        isOld0 (int): Flag indicating if the old value is zero (for deletions).
+        newKey (int): Key of the node being inserted/updated.
+        newValue (int): New value to be inserted/updated.
+        fnc (list): Function flags [insert, update].
+
+    Returns:
+        int: New root hash of the tree after the operation.
+    """
     enabled = fnc[0] + fnc[1] - fnc[0] * fnc[1]
 
     hash1Old = SMTHash1(oldKey, oldValue)
@@ -188,23 +263,14 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
         )
         levels[i] = level
 
-    #print(f"levels: {levels}")
-
+    # Compute final root hash
     topSwitcher_L, topSwitcher_R = Switcher(fnc[0] * fnc[1],levels[0]['oldRoot'], levels[0]['newRoot'])
 
-    #print(f"topSwitcher_L: {topSwitcher_L}, topSwitcher_R: {topSwitcher_R}")
+    # Verify old root
+    ForceEqualIfEnabled(enabled, oldRoot, topSwitcher_L)
 
-
-    # print(f"oldRoot: {oldRoot}, type: {type(oldRoot)}, class: {oldRoot.__class__.__name__}")
-    # print(f"topSwitcher['outL']: {topSwitcher['outL']}, type: {type(topSwitcher['outL'])}, class: {topSwitcher['outL'].__class__.__name__}")
-
-    checkOldInput = ForceEqualIfEnabled(enabled, oldRoot, topSwitcher_L)
-
-    #print("oldRoot", oldRoot)
-
+    # Calculate new root
     newRoot = enabled * (topSwitcher_R - oldRoot) + oldRoot
-    #print(f"newRoot calculation: enabled={enabled}, topSwitcher_R={topSwitcher_R}, oldRoot={oldRoot}")
-    #print(f"newRoot: {newRoot}")
 
     # Check keys are equal if updating
     areKeyEquals = IsEqual(oldKey, newKey)
@@ -250,3 +316,45 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 
 # z = SMTHash2(0, 0)
 # print(z)
+
+
+'''
+[SMTProcessor]
+    |
+    |-- inputs: nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, newValue, fnc
+    |
+    |-- [Utility Functions]
+    |   |-- Num2Bits_strict
+    |   |-- XOR
+    |   |-- IsEqual
+    |   |-- AND / MultiAND
+    |   |-- Switcher
+    |   |-- ForceEqualIfEnabled
+    |
+    |-- [Hash Functions]
+    |   |-- SMTHash1
+    |   |-- SMTHash2
+    |
+    |-- [SMTLevIns]
+    |   |-- calculation: lev_ins
+    |
+    |-- [SMTProcessorSM] (each level)
+    |   |-- inputs: xor, is0, levIns, fnc, prev_states
+    |   |-- outputs: st_top, st_old0, st_bot, st_new1, st_na, st_upd
+    |
+    |-- [SMTProcessorLevel] (each level(reverse))
+    |   |-- inputs: states, sibling, old1leaf, new1leaf, newlrbit, oldChild, newChild
+    |   |-- [Switcher] (oldSwitcher)
+    |   |-- [SMTHash2] (oldProofHash)
+    |   |-- [Switcher] (newSwitcher)
+    |   |-- [SMTHash2] (newProofHash)
+    |   |-- outputs: oldRoot, newRoot
+    |
+    |-- [final process]
+    |   |-- [Switcher] (topSwitcher)
+    |   |-- [ForceEqualIfEnabled]
+    |   |-- newRoot calculation
+    |   |-- [MultiAND] (keysOk check)
+    |
+    |-- output: newRoot
+'''
