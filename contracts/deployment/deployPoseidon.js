@@ -1,6 +1,7 @@
 // deploy-poseidon.js
 const { ethers } = require("ethers");
 const poseidonGenContract = require("circomlibjs").poseidonContract;
+const fs = require('fs'); // Import the fs module to handle file system operations
 require('dotenv').config();
 
 async function deployPoseidon(elements) {
@@ -30,9 +31,35 @@ async function deployPoseidon(elements) {
   // Wait for deployment confirmation
   await poseidonContract.waitForDeployment(); 
 
-  let contractAddress = await poseidonContract.getAddress();
+  const contractAddress = await poseidonContract.getAddress();
 
   console.log(contractAddress);
+
+  // Ensure the output directory exists
+  const outputDir = './broadcast/DeployPoseidon.s.sol';
+  if (!fs.existsSync(outputDir)){
+      fs.mkdirSync(outputDir, { recursive: true }); // Create the directory if it doesn't exist
+  }
+
+  // Prepare data to write
+  const jsonData = {
+    [`${elements}_elements`]: contractAddress,
+  };
+
+  const filePath = `${outputDir}/deployments.json`;
+
+  // Read existing data if the file exists
+  let existingData = {};
+  if (fs.existsSync(filePath)) {
+    const fileContent = fs.readFileSync(filePath);
+    existingData = JSON.parse(fileContent);
+  }
+
+  // Update existing data with new data, replacing the entry for the same key
+  existingData = { ...existingData, ...jsonData };
+
+  // Write the updated data back to the file
+  fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2));
 
   return contractAddress;
 }
