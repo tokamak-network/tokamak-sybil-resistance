@@ -116,10 +116,10 @@ def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
 
     # Old side
     oldSwitcher_L, oldSwitcher_R = Switcher(newlrbit, oldChild, sibling)
-    print(f"oldSwitcher_L: {oldSwitcher_L}, oldSwitcher_R: {oldSwitcher_R}")
+    #print(f"oldSwitcher_L: {oldSwitcher_L}, oldSwitcher_R: {oldSwitcher_R}")
     oldProofHash = SMTHash2(oldSwitcher_L, oldSwitcher_R)
 
-    print(f"oldProofHash: {oldProofHash}")
+    #print(f"oldProofHash: {oldProofHash}")
 
     aux[0] = old1leaf * (st_bot + st_new1 + st_upd)
     oldRoot = aux[0] + oldProofHash * st_top
@@ -133,10 +133,10 @@ def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
 
     newSwitcher_outL, newSwitcher_outR = Switcher(newlrbit, newSwitcher_L, newSwitcher_R)
     newProofHash = SMTHash2(newSwitcher_outL, newSwitcher_outR)
-    print(f"newProofHash: {newProofHash}")
+    #print(f"newProofHash: {newProofHash}")
     aux[3] = newProofHash * (st_top + st_bot + st_new1)
     newRoot = aux[3] + new1leaf * (st_old0 + st_upd)
-    print(f"newRoot: {newRoot}")
+    #print(f"newRoot: {newRoot}")
     return {'oldRoot': oldRoot, 'newRoot': newRoot}
 
 
@@ -188,11 +188,11 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
         )
         levels[i] = level
 
-    print(f"levels: {levels}")
+    #print(f"levels: {levels}")
 
     topSwitcher_L, topSwitcher_R = Switcher(fnc[0] * fnc[1],levels[0]['oldRoot'], levels[0]['newRoot'])
 
-    print(f"topSwitcher_L: {topSwitcher_L}, topSwitcher_R: {topSwitcher_R}")
+    #print(f"topSwitcher_L: {topSwitcher_L}, topSwitcher_R: {topSwitcher_R}")
 
 
     # print(f"oldRoot: {oldRoot}, type: {type(oldRoot)}, class: {oldRoot.__class__.__name__}")
@@ -200,11 +200,11 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 
     checkOldInput = ForceEqualIfEnabled(enabled, oldRoot, topSwitcher_L)
 
-    print("oldRoot", oldRoot)
+    #print("oldRoot", oldRoot)
 
     newRoot = enabled * (topSwitcher_R - oldRoot) + oldRoot
-    print(f"newRoot calculation: enabled={enabled}, topSwitcher_R={topSwitcher_R}, oldRoot={oldRoot}")
-    print(f"newRoot: {newRoot}")
+    #print(f"newRoot calculation: enabled={enabled}, topSwitcher_R={topSwitcher_R}, oldRoot={oldRoot}")
+    #print(f"newRoot: {newRoot}")
 
     # Check keys are equal if updating
     areKeyEquals = IsEqual(oldKey, newKey)
@@ -217,19 +217,19 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 ###################################################
 # Example usage
 ###################################################
-fnc = [1, 0]  # Insert
-old_root = 0  # Initial root hash
-siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example with 2 levels
-nlevels = len(siblings)
-old_key = 0
-old_value = 0
-is_old0 = 1
-new_key = 0
-new_value = 0
+# fnc = [1, 0]  # Insert
+# old_root = 0  # Initial root hash
+# siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example with 2 levels
+# nlevels = len(siblings)
+# old_key = 0
+# old_value = 0
+# is_old0 = 1
+# new_key = 111
+# new_value = 222
 
-#new_root should be 9308772482099879945566979599408036177864352098141198065063141880905857869998
-new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
-print(f"New root after insertion: {new_root}")
+# #new_root should be 9308772482099879945566979599408036177864352098141198065063141880905857869998
+# new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
+# print(f"New root after insertion: {new_root}")
 
 # # Update
 # old_root = new_root
