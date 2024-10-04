@@ -5,12 +5,18 @@ require('dotenv').config();
 
 async function deployPoseidon(elements) {
   const privateKey = process.env.PRIVATE_KEY;
+  const providerUrl = process.env.PROVIDER_URL;
+
   if (!privateKey) {
     throw new Error("Private key not set in environment variables");
   }
 
-  const provider = new ethers.JsonRpcProvider("https://rpc.thanos-sepolia.tokamak.network");
-  const wallet = new ethers.Wallet(privateKey, provider); // Use an environment variable for the private key
+  if (!providerUrl) {
+    throw new Error("Provider URL not set in environment variables");
+  }
+
+  const provider = new ethers.JsonRpcProvider(providerUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
 
   // Generate Poseidon contract
   const PoseidonFactory = new ethers.ContractFactory(
@@ -22,10 +28,13 @@ async function deployPoseidon(elements) {
   const poseidonContract = await PoseidonFactory.deploy();
   
   // Wait for deployment confirmation
-  await poseidonContract.waitForDeployment(); // Ensure the deployment transaction is mined
+  await poseidonContract.waitForDeployment(); 
 
-  // Log contract address
-  console.log("Poseidon Contract deployed at:", poseidonContract.address); // Use 'address' instead of 'getAddress()'
+  let contractAddress = await poseidonContract.getAddress();
+
+  console.log(contractAddress);
+
+  return contractAddress;
 }
 
 // Get the number of elements from the command line arguments

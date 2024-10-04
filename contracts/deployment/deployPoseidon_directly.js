@@ -4,13 +4,18 @@ require('dotenv').config();
 
 async function main() {
   const privateKey = process.env.PRIVATE_KEY;
+  const providerUrl = process.env.PROVIDER_URL;
+
   if (!privateKey) {
     throw new Error("Private key not set in environment variables");
   }
 
-  // Initialize deployer - replace with your preferred method of getting a signer
-  const provider = new ethers.JsonRpcProvider("https://rpc.thanos-sepolia.tokamak.network"); // Replace with your RPC URL
-  const wallet = new ethers.Wallet(privateKey, provider); // Replace with your private key
+  if (!providerUrl) {
+    throw new Error("Provider URL not set in environment variables");
+  }
+
+  const provider = new ethers.JsonRpcProvider(providerUrl);
+  const wallet = new ethers.Wallet(privateKey, provider); 
   const deployer = wallet;
 
   // Poseidon with 2 elements

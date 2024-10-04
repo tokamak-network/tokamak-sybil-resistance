@@ -7,7 +7,7 @@ import {
 } from "../src/sybil.sol";
 import {
     VerifierRollupStub
-} from "../src/stub/VerifierRollupStub.sol"; // Import the VerifierRollupStub
+} from "../src/stub/VerifierRollupStub.sol";
 
 contract MyScript is Script {
     function run() external {

@@ -4,51 +4,44 @@ pragma solidity ^0.8.23;
 import "forge-std/Script.sol";
 
 contract DeployPoseidon is Script {
-    // Define an event to log the contract address
-    event PoseidonDeployed(address indexed contractAddress);
 
     function run() external {
-        // Start broadcasting the transaction
         vm.startBroadcast();
 
-        // Initialize array with 3 elements
         string[] memory commands = new string[](3); 
 
         commands[0] = "node";
-        commands[1] = "./deployment/deployPoseidon.js";  // Adjust this path if necessary
+        commands[1] = "./deployment/deployPoseidon.js"; 
         
         // Deploy Poseidon with 2 elements
         commands[2] = "2";  // For 2 elements
         bytes memory output2 = vm.ffi(commands);    // Call FFI to deploy Poseidon with 2 elements
-        console2.log("FFI Output for 2 elements:", string(output2));
+        address addr2 = bytesToAddress(output2);
+        console.log("Poseidon Contract with 2 elements deployed at:", addr2);
 
         // Deploy Poseidon with 3 elements
         commands[2] = "3";  // For 3 elements
        bytes memory output3 = vm.ffi(commands);    // Call FFI to deploy Poseidon with 3 elements
-        console2.log("FFI Output for 3 elements:", string(output3));
+        address addr3 = bytesToAddress(output3);
+        console.log("Poseidon Contract with 2 elements deployed at:", addr3);
 
         // Deploy Poseidon with 4 elements
         commands[2] = "4";  // For 4 elements
         bytes memory output4 = vm.ffi(commands);    // Call FFI to deploy Poseidon with 4 elements
-        console2.log("FFI Output for 4 elements:", string(output4));
+        address addr4 = bytesToAddress(output4);
+        console.log("Poseidon Contract with 2 elements deployed at:", addr4);
 
         // Stop broadcasting
         vm.stopBroadcast();
-
-        console2.log("output:", parseAddressFromOutput(output2));
-        emit PoseidonDeployed(parseAddressFromOutput(output2));
     }
 
-    function parseAddressFromOutput(bytes memory output) internal pure returns (address) {
-        // Remove "0x" prefix if present
-        string memory outputString = string(output);
-        bytes memory temp = bytes(outputString);
-        
-        uint160 addr = 0;
-        for (uint i = 0; i < 20; i++) {
-            addr <<= 8;
-            addr += uint160(uint8(temp[i + 2])); // Skipping '0x'
+    // Helper function to convert bytes to an Ethereum address
+    function bytesToAddress(bytes memory b) internal pure returns (address) {
+        require(b.length >= 20, "Bytes array too short to be an address");
+        address addr;
+        assembly {
+            addr := mload(add(b, 20))  // Load 20 bytes (address length)
         }
-        return address(addr);
+        return addr;
     }
 }
