@@ -1,7 +1,7 @@
 // deploy-poseidon.js
 const { ethers } = require("ethers");
 const poseidonGenContract = require("circomlibjs").poseidonContract;
-const fs = require('fs'); // Import the fs module to handle file system operations
+const fs = require('fs');
 require('dotenv').config();
 
 async function deployPoseidon(elements) {
