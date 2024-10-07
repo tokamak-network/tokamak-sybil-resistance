@@ -3,6 +3,7 @@ pragma solidity 0.8.23;
 
 interface ISybil {
     // Custom Errors
+    error InvalidVerifierAddress();
     error InvalidCreateAccountTransaction();
     error InvalidDepositTransaction();
     error InvalidForceExitTransaction();
