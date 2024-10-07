@@ -63,9 +63,17 @@ def ForceEqualIfEnabled(enabled, in1, in2):
 
 # SMTHash1 and SMTHash2
 def SMTHash1(key, value):
+    """
+    Computes the hash of a leaf node in the Sparse Merkle Tree.
+    Includes a constant '1' for domain separation to distinguish
+    leaf node hashes from internal node hashes, preventing collisions.
+    """
     return Poseidon([int(key), int(value), 1])
 
 def SMTHash2(L, R):
+    """
+    Computes the hash of an internal node using the hashes of its left and right children.
+    """
     return Poseidon([int(L), int(R)])
 
 # SMTLevIns
