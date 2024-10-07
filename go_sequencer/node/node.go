@@ -234,11 +234,13 @@ func NewNode(mode Mode, cfg *config.Node, version string) (*Node, error) {
 			Address: cfg.SmartContracts.Rollup,
 		},
 	})
+
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
 
 	chainID, err := client.EthChainID()
+
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
