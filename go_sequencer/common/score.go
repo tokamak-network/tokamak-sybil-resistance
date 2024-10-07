@@ -20,20 +20,22 @@ const (
 )
 
 // Bytes returns a byte array representing the score
-func (s *Score) Bytes() ([8]byte, error) {
+func (s *Score) Bytes() ([4]byte, error) {
 	if s.Value > maxScoreValue {
-		return [8]byte{}, Wrap(ErrScoreOverflow)
+		return [4]byte{}, Wrap(ErrScoreOverflow)
 	}
 	var scoreBytes [8]byte
 	binary.BigEndian.PutUint64(scoreBytes[:], uint64(s.Value))
-	var b [8]byte
-	copy(b[:], scoreBytes[:])
+	var b [4]byte
+	copy(b[:], scoreBytes[4:])
 	return b, nil
 }
 
 // ScoreFromBytes returns score from a byte array
 func ScoreFromBytes(b [4]byte) (*Score, error) {
-	score := binary.BigEndian.Uint64(b[:])
+	var scoreBytes [8]byte
+	copy(scoreBytes[4:], b[:])
+	score := binary.BigEndian.Uint64(scoreBytes[:])
 	s := Score{
 		Value: score,
 	}

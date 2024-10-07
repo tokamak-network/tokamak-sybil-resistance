@@ -63,6 +63,13 @@ func newVouch(i int) *common.Vouch {
 	}
 }
 
+func newScore(i int) *common.Score {
+	return &common.Score{
+		Idx:   common.AccountIdx(256 + i),
+		Value: uint64(1 + i),
+	}
+}
+
 func TestAccountInStateDB(t *testing.T) {
 	dir, err := os.MkdirTemp("", "tmpdb")
 	require.NoError(t, err)
@@ -167,6 +174,60 @@ func TestVouchInStateDB(t *testing.T) {
 		vouches[i].Value = !vouches[i].Value
 		existingVouch = vouches[i].Idx
 		_, err = sdb.UpdateVouch(existingVouch, vouches[i])
+		require.NoError(t, err)
+	}
+
+	sdb.Close()
+}
+
+func TestScoreInStateDB(t *testing.T) {
+	dir, err := os.MkdirTemp("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	sdb, err := NewStateDB(Config{Path: dir, Keep: 128, Type: TypeSynchronizer, NLevels: 32})
+	require.NoError(t, err)
+
+	// create test scores
+	var scores []*common.Score
+	for i := 0; i < 4; i++ {
+		scores = append(scores, newScore(i))
+	}
+
+	// get non-existing score, expecting an error
+	unexistingScore := common.AccountIdx(1)
+	_, err = sdb.GetScore(unexistingScore)
+	assert.NotNil(t, err)
+	assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
+
+	// add test scores
+	for i := 0; i < len(scores); i++ {
+		_, err = sdb.CreateScore(scores[i].Idx, scores[i])
+		require.NoError(t, err)
+	}
+
+	for i := 0; i < len(scores); i++ {
+		existingScore := scores[i].Idx
+		scoGetted, err := sdb.GetScore(existingScore)
+		require.NoError(t, err)
+		assert.Equal(t, scores[i], scoGetted)
+	}
+
+	// try already existing idx and get error
+	existingScore := common.AccountIdx(257)
+	_, err = sdb.GetScore(existingScore) // check that exist
+	require.NoError(t, err)
+	_, err = sdb.CreateScore(common.AccountIdx(257), scores[1]) // check that can not be created twice
+	assert.NotNil(t, err)
+	assert.Equal(t, ErrScoreAlreadyExists, common.Unwrap(err))
+
+	_, err = sdb.MTGetAccountProof(common.AccountIdx(257))
+	require.NoError(t, err)
+
+	// update scores
+	for i := 0; i < len(scores); i++ {
+		existingScore = scores[i].Idx
+		_, err = sdb.UpdateScore(existingScore, scores[i])
 		require.NoError(t, err)
 	}
 

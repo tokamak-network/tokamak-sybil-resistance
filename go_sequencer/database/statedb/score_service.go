@@ -1,6 +1,7 @@
 package statedb
 
 import (
+	"errors"
 	"tokamak-sybil-resistance/common"
 
 	"github.com/iden3/go-merkletree"
@@ -8,6 +9,9 @@ import (
 )
 
 var (
+	// ErrScoreAlreadyExists is used when CreateScore is called and the
+	// Score already exists
+	ErrScoreAlreadyExists = errors.New("Can not CreateScore becase Score already exists")
 	// PrefixKeyScoIdx is the key prefix for accountIdx in ScoreTree
 	PrefixKeyScoIdx = []byte("s:")
 )
@@ -43,7 +47,7 @@ func CreateScoreInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.A
 
 	_, err = tx.Get(append(PrefixKeyScoIdx, idxBytes[:]...))
 	if err != db.ErrNotFound {
-		return nil, common.Wrap(ErrAlreadyVouched)
+		return nil, common.Wrap(ErrScoreAlreadyExists)
 	}
 
 	bytesFromScore, err := score.Bytes()
@@ -51,7 +55,7 @@ func CreateScoreInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.A
 		return nil, common.Wrap(err)
 	}
 
-	err = tx.Put(append(PrefixKeyVocIdx, idxBytes[:]...), bytesFromScore[:])
+	err = tx.Put(append(PrefixKeyScoIdx, idxBytes[:]...), bytesFromScore[:])
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
