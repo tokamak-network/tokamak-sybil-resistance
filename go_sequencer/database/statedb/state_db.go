@@ -74,6 +74,7 @@ type StateDB struct {
 	db          *kvdb.KVDB
 	AccountTree *merkletree.MerkleTree
 	VouchTree   *merkletree.MerkleTree
+	ScoreTree   *merkletree.MerkleTree
 }
 
 // LocalStateDB represents the local StateDB which allows to make copies from

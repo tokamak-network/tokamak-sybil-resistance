@@ -18,9 +18,6 @@ type Vouch struct {
 type VouchIdx uint64
 
 const (
-	// NLeafElems is the number of elements for a leaf in vouch tree
-	NVouchLeafElems = 1
-
 	// maxVouchIdxValue is the maximum value that VouchIdx can have
 	maxVouchIdxValue = 0xffffffffffff
 )

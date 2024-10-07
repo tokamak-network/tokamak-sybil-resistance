@@ -40,9 +40,9 @@ const (
 	// IdxBytesLen idx bytes
 	IdxBytesLen = 6
 
-	// maxAccountIdxValue is the maximum value that AccountIdx can have (48 bits:
-	// maxAccountIdxValue=2**48-1)
-	maxAccountIdxValue = 0xffffffffffff
+	// maxAccountIdxValue is the maximum value that AccountIdx can have (24 bits:
+	// maxAccountIdxValue=2**24-1)
+	maxAccountIdxValue = 0xffffff
 
 	// UserThreshold determines the threshold from the User Idxs can be
 	UserThreshold = 256

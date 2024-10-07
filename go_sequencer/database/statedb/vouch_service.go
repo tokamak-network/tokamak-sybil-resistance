@@ -125,7 +125,7 @@ func UpdateVouchInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.V
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	err = tx.Put(append(PrefixKeyAccIdx, idxBytes[:]...), vouch.BytesFromBool())
+	err = tx.Put(append(PrefixKeyVocIdx, idxBytes[:]...), vouch.BytesFromBool())
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
