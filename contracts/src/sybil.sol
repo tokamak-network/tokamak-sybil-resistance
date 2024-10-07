@@ -404,6 +404,10 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
         uint256[] memory _nLevels
     ) internal {
         for (uint256 i = 0; i < _verifiers.length; i++) {
+            require(_verifiers[i] != address(0), 
+                "Sybil::_initializeVerifiers: INVALID_VERIFIER_ADDRESS"
+            );
+
             rollupVerifiers.push(
                 VerifierRollup({
                     verifierInterface: VerifierRollupInterface(_verifiers[i]),

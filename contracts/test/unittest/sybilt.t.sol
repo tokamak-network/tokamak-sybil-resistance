@@ -419,6 +419,39 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
     }
 
+    // ForceExplode transactions tests
+    function testInvalidForceExplodeTransaction() public {
+        TxParams memory params = invalidForceExplode();
+        uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
+        uint48 initialLastIdx = 256;
+
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
+        vm.prank(address(this));
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            false, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
+
+        vm.expectRevert(ISybil.InvalidForceExplodeTransaction.selector);
+        vm.prank(address(this));
+        sybil.addL1Transaction {
+            value: loadAmount
+        }(params.babyPubKey, params.fromIdx, params.loadAmountF, params.amountF, params.toIdx);
+    }
+
     // Invalid transaction parameters tests
     function testInvalidTransactionParameters() public {
         uint256 babyPubKey = 0;
@@ -491,7 +524,51 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
             invalidAddress
         );
     }
-      // Test setForgeL1L2BatchTimeout called by non-owner
+
+    // Test initializing with invalid verifier address
+    function testInitializeWithInvalidVerifierAddresses() public {
+        PoseidonUnit2 mockPoseidon2 = new PoseidonUnit2();
+        PoseidonUnit3 mockPoseidon3 = new PoseidonUnit3();
+        PoseidonUnit4 mockPoseidon4 = new PoseidonUnit4();
+        // Deploy verifier stub
+        VerifierRollupStub verifierStub = new VerifierRollupStub(); 
+        
+        address[] memory verifiers = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
+
+        verifiers[0] = address(0);
+        maxTx[0] = uint(256);
+        nLevels[0] = uint(1);
+
+
+        address invalidAddress = address(0);
+
+        // Expect revert for invalid poseidon2Elements address
+        vm.expectRevert(bytes("Sybil::_initializeVerifiers: INVALID_VERIFIER_ADDRESS"));
+        new Sybil(
+            verifiers, 
+            maxTx, 
+            nLevels, 
+            120, 
+            address(mockPoseidon2), 
+            address(mockPoseidon3), 
+            address(mockPoseidon4)
+        );
+    }
+
+    // Test setForgeL1L2BatchTimeout called by owner
+    function testSetForgeL1L2BatchTimeoutOwner() public {
+        uint8 newTimeout = 100;
+
+        // Set up a different address
+        address owner = sybil.owner();
+
+        vm.prank(owner);
+        sybil.setForgeL1L2BatchTimeout(newTimeout);
+    }
+
+    // Test setForgeL1L2BatchTimeout called by non-owner
     function testSetForgeL1L2BatchTimeoutNonOwner() public {
         uint8 newTimeout = 100;
 
