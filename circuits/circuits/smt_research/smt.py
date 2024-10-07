@@ -109,6 +109,7 @@ def SMTLevIns(n_levels, siblings, enabled):
     return lev_ins
 
 # SMTProcessorSM
+# non-linear constraints : 5 (@Todo: Why 5?)
 def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_new1, prev_na, prev_upd):
     """
     Implements the state machine for processing each level of the Sparse Merkle Tree.
@@ -146,6 +147,7 @@ def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_ne
     }
 
 # SMTProcessorLevel
+# non-linear constraints : 490
 def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
                       sibling, old1leaf, new1leaf, newlrbit, oldChild, newChild):
     """
@@ -172,7 +174,6 @@ def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
     # Old side
     oldSwitcher_L, oldSwitcher_R = Switcher(newlrbit, oldChild, sibling) #newlrbit decide which one is left and right
     oldProofHash = SMTHash2(oldSwitcher_L, oldSwitcher_R)
-
 
 
     aux[0] = old1leaf * (st_bot + st_new1 + st_upd)
@@ -217,6 +218,10 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
     Returns:
         int: New root hash of the tree after the operation.
     """
+
+    #Constraints: 2553 + 499*(nLevels-2)
+    print("SMTProcessor Non-linear Constraints: ", 2553 + 499*(nLevels-2))
+
     enabled = fnc[0] + fnc[1] - fnc[0] * fnc[1]
 
     hash1Old = SMTHash1(oldKey, oldValue)
@@ -227,6 +232,7 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 
     smtLevIns = SMTLevIns(nLevels, siblings, enabled)
 
+    # if oldkey and newkey are same, xor is 0, else 1 (repeat nLevels)
     xors = [XOR(n2bOld[i], n2bNew[i]) for i in range(nLevels)]
 
     sm = []
