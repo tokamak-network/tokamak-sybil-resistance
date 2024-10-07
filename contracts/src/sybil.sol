@@ -403,10 +403,11 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
         uint256[] memory _maxTxs,
         uint256[] memory _nLevels
     ) internal {
-        for (uint256 i = 0; i < _verifiers.length; i++) {
-            require(_verifiers[i] != address(0), 
-                "Sybil::_initializeVerifiers: INVALID_VERIFIER_ADDRESS"
-            );
+        uint256 len = _verifiers.length;
+        for (uint256 i = 0; i < len; ++i) {
+            if (_verifiers[i] == address(0)) {
+                revert InvalidVerifierAddress();
+            }
 
             rollupVerifiers.push(
                 VerifierRollup({

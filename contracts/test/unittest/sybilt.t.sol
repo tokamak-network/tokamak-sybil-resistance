@@ -544,8 +544,8 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
         address invalidAddress = address(0);
 
-        // Expect revert for invalid poseidon2Elements address
-        vm.expectRevert(bytes("Sybil::_initializeVerifiers: INVALID_VERIFIER_ADDRESS"));
+        // Expect revert for invalid verifier address
+        vm.expectRevert(ISybil.InvalidVerifierAddress.selector);
         new Sybil(
             verifiers, 
             maxTx, 
