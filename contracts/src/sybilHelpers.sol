@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8 .23;
 
+error InvalidPoseidonAddress(string elementType);
+
 /**
  * @dev Interface poseidon hash function 2 elements
  */
@@ -34,19 +36,26 @@ contract SybilHelpers {
      * @dev Load poseidon smart contract
      * @param _poseidon4Elements Poseidon contract address for 4 elements
      */
-    function _initializeHelpers(
-        address _poseidon2Elements,
-        address _poseidon3Elements,
-        address _poseidon4Elements
-    ) internal {
-        require(_poseidon2Elements != address(0), "Invalid poseidon2Elements address");
-        require(_poseidon3Elements != address(0), "Invalid poseidon3Elements address");
-        require(_poseidon4Elements != address(0), "Invalid poseidon4Elements address");
-
-        _insPoseidonUnit2 = PoseidonUnit2(_poseidon2Elements);
-        _insPoseidonUnit3 = PoseidonUnit3(_poseidon3Elements);
-        _insPoseidonUnit4 = PoseidonUnit4(_poseidon4Elements);
+ function _initializeHelpers(
+    address _poseidon2Elements,
+    address _poseidon3Elements,
+    address _poseidon4Elements
+) internal {
+    if (_poseidon2Elements == address(0)) {
+        revert InvalidPoseidonAddress("poseidon2Elements");
     }
+    if (_poseidon3Elements == address(0)) {
+        revert InvalidPoseidonAddress("poseidon3Elements");
+    }
+    if (_poseidon4Elements == address(0)) {
+        revert InvalidPoseidonAddress("poseidon4Elements");
+    }
+
+    _insPoseidonUnit2 = PoseidonUnit2(_poseidon2Elements);
+    _insPoseidonUnit3 = PoseidonUnit3(_poseidon3Elements);
+    _insPoseidonUnit4 = PoseidonUnit4(_poseidon4Elements);
+}
+
 
     /**
      * @dev Build entry for the exit tree leaf

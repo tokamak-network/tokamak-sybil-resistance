@@ -224,57 +224,59 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
      * @param newExitRoot The new exit root.
      * @param l1Batch Whether this is an L1 batch or not.
      */
-    function forgeBatch(
-        uint48 newLastIdx,
-        uint256 newStRoot,
-        uint256 newVouchRoot,
-        uint256 newScoreRoot,
-        uint256 newExitRoot,
-        uint8 verifierIdx,
-        bool l1Batch,
-        uint256[2] calldata proofA,
-        uint256[2][2] calldata proofB,
-        uint256[2] calldata proofC,
-        uint256 input
-    ) external virtual {
-        lastForgedBatch++;
-        lastIdx = newLastIdx;
-        stateRootMap[lastForgedBatch] = newStRoot;
-        vouchRootMap[lastForgedBatch] = newVouchRoot;
-        scoreRootMap[lastForgedBatch] = newScoreRoot;
-        exitRootsMap[lastForgedBatch] = newExitRoot;
+function forgeBatch(
+    uint48 newLastIdx,
+    uint256 newStRoot,
+    uint256 newVouchRoot,
+    uint256 newScoreRoot,
+    uint256 newExitRoot,
+    uint8 verifierIdx,
+    bool l1Batch,
+    uint256[2] calldata proofA,
+    uint256[2][2] calldata proofB,
+    uint256[2] calldata proofC,
+    uint256 input
+) external virtual {
+    lastForgedBatch++;
+    lastIdx = newLastIdx;
+    stateRootMap[lastForgedBatch] = newStRoot;
+    vouchRootMap[lastForgedBatch] = newVouchRoot;
+    scoreRootMap[lastForgedBatch] = newScoreRoot;
+    exitRootsMap[lastForgedBatch] = newExitRoot;
 
-        // verify proof
-        require(
-            rollupVerifiers[verifierIdx].verifierInterface.verifyProof(
-                proofA,
-                proofB,
-                proofC,
-                [input]
-            ),
-            "Sybil::forgeBatch: INVALID_PROOF"
-        );
-
-        uint16 l1UserTxsLen;
-        if (l1Batch) {
-            lastL1L2Batch = uint64(block.number);
-            l1UserTxsLen = _clearQueue();
-        }
-
-        emit ForgeBatch(lastForgedBatch, l1UserTxsLen);
+    // verify proof
+    if (
+        !rollupVerifiers[verifierIdx].verifierInterface.verifyProof(
+            proofA,
+            proofB,
+            proofC,
+            [input]
+        )
+    ) {
+        revert InvalidProof();
     }
+
+    uint16 l1UserTxsLen;
+    if (l1Batch) {
+        lastL1L2Batch = uint64(block.number);
+        l1UserTxsLen = _clearQueue();
+    }
+
+    emit ForgeBatch(lastForgedBatch, l1UserTxsLen);
+}
+
 
     /**
      * @notice Sets the L1/L2 batch timeout.
      * @param newTimeout The new timeout value in blocks.
      */
     function setForgeL1L2BatchTimeout(uint8 newTimeout) external onlyOwner {
-        require(
-            newTimeout <= ABSOLUTE_MAX_L1L2BATCHTIMEOUT,
-            "setForgeL1L2BatchTimeout: MAX_TIMEOUT_EXCEEDED"
-        );
-        forgeL1L2BatchTimeout = newTimeout;
+    if (newTimeout > ABSOLUTE_MAX_L1L2BATCHTIMEOUT) {
+        revert BatchTimeoutExceeded();
     }
+    forgeL1L2BatchTimeout = newTimeout;
+}
+
 
     /**
      * @dev Withdraw to retrieve the tokens from the exit tree to the owner account
