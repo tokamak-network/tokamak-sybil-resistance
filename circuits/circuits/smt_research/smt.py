@@ -246,7 +246,6 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 
     smtLevIns = SMTLevIns(nLevels, siblings, enabled)
 
-    print(f"smtLevIns: {smtLevIns}")
     # if oldkey and newkey are same, xor is 0, else 1 (repeat nLevels)
     xors = [XOR(n2bOld[i], n2bNew[i]) for i in range(nLevels)]
 
@@ -304,28 +303,43 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 ###################################################
 # Example usage
 ###################################################
-# fnc = [1, 0]  # Insert
-# old_root = 0  # Initial root hash
-# siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example with 2 levels
-# nlevels = len(siblings)
-# old_key = 0
-# old_value = 0
-# is_old0 = 1
-# new_key = 111
-# new_value = 222
+fnc = [1, 0]  # Insert
+old_root = 0  # Initial root hash
+siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example with 2 levels
+nlevels = len(siblings)
+old_key = 0
+old_value = 0
+is_old0 = 1
+new_key = 111
+new_value = 222
 
-# #new_root should be 9308772482099879945566979599408036177864352098141198065063141880905857869998
-# new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
-# print(f"New root after insertion: {new_root}")
+#new_root should be 9308772482099879945566979599408036177864352098141198065063141880905857869998
+new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
+print(f"New root after insertion: {new_root}")
 
 # # Update
-# old_root = new_root
-# old_value = 222
-# new_value = 20
-# fnc = [0, 1]  # Update
+old_root = new_root
+old_value = new_value
+old_key = new_key
+is_old0 = 0
+new_value = 20
+siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+fnc = [0, 1]  # Update
 
-# new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
-# print(f"New root after update: {new_root}")
+new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
+print(f"New root after update: {new_root}")
+
+fnc = [1, 0]  # Insert
+old_root = new_root  # Initial root hash
+siblings = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Example with 2 levels
+old_key = 111
+old_value = 20
+is_old0 = 0
+new_key = 110
+new_value = 333
+
+new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, is_old0, new_key, new_value, fnc)
+print(f"New root after update: {new_root}")
 
 # # Delete
 # old_root = new_root
