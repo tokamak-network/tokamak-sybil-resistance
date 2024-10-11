@@ -23,10 +23,6 @@ def Num2Bits_strict(in_value):
 def XOR(a, b):
     return a + b - 2*a*b
 
-#Check Is Equal
-def IsEqual(a, b):
-    return 1 if a == b else 0
-
 def AND(a, b):
     return a * b
 
@@ -79,40 +75,42 @@ def SMTHash2(L, R):
 # SMTLevIns
 def SMTLevIns(n_levels, siblings, enabled):
     """
-    Determines the insertion level for a new node in the Sparse Merkle Tree.
+    Finds the level where oldInsert should be performed in a Sparse Merkle Tree.
+    
+    Operation Rules:
+    1. levIns[i] = 1 when:
+      - Current level (i) and all child levels have siblings of 0, and
+      - The parent level has a sibling != 0
+    2. The root level is always assumed to have a parent with a sibling != 0.
 
-    This function calculates which level of the tree requires a new node insertion.
-    It works from the bottom of the tree upwards, finding the deepest level where
-    insertion is needed while maintaining tree balance.
-
-    The algorithm ensures that new nodes are inserted at the lowest possible level,
-    which helps keep the tree balanced and minimizes the number of hash computations
-    needed for updates.
-
-    Args:
-        n_levels (int): The number of levels in the Sparse Merkle Tree.
-        siblings (list): The sibling nodes for each level of the path in the tree.
-        enabled (int): A flag indicating whether the insertion is enabled (1) or not (0).
-
-    Returns:
-        list: An array 'lev_ins' where lev_ins[i] == 1 if insertion is needed at level i, else 0.
+    Example (4-level tree):
+    Level   siblings   levIns   done   Description
+      0        0         0       1     Root level
+      1        v         0       1     middle level
+      2        0         1       1     Insertion level (parent sibling != 0)
+      3        0         0       0     Lowest level (siblings have to be 0)
+    
+    Note: Exactly one level will have levIns = 1, ensuring efficient tree updates.
     """
-    lev_ins = [FR(0)] * n_levels
-    done = [FR(0)] * (n_levels - 1)
+    lev_ins = [0] * n_levels
+    done = [0] * (n_levels - 1)
 
     # Check last level
     if enabled:
-        assert IsEqual(siblings[-1], FR(0)), "Last sibling must be zero if enabled"
+        assert siblings[-1] == 0, "Last sibling must be zero if enabled"
 
     # Calculate from highest to lowest level
-    lev_ins[-1] = FR(1) - IsEqual(siblings[-2], FR(0))
-    done[-1] = lev_ins[-1]
+    lev_ins[n_levels-1] = int((siblings[n_levels-2] != 0))
+    done[n_levels-2] = lev_ins[n_levels-1]
 
     for i in range(n_levels - 2, 0, -1):
-        lev_ins[i] = (FR(1) - done[i]) * (FR(1) - IsEqual(siblings[i-1], FR(0)))
+        lev_ins[i] = (1 - done[i]) * int((siblings[i-1] != 0))
         done[i-1] = lev_ins[i] + done[i]
 
-    lev_ins[0] = FR(1) - done[0]
+    lev_ins[0] = 1 - done[0]
+
+    print(f"lev_ins: {lev_ins}")
+    print(f"done: {done}")
 
     return lev_ins
 
@@ -226,9 +224,17 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
     Returns:
         int: New root hash of the tree after the operation.
     """
-
+    print("fnc: ", fnc)
+    print("oldKey: ", oldKey)
+    print("newKey: ", newKey)
+    print("oldValue: ", oldValue)
+    print("newValue: ", newValue)
+    print("isOld0: ", isOld0)
+    print("oldRoot: ", oldRoot)
+    
     #Constraints: 2553 + 499*(nLevels-2)
     print("SMTProcessor Non-linear Constraints: ", 2553 + 499*(nLevels-2))
+    print("Siblings: ", siblings)
 
     enabled = fnc[0] + fnc[1] - fnc[0] * fnc[1]
 
@@ -240,6 +246,7 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 
     smtLevIns = SMTLevIns(nLevels, siblings, enabled)
 
+    print(f"smtLevIns: {smtLevIns}")
     # if oldkey and newkey are same, xor is 0, else 1 (repeat nLevels)
     xors = [XOR(n2bOld[i], n2bNew[i]) for i in range(nLevels)]
 
@@ -287,10 +294,10 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
     newRoot = enabled * (topSwitcher_R - oldRoot) + oldRoot
 
     # Check keys are equal if updating
-    areKeyEquals = IsEqual(oldKey, newKey)
-    keysOk = MultiAND([FR(1) - fnc[0], fnc[1], FR(1) - areKeyEquals])
+    areKeyEquals = int(oldKey == newKey)
+    keysOk = MultiAND([1 - fnc[0], fnc[1], 1 - areKeyEquals])
 
-    assert keysOk == FR(0)
+    assert keysOk == 0
 
     return newRoot
 
@@ -313,11 +320,11 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 
 # # Update
 # old_root = new_root
-# old_value = 10
+# old_value = 222
 # new_value = 20
 # fnc = [0, 1]  # Update
 
-# new_root = SMTProcessor(old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
+# new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
 # print(f"New root after update: {new_root}")
 
 # # Delete
@@ -325,50 +332,8 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
 # new_value = 0
 # fnc = [1, 1]  # Delete
 
-# new_root = SMTProcessor(old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
+# new_root = SMTProcessor(nlevels, old_root, siblings, old_key, old_value, False, new_key, new_value, fnc)
 # print(f"New root after deletion: {new_root}")
 
 # z = SMTHash2(0, 0)
 # print(z)
-
-
-'''
-[SMTProcessor]
-    |
-    |-- inputs: nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, newValue, fnc
-    |
-    |-- [Utility Functions]
-    |   |-- Num2Bits_strict
-    |   |-- XOR
-    |   |-- IsEqual
-    |   |-- AND / MultiAND
-    |   |-- Switcher
-    |   |-- ForceEqualIfEnabled
-    |
-    |-- [Hash Functions]
-    |   |-- SMTHash1
-    |   |-- SMTHash2
-    |
-    |-- [SMTLevIns]
-    |   |-- calculation: lev_ins
-    |
-    |-- [SMTProcessorSM] (each level)
-    |   |-- inputs: xor, is0, levIns, fnc, prev_states
-    |   |-- outputs: st_top, st_old0, st_bot, st_new1, st_na, st_upd
-    |
-    |-- [SMTProcessorLevel] (each level(reverse))
-    |   |-- inputs: states, sibling, old1leaf, new1leaf, newlrbit, oldChild, newChild
-    |   |-- [Switcher] (oldSwitcher)
-    |   |-- [SMTHash2] (oldProofHash)
-    |   |-- [Switcher] (newSwitcher)
-    |   |-- [SMTHash2] (newProofHash)
-    |   |-- outputs: oldRoot, newRoot
-    |
-    |-- [final process]
-    |   |-- [Switcher] (topSwitcher)
-    |   |-- [ForceEqualIfEnabled]
-    |   |-- newRoot calculation
-    |   |-- [MultiAND] (keysOk check)
-    |
-    |-- output: newRoot
-'''
