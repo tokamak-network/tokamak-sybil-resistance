@@ -64,8 +64,12 @@ var (
 	ErrGetIdxNoCase = errors.New(
 		"Can not get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
 
-	// PrefixKeyMT is the key prefix for merkle tree in the db
-	PrefixKeyMT = []byte("m:")
+	// PrefixKeyMTAcc is the key prefix for account merkle tree in the db
+	PrefixKeyMTAcc = []byte("ma:")
+	// PrefixKeyMTVoc is the key prefix for vouch merkle tree in the db
+	PrefixKeyMTVoc = []byte("mv:")
+	// PrefixKeyMTSco is the key prefix for score merkle tree in the db
+	PrefixKeyMTSco = []byte("ms:")
 )
 
 // StateDB represents the state database with an integrated Merkle tree.
@@ -105,12 +109,14 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 		return nil, common.Wrap(err)
 	}
 
-	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
-	mtLink, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
+	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTAcc), 14)
+	mtVouch, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTVoc), 14)
+	mtScore, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTSco), 14)
 	return &StateDB{
 		db:          kv,
 		AccountTree: mtAccount,
-		VouchTree:   mtLink,
+		VouchTree:   mtVouch,
+		ScoreTree:   mtScore,
 	}, nil
 }
 
@@ -145,20 +151,28 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 		return common.Wrap(err)
 	}
 	if s.AccountTree != nil {
-		// open the MT for the current s.db
-		accountTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.AccountTree.MaxLevels())
+		// open the Account MT for the current s.db
+		accountTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMTAcc), s.AccountTree.MaxLevels())
 		if err != nil {
 			return common.Wrap(err)
 		}
 		s.AccountTree = accountTree
 	}
 	if s.VouchTree != nil {
-		// open the MT for the current s.db
-		vouchTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.VouchTree.MaxLevels())
+		// open the Vouch MT for the current s.db
+		vouchTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMTVoc), s.VouchTree.MaxLevels())
 		if err != nil {
 			return common.Wrap(err)
 		}
 		s.VouchTree = vouchTree
+	}
+	if s.ScoreTree != nil {
+		// open the Score MT for the current s.db
+		scoreTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMTSco), s.ScoreTree.MaxLevels())
+		if err != nil {
+			return common.Wrap(err)
+		}
+		s.ScoreTree = scoreTree
 	}
 	return nil
 }
