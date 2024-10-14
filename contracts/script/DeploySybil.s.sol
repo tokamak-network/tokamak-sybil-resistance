@@ -42,9 +42,6 @@ contract FunctionScript is Script {
             poseidon4Elements
         );
 
-        // **Save the deployment**
-        DevOpsTools.save_deployment("Sybil", address(sybilContract));
-
         vm.stopBroadcast();
 
         console2.log("Sybil contract deployed at:", address(sybilContract));

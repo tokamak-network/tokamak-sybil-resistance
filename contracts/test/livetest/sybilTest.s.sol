@@ -6,17 +6,47 @@ import "forge-std/Script.sol";
 import {Sybil} from "../../src/sybil.sol";
 
 contract CallFunctions is Script {
+                error VerifierRollupStubNotDeployed();
+
     function run() external {
-        // Retrieve the deployed Sybil contract address
-        address sybilAddress = DevOpsTools.get_most_recent_deployment(
-            "Sybil",
-            block.chainid
+
+
+        // Declare arrays for verifiers, maxTxs, and nLevels
+        address;
+        uint256;
+        uint256;
+
+        // Set values for the arrays
+        verifiers[0] = verifier;
+        maxTx[0] = 100;
+        nLevels[0] = 5;
+
+        // Specify Poseidon contract addresses
+        address poseidon2Elements = 0xb84B26659fBEe08f36A2af5EF73671d66DDf83db;
+        address poseidon3Elements = 0xFc50367cf2bA87627f99EDD8703FF49252473AED;
+        address poseidon4Elements = 0xF8AB2781AA06A1c3eF41Bd379Ec1681a70A148e0;
+
+        vm.startBroadcast();
+        // Deploy the Sybil contract
+        Sybil sybilContract = new Sybil(
+            verifiers,
+            maxTx,
+            nLevels,
+            240,
+            poseidon2Elements,
+            poseidon3Elements,
+            poseidon4Elements
         );
 
-        // Check if the Sybil contract address was retrieved successfully
-        require(sybilAddress != address(0), "Sybil contract not found");
+        vm.stopBroadcast();
 
-        Sybil sybilContract = Sybil(sybilAddress);
+        console2.log("Sybil contract deployed at:", address(sybilContract));
+    
+        
+
+        // Check if the Sybil contract address was retrieved successfully
+        require(sybilContract != address(0), "Sybil contract not found");
+
 
         vm.startBroadcast();
 
