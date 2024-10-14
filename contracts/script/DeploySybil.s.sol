@@ -16,9 +16,9 @@ contract FunctionScript is Script {
         );
 
         // Declare arrays for verifiers, maxTxs, and nLevels
-        address;
-        uint256;
-        uint256;
+        address[] memory verifiers = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
 
         // Set values for the arrays
         verifiers[0] = verifier;

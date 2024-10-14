@@ -9,12 +9,15 @@ contract CallFunctions is Script {
                 error VerifierRollupStubNotDeployed();
 
     function run() external {
-
+        address verifier = DevOpsTools.get_most_recent_deployment(
+            "VerifierRollupStub",
+            block.chainid
+        );
 
         // Declare arrays for verifiers, maxTxs, and nLevels
-        address;
-        uint256;
-        uint256;
+        address[] memory verifiers = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
 
         // Set values for the arrays
         verifiers[0] = verifier;
@@ -41,12 +44,9 @@ contract CallFunctions is Script {
         vm.stopBroadcast();
 
         console2.log("Sybil contract deployed at:", address(sybilContract));
-    
-        
 
         // Check if the Sybil contract address was retrieved successfully
-        require(sybilContract != address(0), "Sybil contract not found");
-
+        require(address(sybilContract) != address(0), "Sybil contract not found");
 
         vm.startBroadcast();
 
