@@ -24,12 +24,6 @@ const (
 	MaxNLevels = 48
 )
 
-var (
-	PrefixKeyAccountIdx = []byte("accIdx:")
-	PrefixKeyLinkHash   = []byte("linkHash:")
-	PrefixKeyLinkIdx    = []byte("linkIdx:")
-)
-
 // Config of the StateDB
 type Config struct {
 	// Path where the checkpoints will be stored
