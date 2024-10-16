@@ -1,26 +1,40 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {DevOpsTools} from "../../lib/foundry-devops/src/DevOpsTools.sol";
 import "forge-std/Script.sol";
 import {Sybil} from "../../src/sybil.sol";
+import {VerifierRollupStub} from "../../src/stub/VerifierRollupStub.sol";
+import "../_helpers/constants.sol";
+import "../_helpers/transactionTypes.sol";
+import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
+
 
 contract CallFunctions is Script {
-                error VerifierRollupStubNotDeployed();
+    TransactionTypeHelper public transactionTypeHelper;
+    TestHelpers public testHelpers; // Declare TestHelpers instance
 
     function run() external {
-        address verifier = DevOpsTools.get_most_recent_deployment(
+        // Instantiate the helper contracts
+        transactionTypeHelper = new TransactionTypeHelper();
+        testHelpers = new TestHelpers(); // Instantiate TestHelpers
+
+        // **Deploy VerifierRollupStub manually**
+        vm.startBroadcast();
+        VerifierRollupStub verifier = new VerifierRollupStub();
+        vm.stopBroadcast();
+
+        console2.log("VerifierRollupStub deployed at:", address(verifier));
+
+              address verifier1 = DevOpsTools.get_most_recent_deployment(
             "VerifierRollupStub",
             block.chainid
         );
-
-        // Declare arrays for verifiers, maxTxs, and nLevels
         address[] memory verifiers = new address[](1);
         uint256[] memory maxTx = new uint256[](1);
         uint256[] memory nLevels = new uint256[](1);
 
         // Set values for the arrays
-        verifiers[0] = verifier;
+        verifiers[0] = verifier1;
         maxTx[0] = 100;
         nLevels[0] = 5;
 
@@ -46,25 +60,25 @@ contract CallFunctions is Script {
         console2.log("Sybil contract deployed at:", address(sybilContract));
 
         // Check if the Sybil contract address was retrieved successfully
-        require(address(sybilContract) != address(0), "Sybil contract not found");
+        require(
+            address(sybilContract) != address(0),
+            "Sybil contract not found"
+        );
 
         vm.startBroadcast();
 
         // **Call `addL1Transaction` function**
-        uint256 babyPubKey = 0x123456789abcdef; 
-        uint48 fromIdx = 0; 
-        uint40 loadAmountF = 100; 
-        uint40 amountF = 0;
-        uint48 toIdx = 0;
+        TransactionTypeHelper.TxParams memory txParams = transactionTypeHelper
+            .validDeposit();
+        uint256 loadAmount = testHelpers.toWei(txParams.loadAmountF); // Convert using TestHelpers
 
-        uint256 loadAmount = uint256(loadAmountF) * 10 ** (18 - 8);
-
+        // Now using txParams values to call the addL1Transaction function
         sybilContract.addL1Transaction{value: loadAmount}(
-            babyPubKey,
-            fromIdx,
-            loadAmountF,
-            amountF,
-            toIdx
+            txParams.babyPubKey,
+            txParams.fromIdx,
+            txParams.loadAmountF,
+            txParams.amountF,
+            txParams.toIdx
         );
 
         console2.log("Called addL1Transaction successfully.");
@@ -101,25 +115,61 @@ contract CallFunctions is Script {
 
         console2.log("Called forgeBatch successfully.");
 
-        // **Call `setForgeL1L2BatchTimeout` function**
-        sybilContract.setForgeL1L2BatchTimeout(120);
+        // Add L1 transactions to queue
+        sybilContract.addL1Transaction{value: loadAmount}(
+            txParams.babyPubKey,
+            txParams.fromIdx,
+            txParams.loadAmountF,
+            txParams.amountF,
+            txParams.toIdx
+        );
 
-        console2.log("Called setForgeL1L2BatchTimeout successfully.");
+        // Forge a batch with L1 transactions
+        sybilContract.forgeBatch(
+            newLastIdx,
+            newStRoot,
+            newVouchRoot,
+            newScoreRoot,
+            newExitRoot,
+            verifierIdx,
+            true,
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
+
+        console2.log(
+            "Batch with mixed L1 and L2 transactions processed successfully."
+        );
+
+        // Set the timeout to the maximum allowed value (ABSOLUTE_MAX_L1L2BATCHTIMEOUT)
+        sybilContract.setForgeL1L2BatchTimeout(
+            sybilContract.ABSOLUTE_MAX_L1L2BATCHTIMEOUT()
+        );
+
+        console2.log("Batch timeout set to maximum successfully.");
+
+        // Set the timeout to a lower value and verify change
+        sybilContract.setForgeL1L2BatchTimeout(120);
+        console2.log("Batch timeout set to 120 blocks successfully.");
 
         // **Call `withdrawMerkleProof` function**
-        uint192 amount = 1 ether;
-        uint256 withdrawBabyPubKey = 0x123456789abcdef; 
+        uint192 amount =1e18;
+        uint256 withdrawBabyPubKey = 0x123456789abcdef;
         uint32 numExitRoot = 1;
         uint48 idx = 0;
         uint256[] memory siblings;
 
-        try sybilContract.withdrawMerkleProof(
-            amount,
-            withdrawBabyPubKey,
-            numExitRoot,
-            siblings,
-            idx
-        ) {
+        try
+            sybilContract.withdrawMerkleProof(
+                amount,
+                withdrawBabyPubKey,
+                numExitRoot,
+                siblings,
+                idx
+            )
+        {
             console2.log("Called withdrawMerkleProof successfully.");
         } catch Error(string memory reason) {
             console2.log("withdrawMerkleProof failed:", reason);
@@ -135,7 +185,10 @@ contract CallFunctions is Script {
         console2.log("Last forged batch:", lastForgedBatch);
 
         bytes memory l1TxQueue = sybilContract.getL1TransactionQueue(1);
-        console2.log("L1 Transaction Queue for index 1 length:", l1TxQueue.length);
+        console2.log(
+            "L1 Transaction Queue for index 1 length:",
+            l1TxQueue.length
+        );
 
         uint32 queueLength = sybilContract.getQueueLength();
         console2.log("Current queue length:", queueLength);
