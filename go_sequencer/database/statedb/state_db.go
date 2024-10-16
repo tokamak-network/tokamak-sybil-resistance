@@ -105,11 +105,11 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 	}
 
 	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
-	mtLink, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
+	mtVouch, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
 	return &StateDB{
 		db:          kv,
 		AccountTree: mtAccount,
-		VouchTree:   mtLink,
+		VouchTree:   mtVouch,
 	}, nil
 }
 

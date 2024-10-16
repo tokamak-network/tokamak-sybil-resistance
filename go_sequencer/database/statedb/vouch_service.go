@@ -2,6 +2,7 @@ package statedb
 
 import (
 	"errors"
+	"math/big"
 	"tokamak-sybil-resistance/common"
 
 	"github.com/iden3/go-merkletree"
@@ -139,6 +140,19 @@ func UpdateVouchInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.V
 		return proof, common.Wrap(err)
 	}
 	return nil, nil
+}
+
+// GenerateVouchIdx
+func GenerateVouchIdx(vouchFrom common.AccountIdx, vouchTo common.AccountIdx) *big.Int {
+	// Create a new big.Int to hold the result
+	result := new(big.Int)
+
+	// Shift vouchFrom left by 64 bits and add vouchTo
+	result.SetUint64(uint64(vouchFrom))
+	result.Lsh(result, 64)
+	result.Or(result, new(big.Int).SetUint64(uint64(vouchTo)))
+
+	return result
 }
 
 // func BytesLink(l *models.Link) [5]byte {

@@ -8,7 +8,7 @@ type enum string
 
 const (
 	Account enum = "Account"
-	Link    enum = "Link"
+	Vouch   enum = "Vouch"
 )
 
 type TreeNodeHash interface {
@@ -19,13 +19,12 @@ func BigInt(idx int) *big.Int {
 	return big.NewInt(int64(idx))
 }
 
-// GetMTRoot returns the root of the Merkle Tree
-func (s *StateDB) GetMTRoot(treeType enum) *big.Int {
-	var root *big.Int
-	if treeType == Account {
-		root = s.AccountTree.Root().BigInt()
-	} else {
-		root = s.VouchTree.Root().BigInt()
-	}
-	return root
+// GetMTRoot returns the root of the Merkle Tree Account
+func (s *StateDB) GetMTRootAccount(treeType enum) *big.Int {
+	return s.AccountTree.Root().BigInt()
+}
+
+// GetMTRoot returns the root of the Merkle Tree Vouch
+func (s *StateDB) GetMTRootVouch(treeType enum) *big.Int {
+	return s.VouchTree.Root().BigInt()
 }
