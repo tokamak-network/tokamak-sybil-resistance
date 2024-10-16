@@ -35,6 +35,17 @@ type Batch struct {
 
 type BatchNum int64
 
+// BatchNumFromBytes returns BatchNum from a []byte
+func BatchNumFromBytes(b []byte) (BatchNum, error) {
+	if len(b) != batchNumBytesLen {
+		return 0,
+			Wrap(fmt.Errorf("can not parse BatchNumFromBytes, bytes len %d, expected %d",
+				len(b), batchNumBytesLen))
+	}
+	batchNum := binary.BigEndian.Uint64(b[:batchNumBytesLen])
+	return BatchNum(batchNum), nil
+}
+
 // BatchData contains the information of a Batch
 type BatchData struct {
 	L1Batch bool
@@ -48,23 +59,15 @@ type BatchData struct {
 	Batch            Batch
 }
 
-// AccountUpdate represents an account balance and/or nonce update after a
-// processed batch
-type AccountUpdate struct {
-	EthBlockNum int64      `meddler:"eth_block_num"`
-	BatchNum    BatchNum   `meddler:"batch_num"`
-	Idx         AccountIdx `meddler:"idx"`
-	Nonce       Nonce      `meddler:"nonce"`
-	Balance     *big.Int   `meddler:"balance,bigint"`
-}
-
-// BatchNumFromBytes returns BatchNum from a []byte
-func BatchNumFromBytes(b []byte) (BatchNum, error) {
-	if len(b) != batchNumBytesLen {
-		return 0,
-			Wrap(fmt.Errorf("can not parse BatchNumFromBytes, bytes len %d, expected %d",
-				len(b), batchNumBytesLen))
+// NewBatchData creates an empty BatchData with the slices initialized.
+func NewBatchData() *BatchData {
+	return &BatchData{
+		L1Batch: false,
+		// L1UserTxs:        make([]common.L1Tx, 0),
+		L1CoordinatorTxs: make([]L1Tx, 0),
+		L2Txs:            make([]L2Tx, 0),
+		CreatedAccounts:  make([]Account, 0),
+		ExitTree:         make([]ExitInfo, 0),
+		Batch:            Batch{},
 	}
-	batchNum := binary.BigEndian.Uint64(b[:batchNumBytesLen])
-	return BatchNum(batchNum), nil
 }

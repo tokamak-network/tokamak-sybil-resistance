@@ -140,7 +140,7 @@ func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error)
 // those checkpoints will remain in the storage, and eventually will be
 // deleted when MakeCheckpoint overwrites them.
 func (s *StateDB) Reset(batchNum common.BatchNum) error {
-	log.Fatalf("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
+	log.Debugw("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
 	if err := s.db.Reset(batchNum); err != nil {
 		return common.Wrap(err)
 	}
@@ -169,4 +169,9 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 		s.ScoreTree = scoreTree
 	}
 	return nil
+}
+
+// CurrentBatch returns the current in-memory CurrentBatch of the StateDB.db
+func (s *StateDB) CurrentBatch() common.BatchNum {
+	return s.db.CurrentBatch
 }

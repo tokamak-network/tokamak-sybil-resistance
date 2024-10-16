@@ -24,3 +24,8 @@ func SwapEndianness(b []byte) []byte {
 	}
 	return o
 }
+
+// CopyBigInt returns a copy of the big int
+func CopyBigInt(a *big.Int) *big.Int {
+	return new(big.Int).SetBytes(a.Bytes())
+}

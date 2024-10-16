@@ -131,3 +131,27 @@ type ProcessTxOutput struct {
 	// created/updated by any of the processed transactions.
 	UpdatedAccounts map[common.AccountIdx]*common.Account
 }
+
+// NewTxProcessor returns a new TxProcessor with the given *StateDB & Config
+func NewTxProcessor(state *statedb.StateDB, config Config) *TxProcessor {
+	return &TxProcessor{
+		state:   state,
+		zki:     nil,
+		txIndex: 0,
+		config:  config,
+	}
+}
+
+// ProcessTxs process the given L1Txs & L2Txs applying the needed updates to
+// the StateDB depending on the transaction Type.  If StateDB
+// type==TypeBatchBuilder, returns the common.ZKInputs to generate the
+// SnarkProof later used by the BatchBuilder.  If StateDB
+// type==TypeSynchronizer, assumes that the call is done from the Synchronizer,
+// returns common.ExitTreeLeaf that is later used by the Synchronizer to update
+// the HistoryDB, and adds Nonce & TokenID to the L2Txs.
+// And if TypeSynchronizer returns an array of common.Account with all the
+// created accounts.
+func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1usertxs, l1coordinatortxs []common.L1Tx,
+	l2txs []common.PoolL2Tx) (ptOut *ProcessTxOutput, err error) {
+	return nil, nil
+}
