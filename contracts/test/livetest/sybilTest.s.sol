@@ -4,27 +4,33 @@ pragma solidity ^0.8.23;
 import {DevOpsTools} from "../../lib/foundry-devops/src/DevOpsTools.sol";
 import "forge-std/Script.sol";
 import {Sybil} from "../../src/sybil.sol";
-import "../_helpers/constants.sol";
-import "../_helpers/transactionTypes.sol";
+import "../_helpers/constants.sol"; // Import TestHelpers
+import "../_helpers/transactionTypes.sol"; // Import TransactionTypeHelper
 
 contract CallFunctions is Script {
     error VerifierRollupStubNotDeployed();
+    TransactionTypeHelper public transactionTypeHelper;
+    TestHelpers public testHelpers; // Declare TestHelpers instance
 
     function run() external {
+        // Instantiate the helper contracts
+        transactionTypeHelper = new TransactionTypeHelper(); 
+        testHelpers = new TestHelpers(); // Instantiate TestHelpers
+
         address verifier = DevOpsTools.get_most_recent_deployment(
             "VerifierRollupStub",
             block.chainid
         );
 
-        // Declare arrays for verifiers, maxTxs, and nLevels
-        address[] memory verifiers = new address[](1);
-        uint256[] memory maxTx = new uint256[](1);
-        uint256[] memory nLevels = new uint256[](1);
+        // Properly declare and initialize the arrays
+        address verifiers;  // Declare verifiers array
+        uint256 maxTx;      // Declare maxTx array
+        uint256 nLevels;    // Declare nLevels array
 
         // Set values for the arrays
-        verifiers[0] = verifier;
-        maxTx[0] = 100;
-        nLevels[0] = 5;
+        verifiers[0] = verifier;    // Set the verifier address in the array
+        maxTx[0] = 100;             // Set maxTx value in the array
+        nLevels[0] = 5;             // Set nLevels value in the array
 
         // Specify Poseidon contract addresses
         address poseidon2Elements = 0xb84B26659fBEe08f36A2af5EF73671d66DDf83db;
@@ -56,16 +62,16 @@ contract CallFunctions is Script {
         vm.startBroadcast();
 
         // **Call `addL1Transaction` function**
-        TxParams memory txParams = transactionTypeHelper.validDeposit();
+        TransactionTypeHelper.TxParams memory txParams = transactionTypeHelper.validDeposit();
+        uint256 loadAmount = testHelpers.toWei(txParams.loadAmountF); // Convert using TestHelpers
 
-        uint256 loadAmount = testHelpers.toWei(loadAmountF);
-
+        // Now using txParams values to call the addL1Transaction function
         sybilContract.addL1Transaction{value: loadAmount}(
-            babyPubKey,
-            fromIdx,
-            loadAmountF,
-            amountF,
-            toIdx
+            txParams.babyPubKey,
+            txParams.fromIdx,
+            txParams.loadAmountF,
+            txParams.amountF,
+            txParams.toIdx
         );
 
         console2.log("Called addL1Transaction successfully.");
@@ -129,6 +135,7 @@ contract CallFunctions is Script {
         console2.log(
             "Batch with mixed L1 and L2 transactions processed successfully."
         );
+
         // Set the timeout to the maximum allowed value (ABSOLUTE_MAX_L1L2BATCHTIMEOUT)
         sybilContract.setForgeL1L2BatchTimeout(
             sybilContract.ABSOLUTE_MAX_L1L2BATCHTIMEOUT()
@@ -139,11 +146,6 @@ contract CallFunctions is Script {
         // Set the timeout to a lower value and verify change
         sybilContract.setForgeL1L2BatchTimeout(120);
         console2.log("Batch timeout set to 120 blocks successfully.");
-
-        // **Call `setForgeL1L2BatchTimeout` function**
-        sybilContract.setForgeL1L2BatchTimeout(120);
-
-        console2.log("Called setForgeL1L2BatchTimeout successfully.");
 
         // **Call `withdrawMerkleProof` function**
         uint192 amount = testHelpers.ONE_ETHER;
