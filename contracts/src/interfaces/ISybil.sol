@@ -34,7 +34,7 @@ interface ISybil {
 
     // L1 Transaction functions
     function addL1Transaction(
-        uint256 babyPubKey,
+        string memory babyPubKey,
         uint48 fromIdx,
         uint40 loadAmountF,
         uint40 amountF,

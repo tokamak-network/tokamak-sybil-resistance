@@ -13,9 +13,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
     "dotenv": "^16.4.5",
-    "ethers": "^6.13.2",
+    "ethers": "^6.13.4",
     "fs": "^0.0.1-security"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0"
   }
 }
