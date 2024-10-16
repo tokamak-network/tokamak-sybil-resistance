@@ -1,36 +1,42 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {DevOpsTools} from "../../lib/foundry-devops/src/DevOpsTools.sol";
 import "forge-std/Script.sol";
 import {Sybil} from "../../src/sybil.sol";
-import "../_helpers/constants.sol"; // Import TestHelpers
-import "../_helpers/transactionTypes.sol"; // Import TransactionTypeHelper
+import {VerifierRollupStub} from "../../src/stub/VerifierRollupStub.sol";
+import "../_helpers/constants.sol";
+import "../_helpers/transactionTypes.sol";
+import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
+
 
 contract CallFunctions is Script {
-    error VerifierRollupStubNotDeployed();
     TransactionTypeHelper public transactionTypeHelper;
     TestHelpers public testHelpers; // Declare TestHelpers instance
 
     function run() external {
         // Instantiate the helper contracts
-        transactionTypeHelper = new TransactionTypeHelper(); 
+        transactionTypeHelper = new TransactionTypeHelper();
         testHelpers = new TestHelpers(); // Instantiate TestHelpers
 
-        address verifier = DevOpsTools.get_most_recent_deployment(
+        // **Deploy VerifierRollupStub manually**
+        vm.startBroadcast();
+        VerifierRollupStub verifier = new VerifierRollupStub();
+        vm.stopBroadcast();
+
+        console2.log("VerifierRollupStub deployed at:", address(verifier));
+
+              address verifier1 = DevOpsTools.get_most_recent_deployment(
             "VerifierRollupStub",
             block.chainid
         );
-
-        // Properly declare and initialize the arrays
-        address verifiers;  // Declare verifiers array
-        uint256 maxTx;      // Declare maxTx array
-        uint256 nLevels;    // Declare nLevels array
+        address[] memory verifiers = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
 
         // Set values for the arrays
-        verifiers[0] = verifier;    // Set the verifier address in the array
-        maxTx[0] = 100;             // Set maxTx value in the array
-        nLevels[0] = 5;             // Set nLevels value in the array
+        verifiers[0] = verifier1;
+        maxTx[0] = 100;
+        nLevels[0] = 5;
 
         // Specify Poseidon contract addresses
         address poseidon2Elements = 0xb84B26659fBEe08f36A2af5EF73671d66DDf83db;
@@ -62,7 +68,8 @@ contract CallFunctions is Script {
         vm.startBroadcast();
 
         // **Call `addL1Transaction` function**
-        TransactionTypeHelper.TxParams memory txParams = transactionTypeHelper.validDeposit();
+        TransactionTypeHelper.TxParams memory txParams = transactionTypeHelper
+            .validDeposit();
         uint256 loadAmount = testHelpers.toWei(txParams.loadAmountF); // Convert using TestHelpers
 
         // Now using txParams values to call the addL1Transaction function
@@ -148,7 +155,7 @@ contract CallFunctions is Script {
         console2.log("Batch timeout set to 120 blocks successfully.");
 
         // **Call `withdrawMerkleProof` function**
-        uint192 amount = testHelpers.ONE_ETHER;
+        uint192 amount =1e18;
         uint256 withdrawBabyPubKey = 0x123456789abcdef;
         uint32 numExitRoot = 1;
         uint48 idx = 0;

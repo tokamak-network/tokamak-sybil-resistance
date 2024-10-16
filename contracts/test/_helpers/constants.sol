@@ -9,7 +9,7 @@ contract TestHelpers {
     uint256 public constant ZERO_AMOUNT = 0;
 
     // Constant for 1 ether in wei (1e18)
-    uint256 public constant ONE_ETHER = 1e18;
+    uint256 internal constant ONE_ETHER = 1e18;
 
     // Ether value
     function toEther(uint256 amount) public pure returns (uint256) {
