@@ -10,8 +10,9 @@ import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 
 
 contract CallFunctions is Script {
-    TransactionTypeHelper public transactionTypeHelper;
-    TestHelpers public testHelpers; // Declare TestHelpers instance
+        error VerifierRollupStubNotDeployed();
+        TransactionTypeHelper public transactionTypeHelper;
+        TestHelpers public testHelpers; // Declare TestHelpers instance
 
     function run() external {
         // Instantiate the helper contracts

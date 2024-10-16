@@ -100,7 +100,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
     // L1 transactions tests
     function testGetL1TransactionQueue() external {
-        uint256 babyPubKey = 2;
+        string memory babyPubKey = "2";
         uint48 fromIdx = 0;
         uint40 loadAmountF = 100;
         uint40 amountF = 0;
@@ -454,7 +454,7 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
 
     // Invalid transaction parameters tests
     function testInvalidTransactionParameters() public {
-        uint256 babyPubKey = 0;
+        string memory babyPubKey = "0";
         uint48 fromIdx = 5000;
         uint40 loadAmountF = 100;
         uint40 amountF = 0;
@@ -489,8 +489,8 @@ contract SybilTest is Test, TestHelpers, TransactionTypeHelper {
         address invalidAddress = address(0);
 
         // Expect revert for invalid poseidon2Elements address
-vm.expectRevert();
-      new Sybil(
+        vm.expectRevert();
+        new Sybil(
             verifiers, 
             maxTx, 
             nLevels, 
@@ -501,7 +501,7 @@ vm.expectRevert();
         );
 
         // Expect revert for invalid poseidon3Elements address
-vm.expectRevert();
+        vm.expectRevert();
         new Sybil(
             verifiers, 
             maxTx, 
@@ -513,8 +513,8 @@ vm.expectRevert();
         );
 
         // Expect revert for invalid poseidon4Elements address
-vm.expectRevert();
-    new Sybil(
+        vm.expectRevert();
+        new Sybil(
             verifiers, 
             maxTx, 
             nLevels, 

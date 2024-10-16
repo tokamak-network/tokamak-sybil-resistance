@@ -3,7 +3,7 @@ pragma solidity 0.8.23;
 
 contract TransactionTypeHelper {
     struct TxParams {
-        uint256 babyPubKey;
+        string babyPubKey;
         uint48 fromIdx;
         uint40 loadAmountF;
         uint40 amountF;
@@ -14,7 +14,7 @@ contract TransactionTypeHelper {
     // Returns valid deposit transaction parameters
     function validDeposit() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 0, 
+            babyPubKey: "", 
             fromIdx: 256, 
             loadAmountF: 100, 
             amountF: 0, 
@@ -25,7 +25,7 @@ contract TransactionTypeHelper {
     // Returns invalid deposit transaction parameters
     function invalidDeposit() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 12345, 
+            babyPubKey: "12345", 
             fromIdx: 256, 
             loadAmountF: 100, 
             amountF: 100, 
@@ -36,7 +36,7 @@ contract TransactionTypeHelper {
     // Returns valid CreateAccount transaction parameters
     function validCreateAccount() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 12345, 
+            babyPubKey: "12345", 
             fromIdx: 0, 
             loadAmountF: 100, 
             amountF: 0, 
@@ -47,7 +47,7 @@ contract TransactionTypeHelper {
     // Returns invalid CreateAccount transaction parameters
     function invalidCreateAccount() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 0, 
+            babyPubKey: "", 
             fromIdx: 0, 
             loadAmountF: 100, 
             amountF: 0, 
@@ -58,7 +58,7 @@ contract TransactionTypeHelper {
     // Returns valid ForceExit transaction parameters
     function validForceExit() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 0, 
+            babyPubKey: "", 
             fromIdx: 256, 
             loadAmountF: 0, 
             amountF: 0, 
@@ -69,7 +69,7 @@ contract TransactionTypeHelper {
     // Returns invalid ForceExit transaction parameters
     function invalidForceExit() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 12345, 
+            babyPubKey: "12345", 
             fromIdx: 256, 
             loadAmountF: 100, // Invalid non-zero loadAmountF
             amountF: 0, 
@@ -80,7 +80,7 @@ contract TransactionTypeHelper {
     // Returns valid ForceExplode transaction parameters
     function validForceExplode() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 0, 
+            babyPubKey: "", 
             fromIdx: 256, 
             loadAmountF: 0, 
             amountF: 0, 
@@ -91,7 +91,7 @@ contract TransactionTypeHelper {
     // Returns invalid ForceExplode transaction parameters
     function valid() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 2, 
+            babyPubKey: "2", 
             fromIdx: 0, 
             loadAmountF: 100, 
             amountF: 0, 
@@ -102,12 +102,11 @@ contract TransactionTypeHelper {
     // Returns invalid ForceExplode transaction parameters
     function invalidForceExplode() public pure returns (TxParams memory) {
         return TxParams({
-            babyPubKey: 12345, 
+            babyPubKey: "12345", 
             fromIdx: 256, 
             loadAmountF: 100, 
             amountF: 100, 
             toIdx: 2 
         });
     }
- 
 }

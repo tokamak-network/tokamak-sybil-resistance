@@ -116,7 +116,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
      * @param toIdx The index of the receiver in the queue.
      */
     function addL1Transaction(
-        uint256 babyPubKey,
+        string memory babyPubKey,
         uint48 fromIdx,
         uint40 loadAmountF,
         uint40 amountF,
@@ -136,19 +136,19 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
         }
 
         if (fromIdx == 0 && toIdx == 0) {
-            if (babyPubKey == 0 || amount != 0) {
+            if (keccak256(abi.encodePacked(babyPubKey)) == keccak256(abi.encodePacked("")) || amount != 0) {
                 revert InvalidCreateAccountTransaction();
             }
         } else if (toIdx == 0 && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
-            if (babyPubKey != 0 || amount != 0) {
+            if (keccak256(abi.encodePacked(babyPubKey)) != keccak256(abi.encodePacked("")) || amount != 0) {
                 revert InvalidDepositTransaction();
             }
         } else if (toIdx == _EXIT_IDX && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
-            if (babyPubKey != 0 || loadAmount != 0) {
+            if (keccak256(abi.encodePacked(babyPubKey)) != keccak256(abi.encodePacked("")) || loadAmount != 0) {
                 revert InvalidForceExitTransaction();
             }
         } else if (toIdx == _EXPLODE_IDX && fromIdx > _RESERVED_IDX && fromIdx <= lastIdx) {
-            if (babyPubKey != 0 || amount != 0 || loadAmount != 0) {
+            if (keccak256(abi.encodePacked(babyPubKey)) != keccak256(abi.encodePacked("")) || amount != 0 || loadAmount != 0) {
                 revert InvalidForceExplodeTransaction();
             }
         } else {
@@ -169,7 +169,7 @@ contract Sybil is Initializable, OwnableUpgradeable, ISybil, SybilHelpers {
      */
     function _l1QueueAddTx(
         address ethAddress,
-        uint256 babyPubKey,
+        string memory babyPubKey,
         uint48 fromIdx,
         uint40 loadAmountF,
         uint40 amountF,
