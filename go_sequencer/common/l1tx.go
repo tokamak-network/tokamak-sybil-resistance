@@ -144,3 +144,121 @@ func (tx *L1Tx) SetID() error {
 
 	return nil
 }
+
+// L1UserTxFromBytes decodes a L1Tx from []byte
+func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
+	if len(b) != RollupConstL1UserTotalBytes {
+		return nil,
+			Wrap(fmt.Errorf("Can not parse L1Tx bytes, expected length %d, current: %d",
+				68, len(b)))
+	}
+
+	tx := &L1Tx{
+		UserOrigin: true,
+	}
+	var err error
+	tx.FromEthAddr = ethCommon.BytesToAddress(b[0:20])
+
+	pkCompB := b[20:52]
+	pkCompL := SwapEndianness(pkCompB)
+	copy(tx.FromBJJ[:], pkCompL)
+	fromIdx, err := IdxFromBytes(b[52:58])
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	tx.FromIdx = fromIdx
+	tx.DepositAmount, err = Float40FromBytes(b[58:63]).BigInt()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	tx.Amount, err = Float40FromBytes(b[63:68]).BigInt()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	tx.ToIdx, err = IdxFromBytes(b[72:78])
+	if err != nil {
+		return nil, Wrap(err)
+	}
+
+	return tx, nil
+}
+
+// L1TxFromDataAvailability decodes a L1Tx from []byte (Data Availability)
+func L1TxFromDataAvailability(b []byte, nLevels uint32) (*L1Tx, error) {
+	idxLen := nLevels / 8 //nolint:gomnd
+
+	fromIdxBytes := b[0:idxLen]
+	toIdxBytes := b[idxLen : idxLen*2]
+	amountBytes := b[idxLen*2 : idxLen*2+Float40BytesLength]
+
+	l1tx := L1Tx{}
+	fromIdx, err := IdxFromBytes(ethCommon.LeftPadBytes(fromIdxBytes, 6))
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	l1tx.FromIdx = fromIdx
+	toIdx, err := IdxFromBytes(ethCommon.LeftPadBytes(toIdxBytes, 6))
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	l1tx.ToIdx = toIdx
+	l1tx.EffectiveAmount, err = Float40FromBytes(amountBytes).BigInt()
+	return &l1tx, Wrap(err)
+}
+
+// L1CoordinatorTxFromBytes decodes a L1Tx from []byte
+func L1CoordinatorTxFromBytes(b []byte, chainID *big.Int, hermezAddress ethCommon.Address) (*L1Tx,
+	error) {
+	if len(b) != RollupConstL1CoordinatorTotalBytes {
+		return nil, Wrap(
+			fmt.Errorf("Can not parse L1CoordinatorTx bytes, expected length %d, current: %d",
+				101, len(b)))
+	}
+
+	tx := &L1Tx{
+		UserOrigin: false,
+	}
+	var err error
+	v := b[0]
+	s := b[1:33]
+	r := b[33:65]
+	pkCompB := b[65:97]
+	pkCompL := SwapEndianness(pkCompB)
+	copy(tx.FromBJJ[:], pkCompL)
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	tx.Amount = big.NewInt(0)
+	tx.DepositAmount = big.NewInt(0)
+	if int(v) > 0 {
+		// L1CoordinatorTX ETH
+		// Ethereum adds 27 to v
+		v = b[0] - byte(27) //nolint:gomnd
+		var signature []byte
+		signature = append(signature, r[:]...)
+		signature = append(signature, s[:]...)
+		signature = append(signature, v)
+
+		accCreationAuth := AccountCreationAuth{
+			BJJ: tx.FromBJJ,
+		}
+		h, err := accCreationAuth.HashToSign(uint16(chainID.Uint64()), hermezAddress)
+		if err != nil {
+			return nil, Wrap(err)
+		}
+
+		pubKeyBytes, err := ethCrypto.Ecrecover(h, signature)
+		if err != nil {
+			return nil, Wrap(err)
+		}
+		pubKey, err := ethCrypto.UnmarshalPubkey(pubKeyBytes)
+		if err != nil {
+			return nil, Wrap(err)
+		}
+		tx.FromEthAddr = ethCrypto.PubkeyToAddress(*pubKey)
+	} else {
+		// L1Coordinator Babyjub
+		tx.FromEthAddr = RollupConstEthAddressInternalOnly
+	}
+	return tx, nil
+}

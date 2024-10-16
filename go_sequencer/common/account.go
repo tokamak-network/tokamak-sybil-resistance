@@ -87,6 +87,18 @@ func (idx AccountIdx) BigInt() *big.Int {
 	return big.NewInt(int64(idx))
 }
 
+// IdxFromBytes returns Idx from a byte array
+func IdxFromBytes(b []byte) (AccountIdx, error) {
+	if len(b) != IdxBytesLen {
+		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
+			len(b), IdxBytesLen))
+	}
+	var idxBytes [8]byte
+	copy(idxBytes[2:], b[:])
+	idx := binary.BigEndian.Uint64(idxBytes[:])
+	return AccountIdx(idx), nil
+}
+
 // Bytes returns the bytes representing the Account, in a way that each BigInt
 // is represented by 32 bytes, in spite of the BigInt could be represented in
 // less bytes (due a small big.Int), so in this way each BigInt is always 32
@@ -192,4 +204,14 @@ func AccountFromBytes(b [32 * NAccountLeafElems]byte) (*Account, error) {
 		EthAddr: ethAddr,
 	}
 	return &a, nil
+}
+
+// AccountUpdate represents an account balance and/or nonce update after a
+// processed batch
+type AccountUpdate struct {
+	EthBlockNum int64      `meddler:"eth_block_num"`
+	BatchNum    BatchNum   `meddler:"batch_num"`
+	Idx         AccountIdx `meddler:"idx"`
+	Nonce       Nonce      `meddler:"nonce"`
+	Balance     *big.Int   `meddler:"balance,bigint"`
 }

@@ -157,8 +157,13 @@ func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error)
 // those checkpoints will remain in the storage, and eventually will be
 // deleted when MakeCheckpoint overwrites them.
 func (s *StateDB) Reset(batchNum common.BatchNum) error {
+<<<<<<< HEAD
 	log.Fatalf("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
 	if err := s.DB.Reset(batchNum); err != nil {
+=======
+	log.Debugw("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
+	if err := s.db.Reset(batchNum); err != nil {
+>>>>>>> 792abc7 (feat/go-synchronizer basic setup for synchronizer and sync for rollup genesis block)
 		return common.Wrap(err)
 >>>>>>> e0ccd8a (Updated util functionalities for database and apis)
 	}
@@ -188,6 +193,7 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 	return nil
 }
 
+<<<<<<< HEAD
 // Get retrieves an account for a given address from the database.
 func (sdb *StateDB) GetAccount(address string) (*Account, error) {
 	value, closer, err := sdb.DB.Get([]byte(address))
@@ -317,4 +323,9 @@ func InitNewStateDB() *StateDB {
 	defer stateDB.Close()
 	printExamples(stateDB)
 	return stateDB
+=======
+// CurrentBatch returns the current in-memory CurrentBatch of the StateDB.db
+func (s *StateDB) CurrentBatch() common.BatchNum {
+	return s.db.CurrentBatch
+>>>>>>> 792abc7 (feat/go-synchronizer basic setup for synchronizer and sync for rollup genesis block)
 }

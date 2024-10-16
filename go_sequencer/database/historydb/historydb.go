@@ -52,6 +52,16 @@ func (hdb *HistoryDB) GetBlock(blockNum int64) (*common.Block, error) {
 	return block, common.Wrap(err)
 }
 
+// GetAllBlocks retrieve all blocks from the DB
+func (hdb *HistoryDB) GetAllBlocks() ([]common.Block, error) {
+	var blocks []*common.Block
+	err := meddler.QueryAll(
+		hdb.dbRead, &blocks,
+		"SELECT * FROM block ORDER BY eth_block_num;",
+	)
+	return database.SlicePtrsToSlice(blocks).([]common.Block), common.Wrap(err)
+}
+
 // GetLastBlock retrieve the block with the highest block number from the DB
 func (hdb *HistoryDB) GetLastBlock() (*common.Block, error) {
 	block := &common.Block{}
@@ -70,16 +80,6 @@ func (hdb *HistoryDB) getBlocks(from, to int64) ([]common.Block, error) {
 		from, to,
 	)
 	return database.SlicePtrsToSlice(blocks).([]common.Block), common.Wrap(err)
-}
-
-// GetSCVars returns the rollup, auction and wdelayer smart contracts variables at their last update.
-func (hdb *HistoryDB) GetSCVars() (*common.RollupVariables, error) {
-	var rollup common.RollupVariables
-	if err := meddler.QueryRow(hdb.dbRead, &rollup,
-		"SELECT * FROM rollup_vars ORDER BY eth_block_num DESC LIMIT 1;"); err != nil {
-		return nil, common.Wrap(err)
-	}
-	return &rollup, nil
 }
 
 // SetInitialSCVars sets the initial state of rollup, auction, wdelayer smart
@@ -155,6 +155,19 @@ func (hdb *HistoryDB) GetLastL1TxsNum() (*int64, error) {
 }
 <<<<<<< HEAD
 
+// Reorg deletes all the information that was added into the DB after the
+// lastValidBlock.  If lastValidBlock is negative, all block information is
+// deleted.
+func (hdb *HistoryDB) Reorg(lastValidBlock int64) error {
+	var err error
+	if lastValidBlock < 0 {
+		_, err = hdb.dbWrite.Exec("DELETE FROM block;")
+	} else {
+		_, err = hdb.dbWrite.Exec("DELETE FROM block WHERE eth_block_num > $1;", lastValidBlock)
+	}
+	return common.Wrap(err)
+}
+
 // AddBatch insert a Batch into the DB
 func (hdb *HistoryDB) AddBatch(batch *common.Batch) error { return hdb.addBatch(hdb.dbWrite, batch) }
 func (hdb *HistoryDB) addBatch(d meddler.DB, batch *common.Batch) error {
@@ -173,6 +186,19 @@ func (hdb *HistoryDB) addBatches(d meddler.DB, batches []common.Batch) error {
 		}
 	}
 	return nil
+}
+
+// GetAllBatches retrieve all batches from the DB
+func (hdb *HistoryDB) GetAllBatches() ([]common.Batch, error) {
+	var batches []*common.Batch
+	err := meddler.QueryAll(
+		hdb.dbRead, &batches,
+		`SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr, batch.fees_collected,
+		 batch.fee_idxs_coordinator, batch.state_root, batch.num_accounts, batch.last_idx, batch.exit_root,
+		 batch.forge_l1_txs_num, batch.slot_num, batch.total_fees_usd, batch.eth_tx_hash FROM batch
+		 ORDER BY item_id;`,
+	)
+	return database.SlicePtrsToSlice(batches).([]common.Batch), common.Wrap(err)
 }
 
 // GetBatches retrieve batches from the DB, given a range of batch numbers defined by from and to
@@ -267,6 +293,16 @@ func (hdb *HistoryDB) addAccounts(d meddler.DB, accounts []common.Account) error
 		) VALUES %s;`,
 		testAccounts,
 	))
+}
+
+// GetAllAccounts returns a list of accounts from the DB
+func (hdb *HistoryDB) GetAllAccounts() ([]common.Account, error) {
+	var accs []*common.Account
+	err := meddler.QueryAll(
+		hdb.dbRead, &accs,
+		"SELECT idx, token_id, batch_num, bjj, eth_addr FROM account ORDER BY idx;",
+	)
+	return database.SlicePtrsToSlice(accs).([]common.Account), common.Wrap(err)
 }
 
 // AddAccountUpdates inserts accUpdates into the DB
@@ -411,6 +447,90 @@ func (hdb *HistoryDB) addTxs(d meddler.DB, txs []txWrite) error {
 		) VALUES %s;`,
 		txs,
 	))
+}
+
+// GetAllExits returns all exit from the DB
+func (hdb *HistoryDB) GetAllExits() ([]common.ExitInfo, error) {
+	var exits []*common.ExitInfo
+	err := meddler.QueryAll(
+		hdb.dbRead, &exits,
+		`SELECT exit_tree.batch_num, exit_tree.account_idx, exit_tree.merkle_proof,
+		exit_tree.balance, exit_tree.instant_withdrawn, exit_tree.delayed_withdraw_request,
+		exit_tree.delayed_withdrawn FROM exit_tree ORDER BY item_id;`,
+	)
+	return database.SlicePtrsToSlice(exits).([]common.ExitInfo), common.Wrap(err)
+}
+
+// GetAllL1UserTxs returns all L1UserTxs from the DB
+func (hdb *HistoryDB) GetAllL1UserTxs() ([]common.L1Tx, error) {
+	var txs []*common.L1Tx
+	err := meddler.QueryAll(
+		hdb.dbRead, &txs,
+		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
+		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.amount, (CASE WHEN tx.batch_num IS NULL THEN NULL WHEN tx.amount_success THEN tx.amount ELSE 0 END) AS effective_amount,
+		tx.deposit_amount, (CASE WHEN tx.batch_num IS NULL THEN NULL WHEN tx.deposit_amount_success THEN tx.deposit_amount ELSE 0 END) AS effective_deposit_amount,
+		tx.eth_block_num, tx.type, tx.batch_num
+		FROM tx WHERE is_l1 = TRUE AND user_origin = TRUE ORDER BY item_id;`,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.L1Tx), common.Wrap(err)
+}
+
+// GetAllL1CoordinatorTxs returns all L1CoordinatorTxs from the DB
+func (hdb *HistoryDB) GetAllL1CoordinatorTxs() ([]common.L1Tx, error) {
+	var txs []*common.L1Tx
+	// Since the query specifies that only coordinator txs are returned, it's safe to assume
+	// that returned txs will always have effective amounts
+	err := meddler.QueryAll(
+		hdb.dbRead, &txs,
+		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
+		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.amount, tx.amount AS effective_amount,
+		tx.deposit_amount, tx.deposit_amount AS effective_deposit_amount,
+		tx.eth_block_num, tx.type, tx.batch_num
+		FROM tx WHERE is_l1 = TRUE AND user_origin = FALSE ORDER BY item_id;`,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.L1Tx), common.Wrap(err)
+}
+
+// GetAllL2Txs returns all L2Txs from the DB
+func (hdb *HistoryDB) GetAllL2Txs() ([]common.L2Tx, error) {
+	var txs []*common.L2Tx
+	err := meddler.QueryAll(
+		hdb.dbRead, &txs,
+		`SELECT tx.id, tx.batch_num, tx.position,
+		tx.from_idx, tx.to_idx, tx.amount, tx.token_id,
+		tx.fee, tx.nonce, tx.type, tx.eth_block_num
+		FROM tx WHERE is_l1 = FALSE ORDER BY item_id;`,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.L2Tx), common.Wrap(err)
+}
+
+// GetUnforgedL1UserTxs gets L1 User Txs to be forged in the L1Batch with toForgeL1TxsNum.
+func (hdb *HistoryDB) GetUnforgedL1UserTxs(toForgeL1TxsNum int64) ([]common.L1Tx, error) {
+	var txs []*common.L1Tx
+	err := meddler.QueryAll(
+		hdb.dbRead, &txs, // only L1 user txs can have batch_num set to null
+		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
+		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.amount, NULL AS effective_amount,
+		tx.deposit_amount, NULL AS effective_deposit_amount,
+		tx.eth_block_num, tx.type, tx.batch_num
+		FROM tx WHERE batch_num IS NULL AND to_forge_l1_txs_num = $1
+		ORDER BY position;`,
+		toForgeL1TxsNum,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.L1Tx), common.Wrap(err)
+}
+
+// GetSCVars returns the rollup, auction and wdelayer smart contracts variables at their last update.
+func (hdb *HistoryDB) GetSCVars() (*common.RollupVariables, error) {
+	var rollup common.RollupVariables
+	if err := meddler.QueryRow(hdb.dbRead, &rollup,
+		"SELECT * FROM rollup_vars ORDER BY eth_block_num DESC LIMIT 1;"); err != nil {
+		return nil, common.Wrap(err)
+	}
+	return &rollup, nil
 }
 
 // setExtraInfoForgedL1UserTxs sets the EffectiveAmount, EffectiveDepositAmount

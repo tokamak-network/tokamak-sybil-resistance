@@ -96,6 +96,16 @@ func (l2db *L2DB) AddAccountCreationAuth(auth *common.AccountCreationAuth) error
 	return common.Wrap(err)
 }
 
+// AddManyAccountCreationAuth inserts a batch of accounts creation authorization
+// if not exist into the DB
+func (l2db *L2DB) AddManyAccountCreationAuth(auths []common.AccountCreationAuth) error {
+	_, err := sqlx.NamedExec(l2db.dbWrite,
+		`INSERT INTO account_creation_auth (eth_addr, bjj, signature)
+				VALUES (:ethaddr, :bjj, :signature) 
+				ON CONFLICT (eth_addr) DO NOTHING`, auths)
+	return common.Wrap(err)
+}
+
 // AddTxTest inserts a tx into the L2DB, without security checks. This is useful for test purposes,
 func (l2db *L2DB) AddTxTest(tx *common.PoolL2Tx) error {
 	// Add tx without checking if pool is full

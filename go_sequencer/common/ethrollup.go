@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"math/big"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -47,6 +49,12 @@ var (
 	// RollupConstLimitL2TransferAmount Max amount allowed (amount L2 --> L2)
 	RollupConstLimitL2TransferAmount, _ = new(big.Int).SetString(
 		"", 10)
+	// RollupConstEthAddressInternalOnly This ethereum address is used internally for rollup
+	// accounts that don't have ethereum address, only Babyjubjub.
+	// This non-ethereum accounts can be created by the coordinator and allow users to have a
+	// rollup account without needing an ethereum address
+	RollupConstEthAddressInternalOnly = ethCommon.HexToAddress(
+		"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
 )
 
 // BucketParams are the parameter variables of each Bucket of Rollup Smart
@@ -87,6 +95,7 @@ type RollupVerifierStruct struct {
 type RollupConstants struct {
 	AbsoluteMaxL1L2BatchTimeout int64                  `json:"absoluteMaxL1L2BatchTimeout"`
 	Verifiers                   []RollupVerifierStruct `json:"verifiers"`
+	HermezGovernanceAddress     ethCommon.Address      `json:"hermezGovernanceAddress"`
 	// First block where the first slot begins
 	GenesisBlockNum int64 `json:"genesisBlockNum"`
 }
