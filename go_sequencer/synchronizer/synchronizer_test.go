@@ -373,14 +373,12 @@ func TestSyncGeneral(t *testing.T) {
 		> batchL1 // forge defined L1UserTxs{5}, freeze L1UserTxs{nil}
 		> block // blockNum=2
 
-		// ForceTransfer(1) C-B: 80
-		// ForceExit(1) A: 100
-		// ForceExit(1) B: 80
-		// ForceTransfer(1) A-D: 100
+		ForceExit A: 100
+		ForceExit B: 80
 
 		CreateVouch C-A
-		// Exit(1) C: 50 (100)
-		// Exit(1) D: 30 (100)
+		Exit C: 50
+		Exit D: 30
 
 		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{3}
 		> batchL1 // forge L1UserTxs{3}, freeze defined L1UserTxs{nil}
@@ -410,9 +408,9 @@ func TestSyncGeneral(t *testing.T) {
 	// blocks 1 (blockNum=3)
 	i = 1
 	require.Equal(t, 3, int(blocks[i].Block.Num))
-	require.Equal(t, 0, len(blocks[i].Rollup.L1UserTxs))
+	require.Equal(t, 2, len(blocks[i].Rollup.L1UserTxs))
 	require.Equal(t, 2, len(blocks[i].Rollup.Batches))
-	require.Equal(t, 1, len(blocks[i].Rollup.Batches[0].L2Txs))
+	require.Equal(t, 3, len(blocks[i].Rollup.Batches[0].L2Txs))
 	// Set StateRoots for batches manually (til doesn't set it)
 	blocks[i].Rollup.Batches[0].Batch.StateRoot =
 		newBigInt("13535760140937349829640752733057594576151546047374619177689224612061148090678")
