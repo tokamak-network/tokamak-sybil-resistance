@@ -24,12 +24,6 @@ const (
 	MaxNLevels = 48
 )
 
-var (
-	PrefixKeyAccountIdx = []byte("accIdx:")
-	PrefixKeyLinkHash   = []byte("linkHash:")
-	PrefixKeyLinkIdx    = []byte("linkIdx:")
-)
-
 // Config of the StateDB
 type Config struct {
 	// Path where the checkpoints will be stored
@@ -55,14 +49,14 @@ var (
 	// ErrStateDBWithoutMT is used when a method that requires a MerkleTree
 	// is called in a StateDB that does not have a MerkleTree defined
 	ErrStateDBWithoutMT = errors.New(
-		"Can not call method to use MerkleTree in a StateDB without MerkleTree")
+		"cannot call method to use MerkleTree in a StateDB without MerkleTree")
 	// ErrIdxNotFound is used when trying to get the Idx from EthAddr or
 	// EthAddr&ToBJJ
-	ErrIdxNotFound = errors.New("Idx can not be found")
+	ErrIdxNotFound = errors.New("idx can not be found")
 	// ErrGetIdxNoCase is used when trying to get the Idx from EthAddr &
 	// BJJ with not compatible combination
 	ErrGetIdxNoCase = errors.New(
-		"Can not get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
+		"cannot get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
 
 	// PrefixKeyMT is the key prefix for merkle tree in the db
 	PrefixKeyMT = []byte("m:")
@@ -74,6 +68,7 @@ type StateDB struct {
 	db          *kvdb.KVDB
 	AccountTree *merkletree.MerkleTree
 	VouchTree   *merkletree.MerkleTree
+	ScoreTree   *merkletree.MerkleTree
 }
 
 // LocalStateDB represents the local StateDB which allows to make copies from
@@ -106,10 +101,12 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 
 	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
 	mtVouch, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
+	mtScore, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
 	return &StateDB{
 		db:          kv,
 		AccountTree: mtAccount,
 		VouchTree:   mtVouch,
+		ScoreTree:   mtScore,
 	}, nil
 }
 
@@ -158,6 +155,14 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 			return common.Wrap(err)
 		}
 		s.VouchTree = vouchTree
+	}
+	if s.ScoreTree != nil {
+		// open the MT for the current s.db
+		scoreTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.ScoreTree.MaxLevels())
+		if err != nil {
+			return common.Wrap(err)
+		}
+		s.ScoreTree = scoreTree
 	}
 	return nil
 }

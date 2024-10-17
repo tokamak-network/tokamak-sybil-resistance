@@ -2,8 +2,6 @@ package common
 
 import (
 	"errors"
-
-	"github.com/hermeznetwork/tracerr"
 )
 
 // ErrNotInFF is used when the *big.Int does not fit inside the Finite Field
@@ -18,6 +16,9 @@ var ErrIdxOverflow = errors.New("Idx overflow, max value: 2**48 -1")
 // ErrBatchQueueEmpty is used when the coordinator.BatchQueue.Pop() is called and has no elements
 var ErrBatchQueueEmpty = errors.New("BatchQueue empty")
 
+// ErrScoreOverflow is used when a given score overflows the maximum capacity of the uint32 4,294,967,295
+var ErrScoreOverflow = errors.New("Score overflow, max value uint32 - 4,294,967,295")
+
 // ErrTODO is used when a function is not yet implemented
 var ErrTODO = errors.New("TODO")
 
@@ -26,5 +27,5 @@ var ErrDone = errors.New("done")
 
 // IsErrDone returns true if the error or wrapped (with tracerr) error is ErrDone
 func IsErrDone(err error) bool {
-	return tracerr.Unwrap(err) == ErrDone
+	return Unwrap(err) == ErrDone
 }

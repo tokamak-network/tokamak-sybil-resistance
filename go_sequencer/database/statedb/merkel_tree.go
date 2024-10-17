@@ -9,6 +9,7 @@ type enum string
 const (
 	Account enum = "Account"
 	Vouch   enum = "Vouch"
+	Score   enum = "Score"
 )
 
 type TreeNodeHash interface {
