@@ -34,39 +34,13 @@ func (s *StateDB) CreateScore(idx common.AccountIdx, score *common.Score) (
 func AddScoreInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.AccountIdx,
 	score *common.Score) (*merkletree.CircomProcessorProof, error) {
 	// store at the DB the key: idx, and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
+	txError := performTxScore(sto, idx, score, true)
+	if txError != nil {
+		return nil, txError
 	}
-
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	scoreBytes, err := score.Score.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	_, err = tx.Get(append(PrefixKeyScoreIdx, idxBytes[:]...))
-	if err != db.ErrNotFound {
-		return nil, common.Wrap(ErrAlreadyScored)
-	}
-
-	err = tx.Put(append(PrefixKeyScoreIdx, idxBytes[:]...), scoreBytes[:])
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
-	}
-
 	if mt != nil {
 		return mt.AddAndGetCircomProof(idx.BigInt(), score.Score.BigIntFromScore())
 	}
-
 	return nil, nil
 }
 
@@ -101,9 +75,6 @@ func GetScoreInTreeDB(sto db.Storage, idx common.AccountIdx) (*common.Score, err
 	var b [4]byte
 	copy(b[:], scoreBytes)
 	score := common.GetScoreFromBytes(b)
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
 	return score, nil
 }
 
@@ -121,31 +92,45 @@ func (s *StateDB) UpdateScore(idx common.AccountIdx, score *common.Score) (
 // MerkleTree, returning a CircomProcessorProof.
 func UpdateScoreInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.AccountIdx,
 	score *common.Score) (*merkletree.CircomProcessorProof, error) {
-	// store at the DB the key: idx and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
+	txError := performTxScore(sto, idx, score, false)
+	if txError != nil {
+		return nil, txError
 	}
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	scoreBytes, err := score.Score.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	err = tx.Put(append(PrefixKeyAccIdx, idxBytes[:]...), scoreBytes[:])
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
-	}
-
 	if mt != nil {
 		proof, err := mt.Update(idx.BigInt(), score.Score.BigIntFromScore())
 		return proof, common.Wrap(err)
 	}
 	return nil, nil
+}
+
+func performTxScore(sto db.Storage, idx common.AccountIdx,
+	score *common.Score, addCall bool) error {
+	// store at the DB the key: idx and value: leaf value
+	tx, err := sto.NewTx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	idxBytes, err := idx.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	scoreBytes, err := score.Score.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if addCall {
+		_, err = tx.Get(append(PrefixKeyScoreIdx, idxBytes[:]...))
+		if err != db.ErrNotFound {
+			return common.Wrap(ErrAlreadyScored)
+		}
+	}
+	err = tx.Put(append(PrefixKeyAccIdx, idxBytes[:]...), scoreBytes[:])
+	if err != nil {
+		return common.Wrap(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
 }

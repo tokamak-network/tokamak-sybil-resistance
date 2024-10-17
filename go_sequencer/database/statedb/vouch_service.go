@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrAlreadyVouched = errors.New("Can not Vouch because already vouched")
+	ErrAlreadyVouched = errors.New("can not Vouch because already vouched")
 	// PrefixKeyVocIdx is the key prefix for vouchIdx in the db
 	PrefixKeyVocIdx = []byte("v:")
 )
@@ -34,30 +34,10 @@ func (s *StateDB) CreateVouch(idx common.VouchIdx, vouch *common.Vouch) (
 func CreateVouchInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.VouchIdx,
 	vouch *common.Vouch) (*merkletree.CircomProcessorProof, error) {
 	// store at the DB the key: idx, and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
+	txError := performTxVouch(sto, idx, vouch, true)
+	if txError != nil {
+		return nil, txError
 	}
-
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	_, err = tx.Get(append(PrefixKeyVocIdx, idxBytes[:]...))
-	if err != db.ErrNotFound {
-		return nil, common.Wrap(ErrAlreadyVouched)
-	}
-
-	err = tx.Put(append(PrefixKeyVocIdx, idxBytes[:]...), vouch.BytesFromBool())
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
-	}
-
 	if mt != nil {
 		return mt.AddAndGetCircomProof(idx.BigInt(), common.BigIntFromBool(vouch.Value))
 	}
@@ -118,21 +98,9 @@ func (s *StateDB) UpdateVouch(idx common.VouchIdx, vouch *common.Vouch) (
 func UpdateVouchInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.VouchIdx,
 	vouch *common.Vouch) (*merkletree.CircomProcessorProof, error) {
 	// store at the DB the key: idx and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	err = tx.Put(append(PrefixKeyAccIdx, idxBytes[:]...), vouch.BytesFromBool())
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
+	txError := performTxVouch(sto, idx, vouch, false)
+	if txError != nil {
+		return nil, txError
 	}
 
 	if mt != nil {
@@ -153,6 +121,34 @@ func GenerateVouchIdx(vouchFrom common.AccountIdx, vouchTo common.AccountIdx) *b
 	result.Or(result, new(big.Int).SetUint64(uint64(vouchTo)))
 
 	return result
+}
+
+func performTxVouch(sto db.Storage, idx common.VouchIdx,
+	vouch *common.Vouch, createCall bool) error {
+	// store at the DB the key: idx and value: leaf value
+	tx, err := sto.NewTx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	idxBytes, err := idx.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if createCall {
+		_, err = tx.Get(append(PrefixKeyVocIdx, idxBytes[:]...))
+		if err != db.ErrNotFound {
+			return common.Wrap(ErrAlreadyVouched)
+		}
+	}
+	err = tx.Put(append(PrefixKeyAccIdx, idxBytes[:]...), vouch.BytesFromBool())
+	if err != nil {
+		return common.Wrap(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
 }
 
 // func BytesLink(l *models.Link) [5]byte {
