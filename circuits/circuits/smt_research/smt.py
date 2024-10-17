@@ -115,7 +115,7 @@ def SMTLevIns(n_levels, siblings, enabled):
     return lev_ins
 
 # SMTProcessorSM
-# non-linear constraints : 5 (@Todo: Why 5?)
+# non-linear constraints : 5
 def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_new1, prev_na, prev_upd):
     """
     Implements the state machine for processing each level of the Sparse Merkle Tree.
@@ -124,14 +124,14 @@ def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_ne
     an update operation. It determines how the update should propagate through the tree.
 
     Args:
-        xor (int): XOR of old and new key bits at this level.
-        is0 (int): Flag indicating if the old value is zero.
-        levIns (int): Flag indicating if insertion is needed at this level.
-        fnc (list): Function flags [insert, update].
-        prev_* (int): Previous state variables from the level above.
+        xor : XOR of old and new key bits at this level.
+        is0 : Flag indicating if the old value is zero.
+        levIns : Flag indicating if insertion is needed at this level.
+        fnc : Function flags [insert, update].
+        prev_* : Previous state variables from the level above.
 
     Returns:
-        dict: New state variables for the current level.
+        st_*: New state variables for the current level.
     """
     aux1 = prev_top * levIns
     aux2 = aux1 * fnc[0]
@@ -157,22 +157,22 @@ def SMTProcessorSM(xor, is0, levIns, fnc, prev_top, prev_old0, prev_bot, prev_ne
 def SMTProcessorLevel(st_top, st_old0, st_bot, st_new1, st_na, st_upd,
                       sibling, old1leaf, new1leaf, newlrbit, oldChild, newChild):
     """
-    Processes a single level of the Sparse Merkle Tree during an update operation.
+    Processes a single level of the Sparse Merkle Tree during an operation.
 
     This function computes the old and new root hashes for the current level,
     taking into account the various possible states of the update operation.
 
     Args:
-        st_* (int): State variables from SMTProcessorSM.
-        sibling (int): The sibling node at this level.
-        old1leaf (int): Hash of the old leaf node.
-        new1leaf (int): Hash of the new leaf node.
-        newlrbit (int): Bit indicating left (0) or right (1) child for the new node.
-        oldChild (int): Old child node hash.
-        newChild (int): New child node hash.
+        st_* : State variables from SMTProcessorSM.
+        sibling : The sibling node at this level.
+        old1leaf : Hash of the old leaf node.
+        new1leaf : Hash of the new leaf node.
+        newlrbit : Bit indicating left (0) or right (1) child for the new node.
+        oldChild : Old child node hash.
+        newChild : New child node hash.
 
     Returns:
-        dict: Old and new root hashes for this level.
+        oldRoot, newRoot : Old and new root hashes for this level.
     """
 
     aux = [0] * 4
@@ -211,18 +211,18 @@ def SMTProcessor(nLevels, oldRoot, siblings, oldKey, oldValue, isOld0, newKey, n
     after applying the specified operation.
 
     Args:
-        nLevels (int): Number of levels in the tree.
-        oldRoot (int): Current root hash of the tree.
-        siblings (list): Sibling nodes along the path of the update.
-        oldKey (int): Key of the node being updated/deleted.
-        oldValue (int): Current value of the node being updated/deleted.
-        isOld0 (int): Flag indicating if the old value is zero (for deletions).
-        newKey (int): Key of the node being inserted/updated.
-        newValue (int): New value to be inserted/updated.
-        fnc (list): Function flags [insert, update].
+        nLevels : Number of levels in the tree.
+        oldRoot : Current root hash of the tree.
+        siblings : Sibling nodes along the path of the update.
+        oldKey : Key of the node being updated/deleted.
+        oldValue : Current value of the node being updated/deleted.
+        isOld0 : Flag indicating if the old value is zero (for deletions).
+        newKey : Key of the node being inserted/updated.
+        newValue : New value to be inserted/updated.
+        fnc : Function flags [insert, update].
 
     Returns:
-        int: New root hash of the tree after the operation.
+        newRoot: New root hash of the tree after the operation.
     """
     print("fnc: ", fnc)
     print("oldKey: ", oldKey)
