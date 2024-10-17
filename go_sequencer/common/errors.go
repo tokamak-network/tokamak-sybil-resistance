@@ -2,8 +2,6 @@ package common
 
 import (
 	"errors"
-
-	"github.com/hermeznetwork/tracerr"
 )
 
 // ErrNotInFF is used when the *big.Int does not fit inside the Finite Field
@@ -13,7 +11,7 @@ var ErrNotInFF = errors.New("BigInt not inside the Finite Field")
 var ErrNumOverflow = errors.New("Value overflows the type")
 
 // ErrIdxOverflow is used when a given nonce overflows the maximum capacity of the Idx (2**48-1)
-var ErrIdxOverflow = errors.New("Idx overflow, max value: 2**48 -1")
+var ErrIdxOverflow = errors.New("idx overflow, max value: 2**48 -1")
 
 // ErrScoreOverflow is used when a given score overflows the maximum capacity of the Score (2**32-1)
 var ErrScoreOverflow = errors.New("Score overflow, max value: 2**32-1")
@@ -27,7 +25,7 @@ var ErrTODO = errors.New("TODO")
 // ErrDone is used when a function returns earlier due to a cancelled context
 var ErrDone = errors.New("done")
 
-// IsErrDone returns true if the error or wrapped (with tracerr) error is ErrDone
+// IsErrDone returns true if the error or wrapped error is ErrDone
 func IsErrDone(err error) bool {
-	return tracerr.Unwrap(err) == ErrDone
+	return Unwrap(err) == ErrDone
 }

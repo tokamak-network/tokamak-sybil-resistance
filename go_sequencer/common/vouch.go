@@ -15,7 +15,7 @@ type Vouch struct {
 	Value    bool     `meddler:"value"`
 }
 
-type VouchIdx uint64
+type VouchIdx uint64 //TODO: vouch Idx would be big.Int change this and other functionalities based on that
 
 const (
 	// maxVouchIdxValue is the maximum value that VouchIdx can have

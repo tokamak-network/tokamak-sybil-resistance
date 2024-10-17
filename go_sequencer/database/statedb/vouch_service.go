@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrAlreadyVouched = errors.New("Can not Vouch because already vouched")
+	ErrAlreadyVouched = errors.New("can not Vouch because already vouched")
 	// PrefixKeyVocIdx is the key prefix for vouchIdx in the db
 	PrefixKeyVocIdx = []byte("v:")
 )

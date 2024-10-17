@@ -11,7 +11,7 @@ import (
 var (
 	// ErrAccountAlreadyExists is used when CreateAccount is called and the
 	// Account already exists
-	ErrAccountAlreadyExists = errors.New("Can not CreateAccount because Account already exists")
+	ErrAccountAlreadyExists = errors.New("cannot CreateAccount because Account already exists")
 	// PrefixKeyAccIdx is the key prefix for accountIdx in the db
 	PrefixKeyAccIdx = []byte("i:")
 	// PrefixKeyAccHash is the key prefix for account hash in the db

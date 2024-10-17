@@ -11,7 +11,7 @@ import (
 var (
 	// ErrScoreAlreadyExists is used when CreateScore is called and the
 	// Score already exists
-	ErrScoreAlreadyExists = errors.New("Can not CreateScore becase Score already exists")
+	ErrScoreAlreadyExists = errors.New("cannot CreateScore becase Score already exists")
 	// PrefixKeyScoIdx is the key prefix for accountIdx in ScoreTree
 	PrefixKeyScoIdx = []byte("s:")
 )

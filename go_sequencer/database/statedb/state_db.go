@@ -49,14 +49,14 @@ var (
 	// ErrStateDBWithoutMT is used when a method that requires a MerkleTree
 	// is called in a StateDB that does not have a MerkleTree defined
 	ErrStateDBWithoutMT = errors.New(
-		"Can not call method to use MerkleTree in a StateDB without MerkleTree")
+		"cannot call method to use MerkleTree in a StateDB without MerkleTree")
 	// ErrIdxNotFound is used when trying to get the Idx from EthAddr or
 	// EthAddr&ToBJJ
-	ErrIdxNotFound = errors.New("Idx can not be found")
+	ErrIdxNotFound = errors.New("idx can not be found")
 	// ErrGetIdxNoCase is used when trying to get the Idx from EthAddr &
 	// BJJ with not compatible combination
 	ErrGetIdxNoCase = errors.New(
-		"Can not get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
+		"cannot get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
 
 	// PrefixKeyMTAcc is the key prefix for account merkle tree in the db
 	PrefixKeyMTAcc = []byte("ma:")
