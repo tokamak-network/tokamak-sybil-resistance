@@ -35,6 +35,13 @@ type Batch struct {
 
 type BatchNum int64
 
+// Bytes returns a byte array of length 4 representing the BatchNum
+func (bn BatchNum) Bytes() []byte {
+	var batchNumBytes [batchNumBytesLen]byte
+	binary.BigEndian.PutUint64(batchNumBytes[:], uint64(bn))
+	return batchNumBytes[:]
+}
+
 // BatchNumFromBytes returns BatchNum from a []byte
 func BatchNumFromBytes(b []byte) (BatchNum, error) {
 	if len(b) != batchNumBytesLen {

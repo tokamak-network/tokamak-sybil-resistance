@@ -296,7 +296,7 @@ func (hdb *HistoryDB) GetAllAccounts() ([]common.Account, error) {
 	var accs []*common.Account
 	err := meddler.QueryAll(
 		hdb.dbRead, &accs,
-		"SELECT idx, token_id, batch_num, bjj, eth_addr FROM account ORDER BY idx;",
+		"SELECT idx, batch_num, bjj, eth_addr FROM account ORDER BY idx;",
 	)
 	return database.SlicePtrsToSlice(accs).([]common.Account), common.Wrap(err)
 }
@@ -663,11 +663,11 @@ func (hdb *HistoryDB) AddBlockSCData(blockData *common.BlockData) (err error) {
 			return common.Wrap(err)
 		}
 
-		// Set the EffectiveAmount and EffectiveDepositAmount of all the
-		// L1UserTxs that have been forged in this batch
-		if err = hdb.setExtraInfoForgedL1UserTxs(txn, batch.L1UserTxs); err != nil {
-			return common.Wrap(err)
-		}
+		// // Set the EffectiveAmount and EffectiveDepositAmount of all the
+		// // L1UserTxs that have been forged in this batch
+		// if err = hdb.setExtraInfoForgedL1UserTxs(txn, batch.L1UserTxs); err != nil {
+		// 	return common.Wrap(err)
+		// }
 
 		// Add forged l1 coordinator Txs
 		if err := hdb.addL1Txs(txn, batch.L1CoordinatorTxs); err != nil {

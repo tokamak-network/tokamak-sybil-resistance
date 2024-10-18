@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/binary"
 	"errors"
+	"math/big"
 )
 
 const (
@@ -28,6 +29,11 @@ func (n Nonce) Bytes() ([5]byte, error) {
 	var b [5]byte
 	copy(b[:], nonceBytes[3:])
 	return b, nil
+}
+
+// BigInt returns the *big.Int representation of the Nonce value
+func (n Nonce) BigInt() *big.Int {
+	return big.NewInt(int64(n))
 }
 
 // FromBytes returns Nonce from a [5]byte
