@@ -10,7 +10,7 @@ import (
 type Score struct {
 	Idx      AccountIdx `meddler:"idx"`
 	BatchNum BatchNum   `meddler:"batch_num"`
-	Value    uint64     `meddler:"score"`
+	Value    uint32     `meddler:"score"`
 }
 
 const (
@@ -33,9 +33,9 @@ func (s *Score) Bytes() ([4]byte, error) {
 
 // ScoreFromBytes returns score from a byte array
 func ScoreFromBytes(b [4]byte) (*Score, error) {
-	var scoreBytes [8]byte
-	copy(scoreBytes[4:], b[:])
-	score := binary.BigEndian.Uint64(scoreBytes[:])
+	var scoreBytes [4]byte
+	copy(scoreBytes[:], b[:])
+	score := binary.BigEndian.Uint32(scoreBytes[:])
 	s := Score{
 		Value: score,
 	}

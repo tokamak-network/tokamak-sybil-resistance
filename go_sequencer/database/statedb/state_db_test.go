@@ -68,7 +68,7 @@ func newVouch(i int) *common.Vouch {
 func newScore(i int) *common.Score {
 	return &common.Score{
 		Idx:   common.AccountIdx(256 + i),
-		Value: uint64(1 + i),
+		Value: uint32(1 + i),
 	}
 }
 
