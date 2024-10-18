@@ -40,9 +40,9 @@ const (
 	// IdxBytesLen idx bytes
 	IdxBytesLen = 6
 
-	// maxAccountIdxValue is the maximum value that AccountIdx can have (48 bits:
-	// maxAccountIdxValue=2**48-1)
-	maxAccountIdxValue = 0xffffffffffff
+	// maxAccountIdxValue is the maximum value that AccountIdx can have (24 bits:
+	// maxAccountIdxValue=2**24-1)
+	maxAccountIdxValue = 0xffffff
 
 	// UserThreshold determines the threshold from the User Idxs can be
 	UserThreshold = 256
@@ -85,6 +85,18 @@ func AccountIdxFromBytes(b []byte) (AccountIdx, error) {
 // BigInt returns a *big.Int representing the Idx
 func (idx AccountIdx) BigInt() *big.Int {
 	return big.NewInt(int64(idx))
+}
+
+// IdxFromBytes returns Idx from a byte array
+func IdxFromBytes(b []byte) (AccountIdx, error) {
+	if len(b) != IdxBytesLen {
+		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
+			len(b), IdxBytesLen))
+	}
+	var idxBytes [8]byte
+	copy(idxBytes[2:], b[:])
+	idx := binary.BigEndian.Uint64(idxBytes[:])
+	return AccountIdx(idx), nil
 }
 
 // Bytes returns the bytes representing the Account, in a way that each BigInt
@@ -192,4 +204,14 @@ func AccountFromBytes(b [32 * NAccountLeafElems]byte) (*Account, error) {
 		EthAddr: ethAddr,
 	}
 	return &a, nil
+}
+
+// AccountUpdate represents an account balance and/or nonce update after a
+// processed batch
+type AccountUpdate struct {
+	EthBlockNum int64      `meddler:"eth_block_num"`
+	BatchNum    BatchNum   `meddler:"batch_num"`
+	Idx         AccountIdx `meddler:"idx"`
+	Nonce       Nonce      `meddler:"nonce"`
+	Balance     *big.Int   `meddler:"balance,bigint"`
 }

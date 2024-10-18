@@ -24,12 +24,6 @@ const (
 	MaxNLevels = 48
 )
 
-var (
-	PrefixKeyAccountIdx = []byte("accIdx:")
-	PrefixKeyLinkHash   = []byte("linkHash:")
-	PrefixKeyLinkIdx    = []byte("linkIdx:")
-)
-
 // Config of the StateDB
 type Config struct {
 	// Path where the checkpoints will be stored
@@ -55,17 +49,21 @@ var (
 	// ErrStateDBWithoutMT is used when a method that requires a MerkleTree
 	// is called in a StateDB that does not have a MerkleTree defined
 	ErrStateDBWithoutMT = errors.New(
-		"Can not call method to use MerkleTree in a StateDB without MerkleTree")
+		"cannot call method to use MerkleTree in a StateDB without MerkleTree")
 	// ErrIdxNotFound is used when trying to get the Idx from EthAddr or
 	// EthAddr&ToBJJ
-	ErrIdxNotFound = errors.New("Idx can not be found")
+	ErrIdxNotFound = errors.New("idx can not be found")
 	// ErrGetIdxNoCase is used when trying to get the Idx from EthAddr &
 	// BJJ with not compatible combination
 	ErrGetIdxNoCase = errors.New(
-		"Can not get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
+		"cannot get Idx due unexpected combination of ethereum Address & BabyJubJub PublicKey")
 
-	// PrefixKeyMT is the key prefix for merkle tree in the db
-	PrefixKeyMT = []byte("m:")
+	// PrefixKeyMTAcc is the key prefix for account merkle tree in the db
+	PrefixKeyMTAcc = []byte("ma:")
+	// PrefixKeyMTVoc is the key prefix for vouch merkle tree in the db
+	PrefixKeyMTVoc = []byte("mv:")
+	// PrefixKeyMTSco is the key prefix for score merkle tree in the db
+	PrefixKeyMTSco = []byte("ms:")
 )
 
 // StateDB represents the state database with an integrated Merkle tree.
@@ -74,6 +72,7 @@ type StateDB struct {
 	db          *kvdb.KVDB
 	AccountTree *merkletree.MerkleTree
 	VouchTree   *merkletree.MerkleTree
+	ScoreTree   *merkletree.MerkleTree
 }
 
 // LocalStateDB represents the local StateDB which allows to make copies from
@@ -104,12 +103,14 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 		return nil, common.Wrap(err)
 	}
 
-	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
-	mtLink, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMT), 14)
+	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTAcc), 14)
+	mtVouch, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTVoc), 14)
+	mtScore, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTSco), 14)
 	return &StateDB{
 		db:          kv,
 		AccountTree: mtAccount,
-		VouchTree:   mtLink,
+		VouchTree:   mtVouch,
+		ScoreTree:   mtScore,
 	}, nil
 }
 
@@ -139,25 +140,38 @@ func NewLocalStateDB(cfg Config, synchronizerDB *StateDB) (*LocalStateDB, error)
 // those checkpoints will remain in the storage, and eventually will be
 // deleted when MakeCheckpoint overwrites them.
 func (s *StateDB) Reset(batchNum common.BatchNum) error {
-	log.Fatalf("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
+	log.Debugw("Making StateDB Reset", "batch", batchNum, "type", s.cfg.Type)
 	if err := s.db.Reset(batchNum); err != nil {
 		return common.Wrap(err)
 	}
 	if s.AccountTree != nil {
-		// open the MT for the current s.db
-		accountTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.AccountTree.MaxLevels())
+		// open the Account MT for the current s.db
+		accountTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMTAcc), s.AccountTree.MaxLevels())
 		if err != nil {
 			return common.Wrap(err)
 		}
 		s.AccountTree = accountTree
 	}
 	if s.VouchTree != nil {
-		// open the MT for the current s.db
-		vouchTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMT), s.VouchTree.MaxLevels())
+		// open the Vouch MT for the current s.db
+		vouchTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMTVoc), s.VouchTree.MaxLevels())
 		if err != nil {
 			return common.Wrap(err)
 		}
 		s.VouchTree = vouchTree
 	}
+	if s.ScoreTree != nil {
+		// open the Score MT for the current s.db
+		scoreTree, err := merkletree.NewMerkleTree(s.db.StorageWithPrefix(PrefixKeyMTSco), s.ScoreTree.MaxLevels())
+		if err != nil {
+			return common.Wrap(err)
+		}
+		s.ScoreTree = scoreTree
+	}
 	return nil
+}
+
+// CurrentBatch returns the current in-memory CurrentBatch of the StateDB.db
+func (s *StateDB) CurrentBatch() common.BatchNum {
+	return s.db.CurrentBatch
 }

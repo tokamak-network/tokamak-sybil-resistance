@@ -2,6 +2,7 @@ package statedb
 
 import (
 	"errors"
+	"math/big"
 	"tokamak-sybil-resistance/common"
 
 	"github.com/iden3/go-merkletree"
@@ -11,7 +12,7 @@ import (
 var (
 	// ErrAccountAlreadyExists is used when CreateAccount is called and the
 	// Account already exists
-	ErrAccountAlreadyExists = errors.New("Can not CreateAccount because Account already exists")
+	ErrAccountAlreadyExists = errors.New("cannot CreateAccount because Account already exists")
 	// PrefixKeyAccIdx is the key prefix for accountIdx in the db
 	PrefixKeyAccIdx = []byte("i:")
 	// PrefixKeyAccHash is the key prefix for account hash in the db
@@ -104,6 +105,50 @@ func (s *StateDB) GetAccount(idx common.AccountIdx) (*common.Account, error) {
 	return GetAccountInTreeDB(s.db.DB(), idx)
 }
 
+func accountsIter(db db.Storage, fn func(a *common.Account) (bool, error)) error {
+	idxDB := db.WithPrefix(PrefixKeyAccIdx)
+	if err := idxDB.Iterate(func(k []byte, v []byte) (bool, error) {
+		idx, err := common.IdxFromBytes(k)
+		if err != nil {
+			return false, common.Wrap(err)
+		}
+		acc, err := GetAccountInTreeDB(db, idx)
+		if err != nil {
+			return false, common.Wrap(err)
+		}
+		ok, err := fn(acc)
+		if err != nil {
+			return false, common.Wrap(err)
+		}
+		return ok, nil
+	}); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
+}
+
+func getAccounts(db db.Storage) ([]common.Account, error) {
+	accs := []common.Account{}
+	if err := accountsIter(
+		db,
+		func(a *common.Account) (bool, error) {
+			accs = append(accs, *a)
+			return true, nil
+		},
+	); err != nil {
+		return nil, common.Wrap(err)
+	}
+	return accs, nil
+}
+
+// TestGetAccounts returns all the accounts in the db.  Use only in tests.
+// Outside tests getting all the accounts is discouraged because it's an
+// expensive operation, but if you must do it, use `LastRead()` method to get a
+// thread-safe and consistent view of the stateDB.
+func (s *StateDB) TestGetAccounts() ([]common.Account, error) {
+	return getAccounts(s.db.DB())
+}
+
 // GetAccountInTreeDB is abstracted from StateDB to be used from StateDB and
 // from ExitTree.  GetAccount returns the account for the given Idx
 func GetAccountInTreeDB(sto db.Storage, idx common.AccountIdx) (*common.Account, error) {
@@ -179,6 +224,11 @@ func UpdateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 		return proof, common.Wrap(err)
 	}
 	return nil, nil
+}
+
+// GetMTRootAccount returns the root of the Account Merkle Tree
+func (s *StateDB) GetMTRootAccount() *big.Int {
+	return s.AccountTree.Root().BigInt()
 }
 
 // func stringToByte(s string, numByte int) []byte {

@@ -67,3 +67,31 @@ func NewFloat40(f *big.Int) (Float40, error) {
 		new(big.Int).Mul(e, thres))
 	return Float40(r.Uint64()), nil
 }
+
+// Float40FromBytes returns a Float40 from a byte array of 5 bytes in Bigendian
+// representation.
+func Float40FromBytes(b []byte) Float40 {
+	var f40Bytes [8]byte
+	copy(f40Bytes[3:], b[:])
+	f40 := binary.BigEndian.Uint64(f40Bytes[:])
+	return Float40(f40)
+}
+
+// BigInt converts the Float40 to a *big.Int v, where v = m * 10^e, being:
+// [    e   |    m    ]
+// [ 5 bits | 35 bits ]
+func (f40 Float40) BigInt() (*big.Int, error) {
+	// take the 5 used bytes (FF * 5)
+	var f40Uint64 uint64 = uint64(f40) & 0x00_00_00_FF_FF_FF_FF_FF
+	f40Bytes, err := f40.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+
+	e := f40Bytes[0] & 0xF8 >> 3      // take first 5 bits
+	m := f40Uint64 & 0x07_FF_FF_FF_FF // take the others 35 bits
+
+	exp := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(e)), nil)
+	r := new(big.Int).Mul(big.NewInt(int64(m)), exp)
+	return r, nil
+}

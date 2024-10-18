@@ -15,12 +15,9 @@ type Vouch struct {
 	Value    bool     `meddler:"value"`
 }
 
-type VouchIdx uint64
+type VouchIdx uint64 //TODO: vouch Idx would be big.Int change this and other functionalities based on that
 
 const (
-	// NLeafElems is the number of elements for a leaf in vouch tree
-	NVouchLeafElems = 1
-
 	// maxVouchIdxValue is the maximum value that VouchIdx can have
 	maxVouchIdxValue = 0xffffffffffff
 )
@@ -35,6 +32,19 @@ func (idx VouchIdx) Bytes() ([2 * NLevelsAsBytes]byte, error) {
 	var b [2 * NLevelsAsBytes]byte
 	copy(b[:], idxBytes[8-2*NLevelsAsBytes:])
 	return b, nil
+}
+
+// GenerateVouchIdx
+func GenerateVouchIdx(fromIdx AccountIdx, toIdx AccountIdx) *big.Int {
+	// Create a new big.Int to hold the result
+	result := new(big.Int)
+
+	// Shift fromIdx left by 64 bits and add toIdx
+	result.SetUint64(uint64(fromIdx))
+	result.Lsh(result, 24)
+	result.Or(result, new(big.Int).SetUint64(uint64(toIdx)))
+
+	return result
 }
 
 func VouchIdxFromBytes(b []byte) (VouchIdx, error) {

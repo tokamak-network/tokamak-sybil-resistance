@@ -43,7 +43,7 @@ func NewTxIDFromString(idStr string) (TxID, error) {
 		return TxID{}, Wrap(err)
 	}
 	if len(decoded) != TxIDLen {
-		return txid, Wrap(errors.New("Invalid idStr"))
+		return txid, Wrap(errors.New("invalid idStr"))
 	}
 	copy(txid[:], decoded)
 	return txid, nil
