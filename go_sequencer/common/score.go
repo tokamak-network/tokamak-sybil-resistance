@@ -24,11 +24,9 @@ func (s *Score) Bytes() ([4]byte, error) {
 	if s.Value > maxScoreValue {
 		return [4]byte{}, Wrap(ErrScoreOverflow)
 	}
-	var scoreBytes [8]byte
-	binary.BigEndian.PutUint64(scoreBytes[:], uint64(s.Value))
-	var b [4]byte
-	copy(b[:], scoreBytes[4:])
-	return b, nil
+	var scoreBytes [4]byte
+	binary.BigEndian.PutUint32(scoreBytes[:], uint32(s.Value))
+	return scoreBytes, nil
 }
 
 // ScoreFromBytes returns score from a byte array
