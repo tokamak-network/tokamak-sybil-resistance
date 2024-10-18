@@ -369,8 +369,8 @@ func TestSyncGeneral(t *testing.T) {
 		CreateAccountDeposit D: 500  // Idx=256+4=260
 		CreateAccountDeposit B: 500  // Idx=256+5=261
 
-		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{5}
-		> batchL1 // forge defined L1UserTxs{5}, freeze L1UserTxs{nil}
+		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{4}
+		> batchL1 // forge defined L1UserTxs{4}, freeze L1UserTxs{nil}
 		> block // blockNum=2
 
 		// ForceTransfer(1) C-B: 80
@@ -428,4 +428,27 @@ func TestSyncGeneral(t *testing.T) {
 	// Add block data to the smart contracts
 	err = client.CtlAddBlocks(blocks)
 	require.NoError(t, err)
+
+	//
+	// Sync to synchronize the current state from the test smart contracts,
+	// and check the outcome
+	//
+
+	// Block 2
+
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, discards)
+	require.NotNil(t, syncBlock)
+	assert.Nil(t, syncBlock.Rollup.Vars)
+	assert.Equal(t, int64(2), syncBlock.Block.Num)
+	stats = s.Stats()
+	assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+	assert.Equal(t, int64(3), stats.Eth.LastBlock.Num)
+	assert.Equal(t, int64(2), stats.Sync.LastBlock.Num)
+	// Set ethereum transaction hash (til doesn't set it)
+	blocks[0].Rollup.Batches[0].Batch.EthTxHash = syncBlock.Rollup.Batches[0].Batch.EthTxHash
+	blocks[0].Rollup.Batches[1].Batch.EthTxHash = syncBlock.Rollup.Batches[1].Batch.EthTxHash
+
+	checkSyncBlock(t, s, 2, &blocks[0], syncBlock)
 }

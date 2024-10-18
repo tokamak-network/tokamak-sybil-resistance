@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"tokamak-sybil-resistance/common/nonce"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/babyjub"
@@ -37,8 +36,8 @@ const (
 	// Account.Balance *big.Int
 	maxBalanceBytes = 24
 
-	// IdxBytesLen idx bytes
-	IdxBytesLen = 6
+	// AccountIdxBytesLen idx bytes
+	AccountIdxBytesLen = 3
 
 	// maxAccountIdxValue is the maximum value that AccountIdx can have (48 bits:
 	// maxAccountIdxValue=2**48-1)
@@ -72,9 +71,9 @@ func (idx AccountIdx) Bytes() ([NLevelsAsBytes]byte, error) {
 
 // AccountIdxFromBytes returns Idx from a byte array
 func AccountIdxFromBytes(b []byte) (AccountIdx, error) {
-	if len(b) != IdxBytesLen {
+	if len(b) != AccountIdxBytesLen {
 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
-			len(b), IdxBytesLen))
+			len(b), AccountIdxBytesLen))
 	}
 	var idxBytes [8]byte
 	copy(idxBytes[8-NLevelsAsBytes:], b[:])
@@ -89,9 +88,9 @@ func (idx AccountIdx) BigInt() *big.Int {
 
 // IdxFromBytes returns Idx from a byte array
 func IdxFromBytes(b []byte) (AccountIdx, error) {
-	if len(b) != IdxBytesLen {
+	if len(b) != AccountIdxBytesLen {
 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
-			len(b), IdxBytesLen))
+			len(b), AccountIdxBytesLen))
 	}
 	var idxBytes [8]byte
 	copy(idxBytes[2:], b[:])
@@ -106,7 +105,7 @@ func IdxFromBytes(b []byte) (AccountIdx, error) {
 func (a *Account) Bytes() ([32 * NAccountLeafElems]byte, error) {
 	var b [32 * NAccountLeafElems]byte
 
-	if a.Nonce > nonce.MaxNonceValue {
+	if a.Nonce > MaxNonceValue {
 		return b, Wrap(fmt.Errorf("%s Nonce", ErrNumOverflow))
 	}
 	if len(a.Balance.Bytes()) > maxBalanceBytes {

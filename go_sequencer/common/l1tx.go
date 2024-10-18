@@ -145,6 +145,65 @@ func (tx *L1Tx) SetID() error {
 	return nil
 }
 
+// Tx returns a *Tx from the L1Tx
+func (tx L1Tx) Tx() Tx {
+	f := new(big.Float).SetInt(tx.EffectiveAmount)
+	amountFloat, _ := f.Float64()
+	userOrigin := new(bool)
+	*userOrigin = tx.UserOrigin
+	genericTx := Tx{
+		IsL1:            true,
+		TxID:            tx.TxID,
+		Type:            tx.Type,
+		Position:        tx.Position,
+		FromIdx:         tx.FromIdx,
+		ToIdx:           tx.ToIdx,
+		Amount:          tx.EffectiveAmount,
+		AmountFloat:     amountFloat,
+		ToForgeL1TxsNum: tx.ToForgeL1TxsNum,
+		UserOrigin:      userOrigin,
+		FromEthAddr:     tx.FromEthAddr,
+		FromBJJ:         tx.FromBJJ,
+		DepositAmount:   tx.EffectiveDepositAmount,
+		EthBlockNum:     tx.EthBlockNum,
+	}
+	if tx.DepositAmount != nil {
+		lf := new(big.Float).SetInt(tx.DepositAmount)
+		depositAmountFloat, _ := lf.Float64()
+		genericTx.DepositAmountFloat = &depositAmountFloat
+	}
+	return genericTx
+}
+
+// TxCompressedData spec:
+// [ 1 bits  ] empty (toBJJSign) // 1 byte
+// [ 8 bits  ] empty (userFee) // 1 byte
+// [ 40 bits ] empty (nonce) // 5 bytes
+// [ 48 bits ] toIdx // 6 bytes
+// [ 48 bits ] fromIdx // 6 bytes
+// [ 16 bits ] chainId // 2 bytes
+// [ 32 bits ] empty (signatureConstant) // 4 bytes
+// Total bits compressed data:  225 bits // 29 bytes in *big.Int representation
+func (tx L1Tx) TxCompressedData(chainID uint16) (*big.Int, error) {
+	var b [29]byte
+	// b[0:11] empty: no ToBJJSign, no fee, no nonce
+	toIdxBytes, err := tx.ToIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[11:17], toIdxBytes[:])
+	fromIdxBytes, err := tx.FromIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[17:23], fromIdxBytes[:])
+	binary.BigEndian.PutUint16(b[23:25], chainID)
+	copy(b[25:29], SignatureConstantBytes[:])
+
+	bi := new(big.Int).SetBytes(b[:])
+	return bi, nil
+}
+
 // L1UserTxFromBytes decodes a L1Tx from []byte
 func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	if len(b) != RollupConstL1UserTotalBytes {

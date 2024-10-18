@@ -157,6 +157,60 @@ func (tx *PoolL2Tx) TxCompressedData(chainID uint16) (*big.Int, error) {
 	return bi, nil
 }
 
+// TxCompressedDataV2 spec:
+// [ 1 bits  ] toBJJSign // 1 byte
+// [ 8 bits  ] userFee // 1 byte
+// [ 40 bits ] nonce // 5 bytes
+// [ 32 bits ] tokenID // 4 bytes
+// [ 40 bits ] amountFloat40 // 5 bytes
+// [ 48 bits ] toIdx // 6 bytes
+// [ 48 bits ] fromIdx // 6 bytes
+// Total bits compressed data:  217 bits // 28 bytes in *big.Int representation
+func (tx *PoolL2Tx) TxCompressedDataV2() (*big.Int, error) {
+	if tx.Amount == nil {
+		tx.Amount = big.NewInt(0)
+	}
+	amountFloat40, err := NewFloat40(tx.Amount)
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	amountFloat40Bytes, err := amountFloat40.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+
+	var b [28]byte
+	toBJJSign := byte(0)
+	if tx.ToBJJ != EmptyBJJComp {
+		sign, _ := babyjub.UnpackSignY(tx.ToBJJ)
+		if sign {
+			toBJJSign = byte(1)
+		}
+	}
+	b[0] = toBJJSign
+	b[1] = byte(tx.Fee)
+	nonceBytes, err := tx.Nonce.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[2:7], nonceBytes[:])
+	copy(b[7:11], tx.TokenID.Bytes())
+	copy(b[11:16], amountFloat40Bytes)
+	toIdxBytes, err := tx.ToIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[16:22], toIdxBytes[:])
+	fromIdxBytes, err := tx.FromIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[22:28], fromIdxBytes[:])
+
+	bi := new(big.Int).SetBytes(b[:])
+	return bi, nil
+}
+
 // L2Tx returns a *L2Tx from the PoolL2Tx
 func (tx PoolL2Tx) L2Tx() L2Tx {
 	var toIdx AccountIdx
@@ -171,6 +225,19 @@ func (tx PoolL2Tx) L2Tx() L2Tx {
 		ToIdx:   toIdx,
 		Amount:  tx.Amount,
 		Nonce:   tx.Nonce,
+		Type:    tx.Type,
+	}
+}
+
+// Tx returns a *Tx from the PoolL2Tx
+func (tx PoolL2Tx) Tx() Tx {
+	return Tx{
+		TxID:    tx.TxID,
+		FromIdx: tx.FromIdx,
+		ToIdx:   tx.ToIdx,
+		Amount:  tx.Amount,
+		Nonce:   &tx.Nonce,
+		Fee:     &tx.Fee,
 		Type:    tx.Type,
 	}
 }

@@ -19,11 +19,48 @@ import (
 >>>>>>> e0ccd8a (Updated util functionalities for database and apis)
 )
 
+<<<<<<< HEAD
 // TreeNode represents a node in the Merkle tree.
 type TreeNode struct {
 	Hash  string
 	Left  *TreeNode
 	Right *TreeNode
+=======
+const (
+	// TypeSynchronizer defines a StateDB used by the Synchronizer, that
+	// generates the ExitTree when processing the txs
+	TypeSynchronizer = "synchronizer"
+	// TypeTxSelector defines a StateDB used by the TxSelector, without
+	// computing ExitTree neither the ZKInputs
+	TypeTxSelector = "txselector"
+	// TypeBatchBuilder defines a StateDB used by the BatchBuilder, that
+	// generates the ExitTree and the ZKInput when processing the txs
+	TypeBatchBuilder = "batchbuilder"
+	// MaxNLevels is the maximum value of NLevels for the merkle tree,
+	// which comes from the fact that AccountIdx has 48 bits.
+	MaxNLevels = 48
+)
+
+// Config of the StateDB
+type Config struct {
+	// Path where the checkpoints will be stored
+	Path string
+	// Keep is the number of old checkpoints to keep.  If 0, all
+	// checkpoints are kept.
+	Keep int
+	// NoLast skips having an opened DB with a checkpoint to the last
+	// batchNum for thread-safe reads.
+	NoLast bool
+	// Type of StateDB (
+	Type TypeStateDB
+	// NLevels is the number of merkle tree levels in case the Type uses a
+	// merkle tree.  If the Type doesn't use a merkle tree, NLevels should
+	// be 0.
+	NLevels int
+	// At every checkpoint, check that there are no gaps between the
+	// checkpoints
+	noGapsCheck bool
+>>>>>>> 7615d4b (Initial implementation of  txProcessor)
 }
 
 <<<<<<< HEAD
@@ -69,6 +106,9 @@ var (
 	PrefixKeyMT = []byte("m:")
 )
 
+// TypeStateDB determines the type of StateDB
+type TypeStateDB string
+
 // StateDB represents the state database with an integrated Merkle tree.
 type StateDB struct {
 	cfg         Config
@@ -112,16 +152,30 @@ func NewStateDB(dbPath string) (*StateDB, error) {
 	if err != nil {
 		return nil, err
 	}
+<<<<<<< HEAD
 	return &StateDB{
 <<<<<<< HEAD
 		DB:   db,
 		Tree: &MerkleTree{},
 =======
+=======
+
+	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTAcc), 24)
+	mtVouch, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTVoc), 24)
+	mtScore, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTSco), 24)
+	return &StateDB{
+		cfg:         cfg,
+>>>>>>> 7615d4b (Initial implementation of  txProcessor)
 		db:          kv,
 		AccountTree: mtAccount,
 		VouchTree:   mtLink,
 >>>>>>> d31cee2 (feat/go-synchronizer initial construction of stateDB)
 	}, nil
+}
+
+// Type returns the StateDB configured Type
+func (s *StateDB) Type() TypeStateDB {
+	return s.cfg.Type
 }
 
 // Close closes the StateDB.
@@ -193,6 +247,7 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 	return nil
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 // Get retrieves an account for a given address from the database.
 func (sdb *StateDB) GetAccount(address string) (*Account, error) {
@@ -324,6 +379,16 @@ func InitNewStateDB() *StateDB {
 	printExamples(stateDB)
 	return stateDB
 =======
+=======
+// MakeCheckpoint does a checkpoint at the given batchNum in the defined path.
+// Internally this advances & stores the current BatchNum, and then stores a
+// Checkpoint of the current state of the StateDB.
+func (s *StateDB) MakeCheckpoint() error {
+	log.Debugw("Making StateDB checkpoint", "batch", s.CurrentBatch()+1, "type", s.cfg.Type)
+	return s.db.MakeCheckpoint()
+}
+
+>>>>>>> 7615d4b (Initial implementation of  txProcessor)
 // CurrentBatch returns the current in-memory CurrentBatch of the StateDB.db
 func (s *StateDB) CurrentBatch() common.BatchNum {
 	return s.db.CurrentBatch

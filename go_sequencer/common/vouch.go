@@ -18,9 +18,15 @@ type Vouch struct {
 type VouchIdx uint64
 
 const (
+<<<<<<< HEAD
 	// NLeafElems is the number of elements for a leaf in vouch tree
 	NVouchLeafElems = 1
 
+=======
+
+	// VouchIdxBytesLen idx bytes
+	VouchIdxBytesLen = 6
+>>>>>>> 7615d4b (Initial implementation of  txProcessor)
 	// maxVouchIdxValue is the maximum value that VouchIdx can have
 	maxVouchIdxValue = 0xffffffffffff
 )
@@ -38,9 +44,9 @@ func (idx VouchIdx) Bytes() ([2 * NLevelsAsBytes]byte, error) {
 }
 
 func VouchIdxFromBytes(b []byte) (VouchIdx, error) {
-	if len(b) != IdxBytesLen {
+	if len(b) != VouchIdxBytesLen {
 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
-			len(b), IdxBytesLen))
+			len(b), VouchIdxBytesLen))
 	}
 	var idxBytes [8]byte
 	copy(idxBytes[8-2*NLevelsAsBytes:], b[:])
