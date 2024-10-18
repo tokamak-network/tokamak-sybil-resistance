@@ -120,7 +120,7 @@ func NewClientSetupExample() *ClientSetup {
 				NLevels: 32,
 			},
 		},
-		HermezGovernanceAddress: governanceAddress,
+		TokamakGovernanceAddress: governanceAddress,
 	}
 	rollupVariables := &common.RollupVariables{
 		ForgeL1L2BatchTimeout: 10,

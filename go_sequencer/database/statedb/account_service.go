@@ -2,6 +2,7 @@ package statedb
 
 import (
 	"errors"
+	"math/big"
 	"tokamak-sybil-resistance/common"
 
 	"github.com/iden3/go-merkletree"
@@ -223,6 +224,11 @@ func UpdateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 		return proof, common.Wrap(err)
 	}
 	return nil, nil
+}
+
+// GetMTRootAccount returns the root of the Account Merkle Tree
+func (s *StateDB) GetMTRootAccount() *big.Int {
+	return s.AccountTree.Root().BigInt()
 }
 
 // func stringToByte(s string, numByte int) []byte {

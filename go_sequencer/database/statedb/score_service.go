@@ -2,6 +2,7 @@ package statedb
 
 import (
 	"errors"
+	"math/big"
 	"tokamak-sybil-resistance/common"
 
 	"github.com/iden3/go-merkletree"
@@ -35,33 +36,37 @@ func (s *StateDB) CreateScore(idx common.AccountIdx, score *common.Score) (
 func CreateScoreInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.AccountIdx,
 	score *common.Score) (*merkletree.CircomProcessorProof, error) {
 	// store at the DB the key: idx, and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
+	// tx, err := sto.NewTx()
+	// if err != nil {
+	// 	return nil, common.Wrap(err)
+	// }
 
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
+	// idxBytes, err := idx.Bytes()
+	// if err != nil {
+	// 	return nil, common.Wrap(err)
+	// }
 
-	_, err = tx.Get(append(PrefixKeyScoIdx, idxBytes[:]...))
-	if err != db.ErrNotFound {
-		return nil, common.Wrap(ErrScoreAlreadyExists)
-	}
+	// _, err = tx.Get(append(PrefixKeyScoIdx, idxBytes[:]...))
+	// if err != db.ErrNotFound {
+	// 	return nil, common.Wrap(ErrScoreAlreadyExists)
+	// }
 
-	bytesFromScore, err := score.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
+	// bytesFromScore, err := score.Bytes()
+	// if err != nil {
+	// 	return nil, common.Wrap(err)
+	// }
 
-	err = tx.Put(append(PrefixKeyScoIdx, idxBytes[:]...), bytesFromScore[:])
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
+	// err = tx.Put(append(PrefixKeyScoIdx, idxBytes[:]...), bytesFromScore[:])
+	// if err != nil {
+	// 	return nil, common.Wrap(err)
+	// }
 
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
+	// if err := tx.Commit(); err != nil {
+	// 	return nil, common.Wrap(err)
+	// }
+	txError := performTxScore(sto, idx, score, true)
+	if txError != nil {
+		return nil, txError
 	}
 
 	if mt != nil {
@@ -112,26 +117,9 @@ func (s *StateDB) UpdateScore(idx common.AccountIdx, score *common.Score) (
 func UpdateScoreInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.AccountIdx,
 	score *common.Score) (*merkletree.CircomProcessorProof, error) {
 	// store at the DB the key: idx and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	bytesFromScore, err := score.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	err = tx.Put(append(PrefixKeyScoIdx, idxBytes[:]...), bytesFromScore[:])
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
+	txError := performTxScore(sto, idx, score, false)
+	if txError != nil {
+		return nil, txError
 	}
 
 	if mt != nil {
@@ -139,4 +127,41 @@ func UpdateScoreInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.A
 		return proof, common.Wrap(err)
 	}
 	return nil, nil
+}
+
+// GetMTRoot returns the root of the Merkle Tree
+func (s *StateDB) GetMTRootScore() *big.Int {
+	return s.AccountTree.Root().BigInt()
+}
+
+func performTxScore(sto db.Storage, idx common.AccountIdx,
+	score *common.Score, addCall bool) error {
+	// store at the DB the key: idx and value: leaf value
+	tx, err := sto.NewTx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	idxBytes, err := idx.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	scoreBytes, err := score.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if addCall {
+		_, err = tx.Get(append(PrefixKeyScoIdx, idxBytes[:]...))
+		if err != db.ErrNotFound {
+			return common.Wrap(ErrScoreAlreadyExists)
+		}
+	}
+	err = tx.Put(append(PrefixKeyScoIdx, idxBytes[:]...), scoreBytes[:])
+	if err != nil {
+		return common.Wrap(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
 }

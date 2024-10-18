@@ -2,6 +2,7 @@ package statedb
 
 import (
 	"errors"
+	"math/big"
 	"tokamak-sybil-resistance/common"
 
 	"github.com/iden3/go-merkletree"
@@ -32,29 +33,9 @@ func (s *StateDB) CreateVouch(idx common.VouchIdx, vouch *common.Vouch) (
 // MerkleTree, returning a CircomProcessorProof
 func CreateVouchInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.VouchIdx,
 	vouch *common.Vouch) (*merkletree.CircomProcessorProof, error) {
-	// store at the DB the key: idx, and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	_, err = tx.Get(append(PrefixKeyVocIdx, idxBytes[:]...))
-	if err != db.ErrNotFound {
-		return nil, common.Wrap(ErrAlreadyVouched)
-	}
-
-	err = tx.Put(append(PrefixKeyVocIdx, idxBytes[:]...), vouch.BytesFromBool())
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
+	txError := performTxVouch(sto, idx, vouch, true)
+	if txError != nil {
+		return nil, txError
 	}
 
 	if mt != nil {
@@ -116,22 +97,9 @@ func (s *StateDB) UpdateVouch(idx common.VouchIdx, vouch *common.Vouch) (
 // MerkleTree, returning a CircomProcessorProof.
 func UpdateVouchInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.VouchIdx,
 	vouch *common.Vouch) (*merkletree.CircomProcessorProof, error) {
-	// store at the DB the key: idx and value: leaf value
-	tx, err := sto.NewTx()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	idxBytes, err := idx.Bytes()
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-	err = tx.Put(append(PrefixKeyVocIdx, idxBytes[:]...), vouch.BytesFromBool())
-	if err != nil {
-		return nil, common.Wrap(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, common.Wrap(err)
+	txError := performTxVouch(sto, idx, vouch, false)
+	if txError != nil {
+		return nil, txError
 	}
 
 	if mt != nil {
@@ -139,6 +107,38 @@ func UpdateVouchInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common.V
 		return proof, common.Wrap(err)
 	}
 	return nil, nil
+}
+
+// GetMTRoot returns the root of the Merkle Tree
+func (s *StateDB) GetMTRootVouch() *big.Int {
+	return s.AccountTree.Root().BigInt()
+}
+
+func performTxVouch(sto db.Storage, idx common.VouchIdx,
+	vouch *common.Vouch, addCall bool) error {
+	tx, err := sto.NewTx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	idxBytes, err := idx.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if addCall {
+		_, err = tx.Get(append(PrefixKeyVocIdx, idxBytes[:]...))
+		if err != db.ErrNotFound {
+			return common.Wrap(ErrAlreadyVouched)
+		}
+	}
+	err = tx.Put(append(PrefixKeyVocIdx, idxBytes[:]...), vouch.BytesFromBool())
+	if err != nil {
+		return common.Wrap(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
 }
 
 // func BytesLink(l *models.Link) [5]byte {

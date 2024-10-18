@@ -95,7 +95,7 @@ type RollupVerifierStruct struct {
 type RollupConstants struct {
 	AbsoluteMaxL1L2BatchTimeout int64                  `json:"absoluteMaxL1L2BatchTimeout"`
 	Verifiers                   []RollupVerifierStruct `json:"verifiers"`
-	HermezGovernanceAddress     ethCommon.Address      `json:"hermezGovernanceAddress"`
+	TokamakGovernanceAddress    ethCommon.Address      `json:"tokamakGovernanceAddress"`
 	// First block where the first slot begins
 	GenesisBlockNum int64 `json:"genesisBlockNum"`
 }

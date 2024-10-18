@@ -86,7 +86,7 @@ func (tx *L1Tx) SetType() error {
 			tx.Type = TxTypeCreateAccountDepositTransfer
 		} else {
 			return Wrap(fmt.Errorf(
-				"Can not determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
+				"cannot determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
 		}
 	} else if tx.FromIdx >= IdxUserThreshold {
 		if tx.ToIdx == AccountIdx(0) {
@@ -101,11 +101,11 @@ func (tx *L1Tx) SetType() error {
 			}
 		} else {
 			return Wrap(fmt.Errorf(
-				"Can not determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
+				"cannot determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
 		}
 	} else {
 		return Wrap(fmt.Errorf(
-			"Can not determine type of L1Tx, invalid FromIdx value: %d", tx.FromIdx))
+			"cannot determine type of L1Tx, invalid FromIdx value: %d", tx.FromIdx))
 	}
 	return nil
 }
@@ -149,7 +149,7 @@ func (tx *L1Tx) SetID() error {
 func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	if len(b) != RollupConstL1UserTotalBytes {
 		return nil,
-			Wrap(fmt.Errorf("Can not parse L1Tx bytes, expected length %d, current: %d",
+			Wrap(fmt.Errorf("cannot parse L1Tx bytes, expected length %d, current: %d",
 				68, len(b)))
 	}
 
@@ -207,27 +207,23 @@ func L1TxFromDataAvailability(b []byte, nLevels uint32) (*L1Tx, error) {
 }
 
 // L1CoordinatorTxFromBytes decodes a L1Tx from []byte
-func L1CoordinatorTxFromBytes(b []byte, chainID *big.Int, hermezAddress ethCommon.Address) (*L1Tx,
+func L1CoordinatorTxFromBytes(b []byte, chainID *big.Int, tokamakAddress ethCommon.Address) (*L1Tx,
 	error) {
 	if len(b) != RollupConstL1CoordinatorTotalBytes {
 		return nil, Wrap(
-			fmt.Errorf("Can not parse L1CoordinatorTx bytes, expected length %d, current: %d",
+			fmt.Errorf("cannot parse L1CoordinatorTx bytes, expected length %d, current: %d",
 				101, len(b)))
 	}
 
 	tx := &L1Tx{
 		UserOrigin: false,
 	}
-	var err error
 	v := b[0]
 	s := b[1:33]
 	r := b[33:65]
 	pkCompB := b[65:97]
 	pkCompL := SwapEndianness(pkCompB)
 	copy(tx.FromBJJ[:], pkCompL)
-	if err != nil {
-		return nil, Wrap(err)
-	}
 	tx.Amount = big.NewInt(0)
 	tx.DepositAmount = big.NewInt(0)
 	if int(v) > 0 {
@@ -242,7 +238,7 @@ func L1CoordinatorTxFromBytes(b []byte, chainID *big.Int, hermezAddress ethCommo
 		accCreationAuth := AccountCreationAuth{
 			BJJ: tx.FromBJJ,
 		}
-		h, err := accCreationAuth.HashToSign(uint16(chainID.Uint64()), hermezAddress)
+		h, err := accCreationAuth.HashToSign(uint16(chainID.Uint64()), tokamakAddress)
 		if err != nil {
 			return nil, Wrap(err)
 		}

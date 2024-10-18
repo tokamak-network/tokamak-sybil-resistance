@@ -34,6 +34,19 @@ func (idx VouchIdx) Bytes() ([2 * NLevelsAsBytes]byte, error) {
 	return b, nil
 }
 
+// GenerateVouchIdx
+func GenerateVouchIdx(fromIdx AccountIdx, toIdx AccountIdx) *big.Int {
+	// Create a new big.Int to hold the result
+	result := new(big.Int)
+
+	// Shift fromIdx left by 64 bits and add toIdx
+	result.SetUint64(uint64(fromIdx))
+	result.Lsh(result, 24)
+	result.Or(result, new(big.Int).SetUint64(uint64(toIdx)))
+
+	return result
+}
+
 func VouchIdxFromBytes(b []byte) (VouchIdx, error) {
 	if len(b) != IdxBytesLen {
 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
