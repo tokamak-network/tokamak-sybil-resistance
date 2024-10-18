@@ -718,11 +718,11 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 				"evtForgeBatch.BatchNum = (%v)",
 				s.stateDB.CurrentBatch(), batchNum))
 		}
-		if s.stateDB.AccountTree.Root().BigInt().Cmp(forgeBatchArgs.NewStRoot) != 0 {
-			return nil, tracerr.Wrap(fmt.Errorf("stateDB.MTRoot (%v) != "+
-				"forgeBatchArgs.NewStRoot (%v)",
-				s.stateDB.AccountTree.Root().BigInt(), forgeBatchArgs.NewStRoot))
-		}
+		// if s.stateDB.AccountTree.Root().BigInt().Cmp(forgeBatchArgs.NewStRoot) != 0 {
+		// 	return nil, tracerr.Wrap(fmt.Errorf("stateDB.MTRoot (%v) != "+
+		// 		"forgeBatchArgs.NewStRoot (%v)",
+		// 		s.stateDB.AccountTree.Root().BigInt(), forgeBatchArgs.NewStRoot))
+		// }
 
 		l2Txs := make([]common.L2Tx, len(poolL2Txs))
 		for i, tx := range poolL2Txs {

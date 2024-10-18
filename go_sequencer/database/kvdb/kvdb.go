@@ -3,13 +3,13 @@ package kvdb
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"sort"
 	"strings"
 	"sync"
 	"tokamak-sybil-resistance/common"
+	"tokamak-sybil-resistance/log"
 
 	"github.com/iden3/go-merkletree/db"
 	"github.com/iden3/go-merkletree/db/pebble"
@@ -44,12 +44,12 @@ type KVDB struct {
 	cfg Config
 	db  *pebble.Storage
 	// CurrentIdx holds the current Idx that the BatchBuilder is using
-	CurrentIdx      common.AccountIdx
-	CurrentBatch    common.BatchNum
-	mutexCheckpoint sync.Mutex
-	mutexDelOld     sync.Mutex
-	wg              sync.WaitGroup
-	last            *Last
+	CurrentAccountIdx common.AccountIdx
+	CurrentBatch      common.BatchNum
+	mutexCheckpoint   sync.Mutex
+	mutexDelOld       sync.Mutex
+	wg                sync.WaitGroup
+	last              *Last
 }
 
 // Last is a consistent view to the last batch of the stateDB that can
@@ -218,7 +218,7 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 			return common.Wrap(err)
 		}
 		k.db = sto
-		k.CurrentIdx = common.RollupConstReservedIDx // 255
+		k.CurrentAccountIdx = common.RollupConstReservedIDx // 255
 		k.CurrentBatch = 0
 		if k.last != nil {
 			if err := k.last.setNew(); err != nil {
@@ -253,7 +253,7 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 		return common.Wrap(err)
 	}
 	// idx is obtained from the statedb reset
-	k.CurrentIdx, err = k.GetCurrentIdx()
+	k.CurrentAccountIdx, err = k.GetCurrentAccountIdx()
 	if err != nil {
 		return common.Wrap(err)
 	}
@@ -263,7 +263,7 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 
 // GetCurrentIdx returns the stored Idx from the KVDB, which is the last Idx
 // used for an Account in the k.
-func (k *KVDB) GetCurrentIdx() (common.AccountIdx, error) {
+func (k *KVDB) GetCurrentAccountIdx() (common.AccountIdx, error) {
 	idxBytes, err := k.db.Get(keyCurrentIdx)
 	if common.Unwrap(err) == db.ErrNotFound {
 		return common.RollupConstReservedIDx, nil // 255, nil
@@ -284,6 +284,44 @@ func (k *KVDB) GetCurrentBatch() (common.BatchNum, error) {
 		return 0, common.Wrap(err)
 	}
 	return common.BatchNumFromBytes(cbBytes)
+}
+
+// setCurrentBatch stores the current BatchNum in the KVDB
+func (k *KVDB) setCurrentBatch() error {
+	tx, err := k.db.NewTx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	err = tx.Put(KeyCurrentBatch, k.CurrentBatch.Bytes())
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
+}
+
+// SetCurrentIdx stores Idx in the KVDB
+func (k *KVDB) SetCurrentAccountIdx(idx common.AccountIdx) error {
+	k.CurrentAccountIdx = idx
+
+	tx, err := k.db.NewTx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	idxBytes, err := idx.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	err = tx.Put(keyCurrentIdx, idxBytes[:])
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
 }
 
 // ListCheckpoints returns the list of batchNums of the checkpoints, sorted.
@@ -381,6 +419,71 @@ func PebbleMakeCheckpoint(source, dest string) error {
 	return nil
 }
 
+// MakeCheckpoint does a checkpoint at the given batchNum in the defined path.
+// Internally this advances & stores the current BatchNum, and then stores a
+// Checkpoint of the current state of the k.
+func (k *KVDB) MakeCheckpoint() error {
+	// advance currentBatch
+	k.CurrentBatch++
+
+	checkpointPath := path.Join(k.cfg.Path, fmt.Sprintf("%s%d", PathBatchNum, k.CurrentBatch))
+
+	if err := k.setCurrentBatch(); err != nil {
+		return common.Wrap(err)
+	}
+
+	// if checkpoint BatchNum already exist in disk, delete it
+	if _, err := os.Stat(checkpointPath); os.IsNotExist(err) {
+	} else if err != nil {
+		return common.Wrap(err)
+	} else {
+		if err := os.RemoveAll(checkpointPath); err != nil {
+			return common.Wrap(err)
+		}
+	}
+	// execute Checkpoint
+	if err := k.db.Pebble().Checkpoint(checkpointPath); err != nil {
+		return common.Wrap(err)
+	}
+	// copy 'CurrentBatch' to 'last'
+	if k.last != nil {
+		if err := k.last.set(k, k.CurrentBatch); err != nil {
+			return common.Wrap(err)
+		}
+	}
+
+	k.wg.Add(1)
+	go func() {
+		delErr := k.DeleteOldCheckpoints()
+		if delErr != nil {
+			log.Errorw("delete old checkpoints failed", "err", delErr)
+		}
+		k.wg.Done()
+	}()
+
+	return nil
+}
+
+// DeleteOldCheckpoints deletes old checkpoints when there are more than
+// `s.keep` checkpoints
+func (k *KVDB) DeleteOldCheckpoints() error {
+	k.mutexDelOld.Lock()
+	defer k.mutexDelOld.Unlock()
+
+	list, err := k.ListCheckpoints()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if k.cfg.Keep > 0 && len(list) > k.cfg.Keep {
+		for _, checkpoint := range list[:len(list)-k.cfg.Keep] {
+			if err := k.DeleteCheckpoint(common.BatchNum(checkpoint)); err != nil {
+				return common.Wrap(err)
+			}
+		}
+	}
+	return nil
+}
+
 // Close the DB
 func (k *KVDB) Close() {
 	if k.db != nil {
@@ -392,15 +495,4 @@ func (k *KVDB) Close() {
 	}
 	// wait for deletion of old checkpoints
 	k.wg.Wait()
-}
-
-// Service for Account and Link
-func (k *KVDB) NewTx() (db.Tx, error) {
-	tx, err := k.db.NewTx()
-	return tx, err
-}
-
-func (k *KVDB) Get(key []byte) ([]byte, error) {
-	v, err := k.db.Get(key)
-	return v, err
 }

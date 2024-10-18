@@ -226,6 +226,16 @@ func UpdateAccountInTreeDB(sto db.Storage, mt *merkletree.MerkleTree, idx common
 	return nil, nil
 }
 
+// CurrentIdx returns the current in-memory CurrentIdx of the StateDB.db
+func (s *StateDB) CurrentAccountIdx() common.AccountIdx {
+	return s.db.CurrentAccountIdx
+}
+
+// SetCurrentIdx stores Idx in the StateDB
+func (s *StateDB) SetCurrentAccountIdx(idx common.AccountIdx) error {
+	return s.db.SetCurrentAccountIdx(idx)
+}
+
 // GetMTRootAccount returns the root of the Account Merkle Tree
 func (s *StateDB) GetMTRootAccount() *big.Int {
 	return s.AccountTree.Root().BigInt()
