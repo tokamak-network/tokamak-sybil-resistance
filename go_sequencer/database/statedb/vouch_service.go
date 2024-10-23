@@ -141,6 +141,16 @@ func performTxVouch(sto db.Storage, idx common.VouchIdx,
 	return nil
 }
 
+// CurrentIdx returns the current in-memory CurrentIdx of the StateDB.db
+func (s *StateDB) CurrentVouchIdx() common.VouchIdx {
+	return s.db.CurrentVouchIdx
+}
+
+// SetCurrentIdx stores Idx in the StateDB
+func (s *StateDB) SetCurrentVouchIdx(idx common.VouchIdx) error {
+	return s.db.SetCurrentVouchIdx(idx)
+}
+
 // func BytesLink(l *models.Link) [5]byte {
 // 	var b [5]byte
 
