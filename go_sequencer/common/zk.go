@@ -13,6 +13,7 @@ import (
 type ZKMetadata struct {
 	// Circuit parameters
 	// absolute maximum of L1 or L2 transactions allowed
+	//TODO: Need to check if we'll have different levels for different merkle trees and based on the same we'll update this.
 	MaxLevels uint32
 	// merkle tree depth
 	NLevels uint32
@@ -29,9 +30,10 @@ type ZKMetadata struct {
 	L2TxsData             [][]byte
 	ChainID               uint16
 
-	NewLastIdxRaw   AccountIdx
-	NewStateRootRaw *merkletree.Hash
-	NewExitRootRaw  *merkletree.Hash
+	//Account
+	NewLastIdxRawAccount AccountIdx
+	NewStateRootRaw      *merkletree.Hash
+	NewExitRootRaw       *merkletree.Hash
 }
 
 // ZKInputs represents the inputs that will be used to generate the zkSNARK
@@ -47,9 +49,15 @@ type ZKInputs struct {
 	CurrentNumBatch *big.Int `json:"currentNumBatch"` // uint32
 	// inputs for final `hashGlobalInputs`
 	// OldLastIdx is the last index assigned to an account
-	OldLastIdx *big.Int `json:"oldLastIdx"` // uint64 (max nLevels bits)
+	OldLastIdxAccount *big.Int `json:"oldLastIdxAccount"` // uint64 (max nLevels bits)
 	// OldStateRoot is the current state merkle tree root
-	OldStateRoot *big.Int `json:"oldStateRoot"` // Hash
+	OldStateRootAccount *big.Int `json:"oldStateRoot"` // Hash
+
+	//Vouches
+	OldLastIdxVouch *big.Int `json:"oldLastIdxVouch"` // uint64 (max nLevels bits)
+	// OldStateRoot is the current state merkle tree root
+	OldStateRootVouch *big.Int `json:"oldStateRootVouch"` // Hash
+
 	// GlobalChainID is the blockchain ID (0 for Ethereum mainnet). This
 	// value can be get from the smart contract.
 	GlobalChainID *big.Int `json:"globalChainID"` // uint16
@@ -222,11 +230,11 @@ type ZKInputs struct {
 	// ISOutIdx current index account for each Tx
 	// Contains the index of the created account in case that the tx is of
 	// account creation type.
-	ISOutIdx []*big.Int `json:"imOutIdx"` // uint64 (max nLevels bits), len: [maxTx - 1]
+	ISOutIdxAccount []*big.Int `json:"imOutIdx"` // uint64 (max nLevels bits), len: [maxTx - 1]
 	// rollup-tx
 	// ISStateRoot root at the moment of the Tx (once processed), the state
 	// root value once the Tx is processed into the state tree
-	ISStateRoot []*big.Int `json:"imStateRoot"` // Hash, len: [maxTx - 1]
+	ISStateRootAccount []*big.Int `json:"imStateRoot"` // Hash, len: [maxTx - 1]
 	// ISExitTree root at the moment (once processed) of the Tx the value
 	// once the Tx is processed into the exit tree
 	ISExitRoot []*big.Int `json:"imExitRoot"` // Hash, len: [maxTx - 1]
@@ -302,130 +310,134 @@ type ZKInputs struct {
 // 	return json.Marshal(m)
 // }
 
-// // NewZKInputs returns a pointer to an initialized struct of ZKInputs
-// func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
-// 	currentNumBatch *big.Int) *ZKInputs {
-// 	zki := &ZKInputs{}
-// 	zki.Metadata.MaxFeeIdxs = maxFeeIdxs
-// 	zki.Metadata.MaxLevels = uint32(48) //nolint:gomnd
-// 	zki.Metadata.NLevels = nLevels
-// 	zki.Metadata.MaxL1Tx = maxL1Tx
-// 	zki.Metadata.MaxTx = maxTx
-// 	zki.Metadata.ChainID = chainID
+// NewZKInputs returns a pointer to an initialized struct of ZKInputs
+func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
+	currentNumBatch *big.Int) *ZKInputs {
+	zki := &ZKInputs{}
+	zki.Metadata.MaxFeeIdxs = maxFeeIdxs
+	zki.Metadata.MaxLevels = uint32(48) //nolint:gomnd
+	zki.Metadata.NLevels = nLevels
+	zki.Metadata.MaxL1Tx = maxL1Tx
+	zki.Metadata.MaxTx = maxTx
+	zki.Metadata.ChainID = chainID
 
-// 	// General
-// 	zki.CurrentNumBatch = currentNumBatch
-// 	zki.OldLastIdx = big.NewInt(0)
-// 	zki.OldStateRoot = big.NewInt(0)
-// 	zki.GlobalChainID = big.NewInt(int64(chainID))
-// 	zki.FeeIdxs = newSlice(maxFeeIdxs)
-// 	zki.FeePlanTokens = newSlice(maxFeeIdxs)
+	// General
+	zki.CurrentNumBatch = currentNumBatch
+	zki.OldLastIdxAccount = big.NewInt(0)
+	zki.OldStateRootAccount = big.NewInt(0)
 
-// 	// Txs
-// 	zki.TxCompressedData = newSlice(maxTx)
-// 	zki.TxCompressedDataV2 = newSlice(maxTx)
-// 	zki.MaxNumBatch = newSlice(maxTx)
-// 	zki.FromIdx = newSlice(maxTx)
-// 	zki.AuxFromIdx = newSlice(maxTx)
-// 	zki.ToIdx = newSlice(maxTx)
-// 	zki.AuxToIdx = newSlice(maxTx)
-// 	zki.ToBJJAy = newSlice(maxTx)
-// 	zki.ToEthAddr = newSlice(maxTx)
-// 	zki.AmountF = newSlice(maxTx)
-// 	zki.OnChain = newSlice(maxTx)
-// 	zki.NewAccount = newSlice(maxTx)
+	zki.OldLastIdxVouch = big.NewInt(0)
+	zki.OldStateRootVouch = big.NewInt(0)
 
-// 	// L1
-// 	zki.DepositAmountF = newSlice(maxTx)
-// 	zki.FromEthAddr = newSlice(maxTx)
-// 	zki.FromBJJCompressed = make([][256]*big.Int, maxTx)
-// 	for i := 0; i < len(zki.FromBJJCompressed); i++ {
-// 		// zki.FromBJJCompressed[i] = newSlice(256)
-// 		for j := 0; j < 256; j++ {
-// 			zki.FromBJJCompressed[i][j] = big.NewInt(0)
-// 		}
-// 	}
+	zki.GlobalChainID = big.NewInt(int64(chainID))
+	zki.FeeIdxs = newSlice(maxFeeIdxs)
+	zki.FeePlanTokens = newSlice(maxFeeIdxs)
 
-// 	// L2
-// 	zki.RqOffset = newSlice(maxTx)
-// 	zki.RqTxCompressedDataV2 = newSlice(maxTx)
-// 	zki.RqToEthAddr = newSlice(maxTx)
-// 	zki.RqToBJJAy = newSlice(maxTx)
-// 	zki.S = newSlice(maxTx)
-// 	zki.R8x = newSlice(maxTx)
-// 	zki.R8y = newSlice(maxTx)
+	// Txs
+	zki.TxCompressedData = newSlice(maxTx)
+	zki.TxCompressedDataV2 = newSlice(maxTx)
+	zki.MaxNumBatch = newSlice(maxTx)
+	zki.FromIdx = newSlice(maxTx)
+	zki.AuxFromIdx = newSlice(maxTx)
+	zki.ToIdx = newSlice(maxTx)
+	zki.AuxToIdx = newSlice(maxTx)
+	zki.ToBJJAy = newSlice(maxTx)
+	zki.ToEthAddr = newSlice(maxTx)
+	zki.AmountF = newSlice(maxTx)
+	zki.OnChain = newSlice(maxTx)
+	zki.NewAccount = newSlice(maxTx)
 
-// 	// State MerkleTree Leafs transitions
-// 	zki.TokenID1 = newSlice(maxTx)
-// 	zki.Nonce1 = newSlice(maxTx)
-// 	zki.Sign1 = newSlice(maxTx)
-// 	zki.Ay1 = newSlice(maxTx)
-// 	zki.Balance1 = newSlice(maxTx)
-// 	zki.EthAddr1 = newSlice(maxTx)
-// 	zki.Siblings1 = make([][]*big.Int, maxTx)
-// 	for i := 0; i < len(zki.Siblings1); i++ {
-// 		zki.Siblings1[i] = newSlice(nLevels + 1)
-// 	}
-// 	zki.IsOld0_1 = newSlice(maxTx)
-// 	zki.OldKey1 = newSlice(maxTx)
-// 	zki.OldValue1 = newSlice(maxTx)
+	// L1
+	zki.DepositAmountF = newSlice(maxTx)
+	zki.FromEthAddr = newSlice(maxTx)
+	zki.FromBJJCompressed = make([][256]*big.Int, maxTx)
+	for i := 0; i < len(zki.FromBJJCompressed); i++ {
+		// zki.FromBJJCompressed[i] = newSlice(256)
+		for j := 0; j < 256; j++ {
+			zki.FromBJJCompressed[i][j] = big.NewInt(0)
+		}
+	}
 
-// 	zki.TokenID2 = newSlice(maxTx)
-// 	zki.Nonce2 = newSlice(maxTx)
-// 	zki.Sign2 = newSlice(maxTx)
-// 	zki.Ay2 = newSlice(maxTx)
-// 	zki.Balance2 = newSlice(maxTx)
-// 	zki.EthAddr2 = newSlice(maxTx)
-// 	zki.Siblings2 = make([][]*big.Int, maxTx)
-// 	for i := 0; i < len(zki.Siblings2); i++ {
-// 		zki.Siblings2[i] = newSlice(nLevels + 1)
-// 	}
-// 	zki.NewExit = newSlice(maxTx)
-// 	zki.IsOld0_2 = newSlice(maxTx)
-// 	zki.OldKey2 = newSlice(maxTx)
-// 	zki.OldValue2 = newSlice(maxTx)
+	// L2
+	zki.RqOffset = newSlice(maxTx)
+	zki.RqTxCompressedDataV2 = newSlice(maxTx)
+	zki.RqToEthAddr = newSlice(maxTx)
+	zki.RqToBJJAy = newSlice(maxTx)
+	zki.S = newSlice(maxTx)
+	zki.R8x = newSlice(maxTx)
+	zki.R8y = newSlice(maxTx)
 
-// 	zki.TokenID3 = newSlice(maxFeeIdxs)
-// 	zki.Nonce3 = newSlice(maxFeeIdxs)
-// 	zki.Sign3 = newSlice(maxFeeIdxs)
-// 	zki.Ay3 = newSlice(maxFeeIdxs)
-// 	zki.Balance3 = newSlice(maxFeeIdxs)
-// 	zki.EthAddr3 = newSlice(maxFeeIdxs)
-// 	zki.Siblings3 = make([][]*big.Int, maxFeeIdxs)
-// 	for i := 0; i < len(zki.Siblings3); i++ {
-// 		zki.Siblings3[i] = newSlice(nLevels + 1)
-// 	}
+	// State MerkleTree Leafs transitions
+	zki.TokenID1 = newSlice(maxTx)
+	zki.Nonce1 = newSlice(maxTx)
+	zki.Sign1 = newSlice(maxTx)
+	zki.Ay1 = newSlice(maxTx)
+	zki.Balance1 = newSlice(maxTx)
+	zki.EthAddr1 = newSlice(maxTx)
+	zki.Siblings1 = make([][]*big.Int, maxTx)
+	for i := 0; i < len(zki.Siblings1); i++ {
+		zki.Siblings1[i] = newSlice(nLevels + 1)
+	}
+	zki.IsOld0_1 = newSlice(maxTx)
+	zki.OldKey1 = newSlice(maxTx)
+	zki.OldValue1 = newSlice(maxTx)
 
-// 	// Intermediate States
-// 	zki.ISOnChain = newSlice(maxTx - 1)
-// 	zki.ISOutIdx = newSlice(maxTx - 1)
-// 	zki.ISStateRoot = newSlice(maxTx - 1)
-// 	zki.ISExitRoot = newSlice(maxTx - 1)
-// 	zki.ISAccFeeOut = make([][]*big.Int, maxTx-1)
-// 	for i := 0; i < len(zki.ISAccFeeOut); i++ {
-// 		zki.ISAccFeeOut[i] = newSlice(maxFeeIdxs)
-// 	}
-// 	zki.ISStateRootFee = newSlice(maxFeeIdxs - 1)
-// 	zki.ISInitStateRootFee = big.NewInt(0)
-// 	zki.ISFinalAccFee = newSlice(maxFeeIdxs)
+	zki.TokenID2 = newSlice(maxTx)
+	zki.Nonce2 = newSlice(maxTx)
+	zki.Sign2 = newSlice(maxTx)
+	zki.Ay2 = newSlice(maxTx)
+	zki.Balance2 = newSlice(maxTx)
+	zki.EthAddr2 = newSlice(maxTx)
+	zki.Siblings2 = make([][]*big.Int, maxTx)
+	for i := 0; i < len(zki.Siblings2); i++ {
+		zki.Siblings2[i] = newSlice(nLevels + 1)
+	}
+	zki.NewExit = newSlice(maxTx)
+	zki.IsOld0_2 = newSlice(maxTx)
+	zki.OldKey2 = newSlice(maxTx)
+	zki.OldValue2 = newSlice(maxTx)
 
-// 	return zki
-// }
+	zki.TokenID3 = newSlice(maxFeeIdxs)
+	zki.Nonce3 = newSlice(maxFeeIdxs)
+	zki.Sign3 = newSlice(maxFeeIdxs)
+	zki.Ay3 = newSlice(maxFeeIdxs)
+	zki.Balance3 = newSlice(maxFeeIdxs)
+	zki.EthAddr3 = newSlice(maxFeeIdxs)
+	zki.Siblings3 = make([][]*big.Int, maxFeeIdxs)
+	for i := 0; i < len(zki.Siblings3); i++ {
+		zki.Siblings3[i] = newSlice(nLevels + 1)
+	}
 
-// // newSlice returns a []*big.Int slice of length n with values initialized at
-// // 0.
-// // Is used to initialize all *big.Ints of the ZKInputs data structure, so when
-// // the transactions are processed and the ZKInputs filled, there is no need to
-// // set all the elements, and if a transaction does not use a parameter, can be
-// // leaved as it is in the ZKInputs, as will be 0, so later when using the
-// // ZKInputs to generate the zkSnark proof there is no 'nil'/'null' values.
-// func newSlice(n uint32) []*big.Int {
-// 	s := make([]*big.Int, n)
-// 	for i := 0; i < len(s); i++ {
-// 		s[i] = big.NewInt(0)
-// 	}
-// 	return s
-// }
+	// Intermediate States
+	zki.ISOnChain = newSlice(maxTx - 1)
+	zki.ISOutIdxAccount = newSlice(maxTx - 1)
+	zki.ISStateRootAccount = newSlice(maxTx - 1)
+	zki.ISExitRoot = newSlice(maxTx - 1)
+	zki.ISAccFeeOut = make([][]*big.Int, maxTx-1)
+	for i := 0; i < len(zki.ISAccFeeOut); i++ {
+		zki.ISAccFeeOut[i] = newSlice(maxFeeIdxs)
+	}
+	zki.ISStateRootFee = newSlice(maxFeeIdxs - 1)
+	zki.ISInitStateRootFee = big.NewInt(0)
+	zki.ISFinalAccFee = newSlice(maxFeeIdxs)
+
+	return zki
+}
+
+// newSlice returns a []*big.Int slice of length n with values initialized at
+// 0.
+// Is used to initialize all *big.Ints of the ZKInputs data structure, so when
+// the transactions are processed and the ZKInputs filled, there is no need to
+// set all the elements, and if a transaction does not use a parameter, can be
+// leaved as it is in the ZKInputs, as will be 0, so later when using the
+// ZKInputs to generate the zkSnark proof there is no 'nil'/'null' values.
+func newSlice(n uint32) []*big.Int {
+	s := make([]*big.Int, n)
+	for i := 0; i < len(s); i++ {
+		s[i] = big.NewInt(0)
+	}
+	return s
+}
 
 // // HashGlobalData returns the HashGlobalData
 // func (z ZKInputs) HashGlobalData() (*big.Int, error) {

@@ -53,6 +53,11 @@ func BatchNumFromBytes(b []byte) (BatchNum, error) {
 	return BatchNum(batchNum), nil
 }
 
+// BigInt returns a *big.Int representing the BatchNum
+func (bn BatchNum) BigInt() *big.Int {
+	return big.NewInt(int64(bn))
+}
+
 // BatchData contains the information of a Batch
 type BatchData struct {
 	L1Batch bool

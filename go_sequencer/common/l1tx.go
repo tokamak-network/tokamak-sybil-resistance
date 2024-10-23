@@ -317,3 +317,87 @@ func L1CoordinatorTxFromBytes(b []byte, chainID *big.Int, tokamakAddress ethComm
 	}
 	return tx, nil
 }
+
+// BytesGeneric returns the generic representation of a L1Tx. This method is
+// used to compute the []byte representation of a L1UserTx, and also to compute
+// the L1TxData for the ZKInputs (at the HashGlobalInputs), using this method
+// for L1CoordinatorTxs & L1UserTxs (for the ZKInputs case).
+func (tx *L1Tx) BytesGeneric() ([]byte, error) {
+	var b [RollupConstL1UserTotalBytes]byte
+	copy(b[0:20], tx.FromEthAddr.Bytes())
+	if tx.FromBJJ != EmptyBJJComp {
+		pkCompL := tx.FromBJJ
+		pkCompB := SwapEndianness(pkCompL[:])
+		copy(b[20:52], pkCompB[:])
+	}
+	fromIdxBytes, err := tx.FromIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[52:58], fromIdxBytes[:])
+
+	depositAmountFloat40, err := NewFloat40(tx.DepositAmount)
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	depositAmountFloat40Bytes, err := depositAmountFloat40.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[58:63], depositAmountFloat40Bytes)
+
+	amountFloat40, err := NewFloat40(tx.Amount)
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	amountFloat40Bytes, err := amountFloat40.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[63:68], amountFloat40Bytes)
+
+	//TODO: Check this with the smart contract team, If we'll get TokenID in the transactions. And if we need to handle that.
+	//Else we can update this for better memory management.
+	// copy(b[68:72], tx.TokenID.Bytes())
+
+	toIdxBytes, err := tx.ToIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[72:78], toIdxBytes[:])
+	return b[:], nil
+}
+
+// TODO: Need to check if we'll need to seperate this for Account, Vouches based on how we'll handle this in transaction processor.
+// BytesDataAvailability encodes a L1Tx into []byte for the Data Availability
+// [ fromIdx | toIdx | amountFloat40 | Fee ]
+func (tx *L1Tx) BytesDataAvailability(nLevels uint32) ([]byte, error) {
+	idxLen := nLevels / 8 //nolint:gomnd
+
+	b := make([]byte, ((nLevels*2)+40+8)/8) //nolint:gomnd
+
+	fromIdxBytes, err := tx.FromIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[0:idxLen], fromIdxBytes[6-idxLen:])
+	toIdxBytes, err := tx.ToIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[idxLen:idxLen*2], toIdxBytes[6-idxLen:])
+
+	if tx.EffectiveAmount != nil {
+		amountFloat40, err := NewFloat40(tx.EffectiveAmount)
+		if err != nil {
+			return nil, Wrap(err)
+		}
+		amountFloat40Bytes, err := amountFloat40.Bytes()
+		if err != nil {
+			return nil, Wrap(err)
+		}
+		copy(b[idxLen*2:idxLen*2+Float40BytesLength], amountFloat40Bytes)
+	}
+	// fee = 0 (as is L1Tx)
+	return b[:], nil
+}
