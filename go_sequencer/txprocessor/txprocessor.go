@@ -166,6 +166,12 @@ func NewTxProcessor(state *statedb.StateDB, config Config) *TxProcessor {
 	}
 }
 
+// Resets the zkInputs
+func (txProcessor *TxProcessor) resetZKInputs() {
+	txProcessor.zki = nil
+	txProcessor.txIndex = 0 // initialize current transaction index in the ZKInputs generation
+}
+
 // ProcessTxs process the given L1Txs & L2Txs applying the needed updates to
 // the StateDB depending on the transaction Type.  If StateDB
 // type==TypeBatchBuilder, returns the common.ZKInputs to generate the
@@ -188,9 +194,9 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 
 	if txProcessor.zki != nil {
 		return nil, common.Wrap(
-			errors.New("Expected StateDB.zki==nil, something went wrong and it's not empty"))
+			errors.New("expected StateDB.zki==nil, something went wrong and it's not empty"))
 	}
-	// defer txProcessor.resetZKInputs()
+	defer txProcessor.resetZKInputs()
 
 	if len(coordIdxs) > int(txProcessor.config.MaxFeeTx) {
 		return nil, common.Wrap(
@@ -198,6 +204,7 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 				len(coordIdxs), txProcessor.config.MaxFeeTx))
 	}
 
+	//TODO: Need to check and confirm with team about the coordinatortxs and if we'll need them or not
 	nTx := len(l1usertxs) + len(l1coordinatortxs) + len(l2txs)
 
 	if nTx > int(txProcessor.config.MaxTx) {
@@ -217,18 +224,24 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 
 	exits := make([]processedExit, nTx)
 
-	// if txProcessor.state.Type() == statedb.TypeBatchBuilder {
-	// 	txProcessor.zki = common.NewZKInputs(txProcessor.config.ChainID, txProcessor.config.MaxTx, txProcessor.config.MaxL1Tx,
-	// 		txProcessor.config.MaxFeeTx, txProcessor.config.NLevels, (txProcessor.state.CurrentBatch() + 1).BigInt())
-	// 	txProcessor.zki.OldLastIdx = txProcessor.state.CurrentIdx().BigInt()
-	// 	txProcessor.zki.OldStateRoot = txProcessor.state.MT.Root().BigInt()
-	// 	txProcessor.zki.Metadata.NewLastIdxRaw = txProcessor.state.CurrentIdx()
-	// }
+	if txProcessor.state.Type() == statedb.TypeBatchBuilder {
+		txProcessor.zki = common.NewZKInputs(txProcessor.config.ChainID, txProcessor.config.MaxTx, txProcessor.config.MaxL1Tx,
+			txProcessor.config.MaxFeeTx, txProcessor.config.NLevels, (txProcessor.state.CurrentBatch() + 1).BigInt())
+		//For Accounts
+		txProcessor.zki.OldLastIdxAccount = txProcessor.state.CurrentAccountIdx().BigInt()
+		txProcessor.zki.OldStateRootAccount = txProcessor.state.GetMTRootAccount()
+		txProcessor.zki.Metadata.NewLastIdxRawAccount = txProcessor.state.CurrentAccountIdx()
+
+		//For Vouches
+		txProcessor.zki.OldLastIdxVouch = txProcessor.state.CurrentVouchIdx().BigInt()
+		txProcessor.zki.OldStateRootVouch = txProcessor.state.GetMTRootVouch()
+		//TODO: Add same for vouches and score
+	}
 
 	// TBD if ExitTree is only in memory or stored in disk, for the moment
 	// is only needed in memory
 	if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
-		tmpDir, err := ioutil.TempDir("", "hermez-statedb-exittree")
+		tmpDir, err := ioutil.TempDir("", "tokamak-statedb-exittree")
 		if err != nil {
 			return nil, common.Wrap(err)
 		}
@@ -264,27 +277,31 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 				l1usertxs[i].EffectiveFromIdx = l1usertxs[i].FromIdx
 			}
 		}
-		// if txProcessor.zki != nil {
-		// 	l1TxData, err := l1usertxs[i].BytesGeneric()
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
+		if txProcessor.zki != nil {
+			l1TxData, err := l1usertxs[i].BytesGeneric()
+			if err != nil {
+				return nil, common.Wrap(err)
+			}
+			// TODO: Need to check if we'll need this handled differently for accounts and vouches etc.
+			// Since we'll have different metadata props for different merkle trees,
+			// We'll need to check if, We'll need to handle the operations on metadata accordingly. Discuss this with team.
 
-		// 	l1TxDataAvailability, err :=
-		// 		l1usertxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsDataAvailability =
-		// 		append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
+			txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
 
-		// 	txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
-		// 	txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
-		// 	if exitIdx == nil {
-		// 		txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
-		// 	}
-		// }
+			l1TxDataAvailability, err :=
+				l1usertxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
+			if err != nil {
+				return nil, common.Wrap(err)
+			}
+			txProcessor.zki.Metadata.L1TxsDataAvailability =
+				append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
+
+			txProcessor.zki.ISOutIdxAccount[txProcessor.txIndex] = txProcessor.state.CurrentAccountIdx().BigInt()
+			txProcessor.zki.ISStateRootAccount[txProcessor.txIndex] = txProcessor.state.GetMTRootAccount()
+			if exitIdx == nil {
+				txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
+			}
+		}
 		if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
 			if exitIdx != nil && exitTree != nil && exitAccount != nil {
 				exits[txProcessor.txIndex] = processedExit{
@@ -298,6 +315,7 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 		}
 	}
 
+	//TODO: Check the need to coordinator transactions in our implementation and remove this based on the same.
 	// Process L1CoordinatorTxs
 	for i := 0; i < len(l1coordinatortxs); i++ {
 		exitIdx, _, _, createdAccount, err := txProcessor.ProcessL1Tx(exitTree, &l1coordinatortxs[i])
@@ -665,6 +683,9 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 // StateDB depending on the transaction Type. It returns the 3 parameters
 // related to the Exit (in case of): Idx, ExitAccount, boolean determining if
 // the Exit created a new Leaf in the ExitTree.
+
+//TODO: Need to update this to have vouches tree in the L2 transactions instead of accounts
+
 func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 	tx *common.PoolL2Tx) (*common.AccountIdx, *common.Account, bool, error) {
 	var err error
@@ -674,7 +695,7 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 			// this in TypeSynchronizer should never be reached
 			log.Error("WARNING: In StateDB with Synchronizer mode L2.ToIdx can't be 0")
 			return nil, nil, false,
-				common.Wrap(fmt.Errorf("In StateDB with Synchronizer mode L2.ToIdx can't be 0"))
+				common.Wrap(fmt.Errorf("in StateDB with Synchronizer mode L2.ToIdx can't be 0"))
 		}
 		// case when tx.Type == common.TxTypeTransferToEthAddr or
 		// common.TxTypeTransferToBJJ:
