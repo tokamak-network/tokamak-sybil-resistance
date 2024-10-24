@@ -26,7 +26,7 @@ type Account struct {
 }
 
 // AccountIdx represents the account Index in the MerkleTree
-type AccountIdx uint64
+type AccountIdx uint32
 
 const (
 	// NAccountLeafElems is the number of elements for a leaf in account tree
@@ -63,7 +63,7 @@ func (idx AccountIdx) Bytes() ([NLevelsAsBytes]byte, error) {
 		return [NLevelsAsBytes]byte{}, Wrap(ErrIdxOverflow)
 	}
 	var idxBytes [8]byte
-	binary.BigEndian.PutUint64(idxBytes[:], uint64(idx))
+	binary.BigEndian.PutUint32(idxBytes[:], uint32(idx))
 	var b [NLevelsAsBytes]byte
 	copy(b[:], idxBytes[8-NLevelsAsBytes:])
 	return b, nil
@@ -77,7 +77,7 @@ func AccountIdxFromBytes(b []byte) (AccountIdx, error) {
 	}
 	var idxBytes [8]byte
 	copy(idxBytes[8-NLevelsAsBytes:], b[:])
-	idx := binary.BigEndian.Uint64(idxBytes[:])
+	idx := binary.BigEndian.Uint32(idxBytes[:])
 	return AccountIdx(idx), nil
 }
 
@@ -94,7 +94,7 @@ func IdxFromBytes(b []byte) (AccountIdx, error) {
 	}
 	var idxBytes [8]byte
 	copy(idxBytes[2:], b[:])
-	idx := binary.BigEndian.Uint64(idxBytes[:])
+	idx := binary.BigEndian.Uint32(idxBytes[:])
 	return AccountIdx(idx), nil
 }
 
