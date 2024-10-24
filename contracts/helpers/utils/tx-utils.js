@@ -22,7 +22,6 @@ function encodeL1TxFull(tx) {
 
     let res = Scalar.e(0);
     res = Scalar.add(res, tx.toIdx || 0);
-    res = Scalar.add(res, Scalar.shl(tx.tokenID || 0, idxB));
     res = Scalar.add(res, Scalar.shl(tx.amountF || 0, idxB + tokenIDB));
     res = Scalar.add(res, Scalar.shl(tx.loadAmountF || 0, idxB + tokenIDB + f40B));
     res = Scalar.add(res, Scalar.shl(tx.fromIdx || 0, idxB + tokenIDB + 2*f40B));
@@ -47,7 +46,6 @@ function decodeL1TxFull(l1TxEncoded) {
     let l1tx = {};
 
     l1tx.toIdx = Scalar.toNumber(utils.extract(l1TxScalar, 0, idxB));
-    l1tx.tokenID = Scalar.toNumber(utils.extract(l1TxScalar, idxB, tokenIDB));
     l1tx.amountF = Scalar.toNumber(utils.extract(l1TxScalar, idxB + tokenIDB , f40B));
     l1tx.loadAmountF = Scalar.toNumber(utils.extract(l1TxScalar, idxB + tokenIDB + f40B, f40B));
     l1tx.fromIdx = Scalar.toNumber(utils.extract(l1TxScalar, idxB + tokenIDB + 2*f40B, idxB));
@@ -73,7 +71,6 @@ function encodeL1CoordinatorTx(tx) {
     const vB = 8;
 
     let res = Scalar.e(0);
-    res = Scalar.add(res, tx.tokenID || 0);
     res = Scalar.add(res, Scalar.shl(Scalar.fromString(tx.fromBjjCompressed  || "0",16), tokenIDB));
     res = Scalar.add(res, Scalar.shl(Scalar.fromString(tx.r || "0", 16), fromBjjCompressedB + tokenIDB));
     res = Scalar.add(res, Scalar.shl(Scalar.fromString(tx.s || "0", 16), fromBjjCompressedB + tokenIDB + rB));
@@ -96,7 +93,6 @@ function decodeL1CoordinatorTx(l1TxEncoded) {
     const vB = 8;
     let l1tx = {};
 
-    l1tx.tokenID = utils.extract(l1TxScalar, 0, tokenIDB);
     const fromBjjCompressed = (utils.extract(l1TxScalar, tokenIDB, fromBjjCompressedB)).toString(16);
     l1tx.fromBjjCompressed = `0x${utils.padZeros(fromBjjCompressed.toString("16"), fromBjjCompressedB / 4)}`;
     l1tx.r = (utils.extract(l1TxScalar, tokenIDB + fromBjjCompressedB , rB)).toString(16);
@@ -119,7 +115,6 @@ function buildTxCompressedData(tx) {
     res = Scalar.add(res, Scalar.shl(tx.chainID || 0, 32)); // chainId --> 16 bits
     res = Scalar.add(res, Scalar.shl(tx.fromIdx || 0, 48)); // fromIdx --> 48 bits
     res = Scalar.add(res, Scalar.shl(tx.toIdx || 0, 96)); // toIdx --> 48 bits
-    res = Scalar.add(res, Scalar.shl(tx.tokenID || 0, 144)); // tokenID --> 32 bits
     res = Scalar.add(res, Scalar.shl(tx.nonce || 0, 176)); // nonce --> 40 bits
     res = Scalar.add(res, Scalar.shl(tx.userFee || 0, 216)); // userFee --> 8 bits
     res = Scalar.add(res, Scalar.shl(tx.toBjjSign ? 1 : 0, 224)); // toBjjSign --> 1 bit
@@ -139,7 +134,6 @@ function decodeTxCompressedData(txDataEncoded) {
     txData.chainID = utils.extract(txDataBi, 32, 16);
     txData.fromIdx = utils.extract(txDataBi, 48, 48);
     txData.toIdx = utils.extract(txDataBi, 96, 48);
-    txData.tokenID = utils.extract(txDataBi, 144, 32);
     txData.nonce = utils.extract(txDataBi, 176, 40);
     txData.userFee = Scalar.toNumber(utils.extract(txDataBi, 216, 8));
     txData.toBjjSign = Scalar.isZero(utils.extract(txDataBi, 224, 1)) ? false : true;
@@ -158,7 +152,6 @@ function buildTxCompressedDataV2(tx) {
     res = Scalar.add(res, tx.fromIdx || 0); // fromIdx --> 48 bits
     res = Scalar.add(res, Scalar.shl(tx.toIdx || 0, 48)); // toIdx --> 48 bits
     res = Scalar.add(res, Scalar.shl(float40.fix2Float(tx.amount || 0), 96)); // amoun40 --> 40 bits
-    res = Scalar.add(res, Scalar.shl(tx.tokenID || 0, 136)); // tokenID --> 32 bits
     res = Scalar.add(res, Scalar.shl(tx.nonce || 0, 168)); // nonce --> 40 bits
     res = Scalar.add(res, Scalar.shl(tx.userFee || 0, 208)); // userFee --> 8 bits
     res = Scalar.add(res, Scalar.shl(tx.toBjjSign ? 1 : 0, 216)); // toBjjSign --> 1 bit
@@ -178,7 +171,6 @@ function decodeTxCompressedDataV2(txDataEncoded) {
     txData.fromIdx = utils.extract(txDataBi, 0, 48);
     txData.toIdx = utils.extract(txDataBi, 48, 48);
     txData.amount = float40.float2Fix(Scalar.toNumber(utils.extract(txDataBi, 96, 40)));
-    txData.tokenID = utils.extract(txDataBi, 136, 32);
     txData.nonce = utils.extract(txDataBi, 168, 40);
     txData.userFee = Scalar.toNumber(utils.extract(txDataBi, 208, 8));
     txData.toBjjSign = Scalar.isZero(utils.extract(txDataBi, 216, 1)) ? false : true;

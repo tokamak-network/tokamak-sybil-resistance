@@ -6,8 +6,8 @@ const Scalar = require("ffjavascript").Scalar;
 const utilsScalar = require("ffjavascript").utils;
 const circomlibjs = require("circomlibjs");
 
-const txUtils = require("./tx-utils");
-const utils = require("./utils");
+const txUtils = require("../../utils/tx-utils");
+const utils = require("../../utils/utils");
 
 module.exports = class SybilAccount {
     constructor(privateKey) {
