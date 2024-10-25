@@ -1,7 +1,7 @@
 version: '3'
 
 tasks:
-  hello:
+  test-historydb:
+    dotenv: [".env"]
     cmds:
-      - echo 'Hello World from Task!'
-    silent: true
+      - go test ./database/historydb -v
