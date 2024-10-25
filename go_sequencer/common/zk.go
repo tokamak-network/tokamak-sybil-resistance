@@ -10,7 +10,7 @@ import (
 
 // ZKMetadata contains ZKInputs metadata that is not used directly in the
 // ZKInputs result, but to calculate values for Hash check
-type ZKMetadata struct {
+type ZKMetadataCommon struct {
 	// Circuit parameters
 	// absolute maximum of L1 or L2 transactions allowed
 	//TODO: Need to check if we'll have different levels for different merkle trees and based on the same we'll update this.
@@ -30,16 +30,25 @@ type ZKMetadata struct {
 	L2TxsData             [][]byte
 	ChainID               uint16
 
-	//Account
-	NewLastIdxRawAccount AccountIdx
-	NewStateRootRaw      *merkletree.Hash
-	NewExitRootRaw       *merkletree.Hash
+	NewStateRootRaw *merkletree.Hash
+	NewExitRootRaw  *merkletree.Hash
+}
+
+type ZKMetadataAccount struct {
+	ZKMetadataCommon
+	NewLastIdxRaw AccountIdx
+}
+
+type ZKMetadataVouch struct {
+	ZKMetadataCommon
+	NewLastIdxRaw VouchIdx
 }
 
 // ZKInputs represents the inputs that will be used to generate the zkSNARK
 // proof
 type ZKInputs struct {
-	Metadata ZKMetadata `json:"-"`
+	MetadataAccount ZKMetadataAccount `json:"-"`
+	MetadataVouch   ZKMetadataVouch   `json:"-"`
 
 	//
 	// General
@@ -88,9 +97,9 @@ type ZKInputs struct {
 
 	// FromIdx
 	FromIdx []*big.Int `json:"fromIdx"` // uint64 (max nLevels bits), len: [maxTx]
-	// AuxFromIdx is the Idx of the new created account which is
+	// AuxFromAccountIdx is the AccountIdx of the new created account which is
 	// consequence of a L1CreateAccountTx
-	AuxFromIdx []*big.Int `json:"auxFromIdx"` // uint64 (max nLevels bits), len: [maxTx]
+	AuxFromAccountIdx []*big.Int `json:"auxFromIdx"` // uint64 (max nLevels bits), len: [maxTx]
 
 	// ToIdx
 	ToIdx []*big.Int `json:"toIdx"` // uint64 (max nLevels bits), len: [maxTx]
@@ -162,25 +171,25 @@ type ZKInputs struct {
 	// state 1, value of the sender (from) account leaf. The values at the
 	// moment pre-smtprocessor of the update (before updating the Sender
 	// leaf).
-	TokenID1  []*big.Int   `json:"tokenID1"`  // uint32, len: [maxTx]
-	Nonce1    []*big.Int   `json:"nonce1"`    // uint64 (max 40 bits), len: [maxTx]
-	Sign1     []*big.Int   `json:"sign1"`     // bool, len: [maxTx]
-	Ay1       []*big.Int   `json:"ay1"`       // big.Int, len: [maxTx]
-	Balance1  []*big.Int   `json:"balance1"`  // big.Int (max 192 bits), len: [maxTx]
-	EthAddr1  []*big.Int   `json:"ethAddr1"`  // ethCommon.Address, len: [maxTx]
-	Siblings1 [][]*big.Int `json:"siblings1"` // big.Int, len: [maxTx][nLevels + 1]
+	// TokenID1  []*big.Int   `json:"tokenID1"`  // uint32, len: [maxTx]
+	NonceA1    []*big.Int   `json:"nonce1"`    // uint64 (max 40 bits), len: [maxTx]
+	SignA1     []*big.Int   `json:"sign1"`     // bool, len: [maxTx]
+	AyA1       []*big.Int   `json:"ay1"`       // big.Int, len: [maxTx]
+	BalanceA1  []*big.Int   `json:"balance1"`  // big.Int (max 192 bits), len: [maxTx]
+	EthAddrA1  []*big.Int   `json:"ethAddr1"`  // ethCommon.Address, len: [maxTx]
+	SiblingsA1 [][]*big.Int `json:"siblings1"` // big.Int, len: [maxTx][nLevels + 1]
 	// Required for inserts and deletes, values of the CircomProcessorProof
 	// (smt insert proof)
-	IsOld0_1  []*big.Int `json:"isOld0_1"`  // bool, len: [maxTx]
-	OldKey1   []*big.Int `json:"oldKey1"`   // uint64 (max 40 bits), len: [maxTx]
-	OldValue1 []*big.Int `json:"oldValue1"` // Hash, len: [maxTx]
+	IsOld0_A1  []*big.Int `json:"isOld0_1"`  // bool, len: [maxTx]
+	OldKeyA1   []*big.Int `json:"oldKey1"`   // uint64 (max 40 bits), len: [maxTx]
+	OldValueA1 []*big.Int `json:"oldValue1"` // Hash, len: [maxTx]
 
 	// state 2, value of the receiver (to) account leaf. The values at the
 	// moment pre-smtprocessor of the update (before updating the Receiver
 	// leaf).
 	// If Tx is an Exit (tx.ToIdx=1), state 2 is used for the Exit Merkle
 	// Proof of the Exit MerkleTree.
-	TokenID2  []*big.Int   `json:"tokenID2"`  // uint32, len: [maxTx]
+	// TokenID2  []*big.Int   `json:"tokenID2"`  // uint32, len: [maxTx]
 	Nonce2    []*big.Int   `json:"nonce2"`    // uint64 (max 40 bits), len: [maxTx]
 	Sign2     []*big.Int   `json:"sign2"`     // bool, len: [maxTx]
 	Ay2       []*big.Int   `json:"ay2"`       // big.Int, len: [maxTx]
@@ -203,7 +212,7 @@ type ZKInputs struct {
 	// Fees fee tx. The values at the moment pre-smtprocessor of the update
 	// (before updating the Receiver leaf).
 	// The order of FeeIdxs & FeePlanTokens & State3 must match.
-	TokenID3  []*big.Int   `json:"tokenID3"`  // uint32, len: [maxFeeIdxs]
+	// TokenID3  []*big.Int   `json:"tokenID3"`  // uint32, len: [maxFeeIdxs]
 	Nonce3    []*big.Int   `json:"nonce3"`    // uint64 (max 40 bits), len: [maxFeeIdxs]
 	Sign3     []*big.Int   `json:"sign3"`     // bool, len: [maxFeeIdxs]
 	Ay3       []*big.Int   `json:"ay3"`       // big.Int, len: [maxFeeIdxs]
@@ -314,12 +323,12 @@ type ZKInputs struct {
 func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	currentNumBatch *big.Int) *ZKInputs {
 	zki := &ZKInputs{}
-	zki.Metadata.MaxFeeIdxs = maxFeeIdxs
-	zki.Metadata.MaxLevels = uint32(48) //nolint:gomnd
-	zki.Metadata.NLevels = nLevels
-	zki.Metadata.MaxL1Tx = maxL1Tx
-	zki.Metadata.MaxTx = maxTx
-	zki.Metadata.ChainID = chainID
+	zki.MetadataAccount.MaxFeeIdxs = maxFeeIdxs
+	zki.MetadataAccount.MaxLevels = uint32(48) //nolint:gomnd
+	zki.MetadataAccount.NLevels = nLevels
+	zki.MetadataAccount.MaxL1Tx = maxL1Tx
+	zki.MetadataAccount.MaxTx = maxTx
+	zki.MetadataAccount.ChainID = chainID
 
 	// General
 	zki.CurrentNumBatch = currentNumBatch
@@ -338,7 +347,7 @@ func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	zki.TxCompressedDataV2 = newSlice(maxTx)
 	zki.MaxNumBatch = newSlice(maxTx)
 	zki.FromIdx = newSlice(maxTx)
-	zki.AuxFromIdx = newSlice(maxTx)
+	zki.AuxFromAccountIdx = newSlice(maxTx)
 	zki.ToIdx = newSlice(maxTx)
 	zki.AuxToIdx = newSlice(maxTx)
 	zki.ToBJJAy = newSlice(maxTx)
@@ -368,21 +377,21 @@ func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	zki.R8y = newSlice(maxTx)
 
 	// State MerkleTree Leafs transitions
-	zki.TokenID1 = newSlice(maxTx)
-	zki.Nonce1 = newSlice(maxTx)
-	zki.Sign1 = newSlice(maxTx)
-	zki.Ay1 = newSlice(maxTx)
-	zki.Balance1 = newSlice(maxTx)
-	zki.EthAddr1 = newSlice(maxTx)
-	zki.Siblings1 = make([][]*big.Int, maxTx)
-	for i := 0; i < len(zki.Siblings1); i++ {
-		zki.Siblings1[i] = newSlice(nLevels + 1)
+	// zki.TokenID1 = newSlice(maxTx)
+	zki.NonceA1 = newSlice(maxTx)
+	zki.SignA1 = newSlice(maxTx)
+	zki.AyA1 = newSlice(maxTx)
+	zki.BalanceA1 = newSlice(maxTx)
+	zki.EthAddrA1 = newSlice(maxTx)
+	zki.SiblingsA1 = make([][]*big.Int, maxTx)
+	for i := 0; i < len(zki.SiblingsA1); i++ {
+		zki.SiblingsA1[i] = newSlice(nLevels + 1)
 	}
-	zki.IsOld0_1 = newSlice(maxTx)
-	zki.OldKey1 = newSlice(maxTx)
-	zki.OldValue1 = newSlice(maxTx)
+	zki.IsOld0_A1 = newSlice(maxTx)
+	zki.OldKeyA1 = newSlice(maxTx)
+	zki.OldValueA1 = newSlice(maxTx)
 
-	zki.TokenID2 = newSlice(maxTx)
+	// zki.TokenID2 = newSlice(maxTx)
 	zki.Nonce2 = newSlice(maxTx)
 	zki.Sign2 = newSlice(maxTx)
 	zki.Ay2 = newSlice(maxTx)
@@ -397,7 +406,7 @@ func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	zki.OldKey2 = newSlice(maxTx)
 	zki.OldValue2 = newSlice(maxTx)
 
-	zki.TokenID3 = newSlice(maxFeeIdxs)
+	// zki.TokenID3 = newSlice(maxFeeIdxs)
 	zki.Nonce3 = newSlice(maxFeeIdxs)
 	zki.Sign3 = newSlice(maxFeeIdxs)
 	zki.Ay3 = newSlice(maxFeeIdxs)
