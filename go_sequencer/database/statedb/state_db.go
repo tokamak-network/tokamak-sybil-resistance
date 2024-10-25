@@ -21,7 +21,7 @@ const (
 	TypeBatchBuilder = "batchbuilder"
 	// MaxNLevels is the maximum value of NLevels for the merkle tree,
 	// which comes from the fact that AccountIdx has 48 bits.
-	MaxNLevels = 48
+	MaxNLevels = 24
 )
 
 // Config of the StateDB
