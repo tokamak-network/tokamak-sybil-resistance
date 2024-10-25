@@ -7,3 +7,6 @@ brew install go-task # for running various tasks, especially tests
 ```
 
 ## Running Tests
+```bash
+task test-<name> # for example: task test-historydb
+```
