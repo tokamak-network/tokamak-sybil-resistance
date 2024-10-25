@@ -18,6 +18,9 @@ type Vouch struct {
 type VouchIdx uint64 //TODO: vouch Idx would be big.Int change this and other functionalities based on that
 
 const (
+
+	// VouchIdxBytesLen idx bytes
+	VouchIdxBytesLen = 6
 	// maxVouchIdxValue is the maximum value that VouchIdx can have
 	maxVouchIdxValue = 0xffffffffffff
 )
@@ -48,9 +51,9 @@ func GenerateVouchIdx(fromIdx AccountIdx, toIdx AccountIdx) *big.Int {
 }
 
 func VouchIdxFromBytes(b []byte) (VouchIdx, error) {
-	if len(b) != IdxBytesLen {
+	if len(b) != VouchIdxBytesLen {
 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
-			len(b), IdxBytesLen))
+			len(b), VouchIdxBytesLen))
 	}
 	var idxBytes [8]byte
 	copy(idxBytes[8-2*NLevelsAsBytes:], b[:])

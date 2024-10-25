@@ -19,7 +19,6 @@ import (
 	ethKeystore "github.com/ethereum/go-ethereum/accounts/keystore"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/mitchellh/copystructure"
 )
@@ -392,7 +391,7 @@ func (c *Client) EthKeyStore() *ethKeystore.KeyStore {
 // blockNum.
 func (c *Client) EthCall(ctx context.Context, tx *types.Transaction,
 	blockNum *big.Int) ([]byte, error) {
-	return nil, tracerr.Wrap(common.ErrTODO)
+	return nil, common.Wrap(common.ErrTODO)
 }
 
 // EthLastBlock returns the last blockNum
@@ -443,7 +442,7 @@ func (c *Client) EthERC20Consts(tokenAddr ethCommon.Address) (*eth.ERC20Consts, 
 	if constants, ok := e.Tokens[tokenAddr]; ok {
 		return &constants, nil
 	}
-	return nil, tracerr.Wrap(fmt.Errorf("tokenAddr not found"))
+	return nil, common.Wrap(fmt.Errorf("tokenAddr not found"))
 }
 
 // func newHeader(number *big.Int) *types.Header {
@@ -483,7 +482,7 @@ func (c *Client) EthBlockByNumber(ctx context.Context, blockNum int64) (*common.
 // EthAddress returns the ethereum address of the account loaded into the Client
 func (c *Client) EthAddress() (*ethCommon.Address, error) {
 	if c.addr == nil {
-		return nil, tracerr.Wrap(eth.ErrAccountNil)
+		return nil, common.Wrap(eth.ErrAccountNil)
 	}
 	return c.addr, nil
 }
@@ -526,7 +525,7 @@ func (c *Client) RollupL1UserTxERC20Permit(fromBJJ babyjub.PublicKeyComp, fromId
 	depositAmount *big.Int, amount *big.Int, tokenID uint32, toIdx int64,
 	deadline *big.Int) (tx *types.Transaction, err error) {
 	log.Error("TODO")
-	return nil, tracerr.Wrap(errTODO)
+	return nil, common.Wrap(errTODO)
 }
 
 // RollupL1UserTxERC20ETH sends an L1UserTx to the Rollup.
@@ -535,7 +534,6 @@ func (c *Client) RollupL1UserTxERC20ETH(
 	fromIdx int64,
 	depositAmount *big.Int,
 	amount *big.Int,
-	tokenID uint32,
 	toIdx int64,
 ) (tx *types.Transaction, err error) {
 	c.rw.Lock()
@@ -545,11 +543,11 @@ func (c *Client) RollupL1UserTxERC20ETH(
 
 	_, err = common.NewFloat40(amount)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	_, err = common.NewFloat40(depositAmount)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	nextBlock := c.nextBlock()
@@ -576,7 +574,7 @@ func (c *Client) RollupL1UserTxERC20ETH(
 		UserOrigin:      true,
 	})
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	queue.L1TxQueue = append(queue.L1TxQueue, *l1Tx)
@@ -597,7 +595,7 @@ func (c *Client) RollupL1UserTxERC20ETH(
 // RollupRegisterTokensCount is the interface to call the smart contract function
 func (c *Client) RollupRegisterTokensCount() (*big.Int, error) {
 	log.Error("TODO")
-	return nil, tracerr.Wrap(errTODO)
+	return nil, common.Wrap(errTODO)
 }
 
 // RollupLastForgedBatch is the interface to call the smart contract function
@@ -615,7 +613,7 @@ func (c *Client) RollupWithdrawCircuit(proofA, proofC [2]*big.Int, proofB [2][2]
 	tokenID uint32, numExitRoot, idx int64, amount *big.Int,
 	instantWithdraw bool) (*types.Transaction, error) {
 	log.Error("TODO")
-	return nil, tracerr.Wrap(errTODO)
+	return nil, common.Wrap(errTODO)
 }
 
 // RollupWithdrawMerkleProof is the interface to call the smart contract function
@@ -631,16 +629,16 @@ func (c *Client) RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp,
 	r := nextBlock.Rollup
 
 	if int(numExitRoot) >= len(r.State.ExitRoots) {
-		return nil, tracerr.Wrap(fmt.Errorf("numExitRoot >= len(r.State.ExitRoots)"))
+		return nil, common.Wrap(fmt.Errorf("numExitRoot >= len(r.State.ExitRoots)"))
 	}
 	if _, ok := r.State.ExitNullifierMap[numExitRoot][idx]; ok {
-		return nil, tracerr.Wrap(fmt.Errorf("exit already withdrawn"))
+		return nil, common.Wrap(fmt.Errorf("exit already withdrawn"))
 	}
 	r.State.ExitNullifierMap[numExitRoot][idx] = true
 
 	babyPubKeyDecomp, err := babyPubKey.Decompress()
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	type data struct {
@@ -696,7 +694,7 @@ func (c *Client) RollupForgeBatch(args *eth.RollupForgeBatchArgs,
 	cpy := c.nextBlock().copy()
 	defer func() { c.revertIfErr(err, cpy) }()
 	if c.addr == nil {
-		return nil, tracerr.Wrap(eth.ErrAccountNil)
+		return nil, common.Wrap(eth.ErrAccountNil)
 	}
 
 	return c.addBatch(args)
@@ -717,7 +715,7 @@ func (c *Client) addBatch(args *eth.RollupForgeBatchArgs) (*types.Transaction, e
 	r := nextBlock.Rollup
 	r.State.StateRoot = args.NewStRoot
 	if args.NewLastIdx < r.State.CurrentIdx {
-		return nil, tracerr.Wrap(fmt.Errorf("args.NewLastIdx < r.State.CurrentIdx"))
+		return nil, common.Wrap(fmt.Errorf("args.NewLastIdx < r.State.CurrentIdx"))
 	}
 	r.State.CurrentIdx = args.NewLastIdx
 	r.State.ExitNullifierMap[int64(len(r.State.ExitRoots))] = make(map[int64]bool)
@@ -746,7 +744,7 @@ func (c *Client) RollupGetCurrentTokens() (*big.Int, error) {
 	defer c.rw.RUnlock()
 
 	log.Error("TODO")
-	return nil, tracerr.Wrap(errTODO)
+	return nil, common.Wrap(errTODO)
 }
 
 // RollupUpdateForgeL1L2BatchTimeout is the interface to call the smart contract function
@@ -757,7 +755,7 @@ func (c *Client) RollupUpdateForgeL1L2BatchTimeout(newForgeL1Timeout int64) (tx 
 	cpy := c.nextBlock().copy()
 	defer func() { c.revertIfErr(err, cpy) }()
 	if c.addr == nil {
-		return nil, tracerr.Wrap(eth.ErrAccountNil)
+		return nil, common.Wrap(eth.ErrAccountNil)
 	}
 
 	nextBlock := c.nextBlock()
@@ -777,11 +775,11 @@ func (c *Client) RollupUpdateFeeAddToken(newFeeAddToken *big.Int) (tx *types.Tra
 	cpy := c.nextBlock().copy()
 	defer func() { c.revertIfErr(err, cpy) }()
 	if c.addr == nil {
-		return nil, tracerr.Wrap(eth.ErrAccountNil)
+		return nil, common.Wrap(eth.ErrAccountNil)
 	}
 
 	log.Error("TODO")
-	return nil, tracerr.Wrap(errTODO)
+	return nil, common.Wrap(errTODO)
 }
 
 // RollupConstants returns the Constants of the Rollup Smart Contract
@@ -800,10 +798,10 @@ func (c *Client) RollupEventsByBlock(blockNum int64,
 
 	block, ok := c.blocks[blockNum]
 	if !ok {
-		return nil, tracerr.Wrap(fmt.Errorf("Block %v doesn't exist", blockNum))
+		return nil, common.Wrap(fmt.Errorf("Block %v doesn't exist", blockNum))
 	}
 	if blockHash != nil && *blockHash != block.Eth.Hash {
-		return nil, tracerr.Wrap(fmt.Errorf("Hash mismatch, requested %v got %v",
+		return nil, common.Wrap(fmt.Errorf("Hash mismatch, requested %v got %v",
 			blockHash, block.Eth.Hash))
 	}
 	return &block.Rollup.Events, nil
@@ -826,7 +824,7 @@ func (c *Client) RollupForgeBatchArgs(ethTxHash ethCommon.Hash,
 
 	batch, ok := c.forgeBatchArgs[ethTxHash]
 	if !ok {
-		return nil, nil, tracerr.Wrap(fmt.Errorf("transaction not found"))
+		return nil, nil, common.Wrap(fmt.Errorf("transaction not found"))
 	}
 	return &batch.ForgeBatchArgs, &batch.Sender, nil
 }
@@ -839,7 +837,12 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 	for _, block := range blocks {
 		for _, tx := range block.Rollup.L1UserTxs {
 			c.CtlSetAddr(tx.FromEthAddr)
+			if _, err := c.RollupL1UserTxERC20ETH(tx.FromBJJ, int64(tx.FromIdx),
+				tx.DepositAmount, tx.Amount, int64(tx.ToIdx)); err != nil {
+				return common.Wrap(err)
+			}
 		}
+		c.CtlSetAddr(ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"))
 		for _, batch := range block.Rollup.Batches {
 			auths := make([][]byte, len(batch.L1CoordinatorTxs))
 			for i := range auths {
@@ -860,7 +863,7 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 				ProofB:      [2][2]*big.Int{}, // Intentionally empty
 				ProofC:      [2]*big.Int{},    // Intentionally empty
 			}, nil); err != nil {
-				return tracerr.Wrap(err)
+				return common.Wrap(err)
 			}
 		}
 		// Mine block and sync

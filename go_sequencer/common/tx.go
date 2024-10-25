@@ -5,7 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
 type TxID [TxIDLen]byte
@@ -95,6 +99,42 @@ const (
 	// TxTypeDeleteVouch
 	TxTypeDeleteVouch TxType = "DeleteVouch"
 )
+
+// Tx is a struct used by the TxSelector & BatchBuilder as a generic type generated from L1Tx &
+// PoolL2Tx
+type Tx struct {
+	// Generic
+	IsL1        bool       `meddler:"is_l1"`
+	TxID        TxID       `meddler:"id"`
+	Type        TxType     `meddler:"type"`
+	Position    int        `meddler:"position"`
+	FromIdx     AccountIdx `meddler:"from_idx"`
+	ToIdx       AccountIdx `meddler:"to_idx"`
+	Amount      *big.Int   `meddler:"amount,bigint"`
+	AmountFloat float64    `meddler:"amount_f"`
+	// TokenID     TokenID    `meddler:"token_id"`
+	// USD         *float64   `meddler:"amount_usd"`
+	// BatchNum in which this tx was forged. If the tx is L2, this must be != 0
+	BatchNum *BatchNum `meddler:"batch_num"`
+	// Ethereum Block Number in which this L1Tx was added to the queue
+	EthBlockNum int64 `meddler:"eth_block_num"`
+	// L1
+	// ToForgeL1TxsNum in which the tx was forged / will be forged
+	ToForgeL1TxsNum *int64 `meddler:"to_forge_l1_txs_num"`
+	// UserOrigin is set to true if the tx was originated by a user, false if it was aoriginated
+	// by a coordinator. Note that this differ from the spec for implementation simplification
+	// purpposes
+	UserOrigin         *bool                 `meddler:"user_origin"`
+	FromEthAddr        ethCommon.Address     `meddler:"from_eth_addr"`
+	FromBJJ            babyjub.PublicKeyComp `meddler:"from_bjj"`
+	DepositAmount      *big.Int              `meddler:"deposit_amount,bigintnull"`
+	DepositAmountFloat *float64              `meddler:"deposit_amount_f"`
+	DepositAmountUSD   *float64              `meddler:"deposit_amount_usd"`
+	// L2
+	Fee    *FeeSelector `meddler:"fee"`
+	FeeUSD *float64     `meddler:"fee_usd"`
+	Nonce  *Nonce       `meddler:"nonce"`
+}
 
 const (
 	// TxIDPrefixL1UserTx is the prefix that determines that the TxID is for

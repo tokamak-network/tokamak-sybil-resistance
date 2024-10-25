@@ -35,7 +35,7 @@ type Config struct {
 	// batchNum for thread-safe reads.
 	NoLast bool
 	// Type of StateDB (
-	Type string
+	Type TypeStateDB
 	// NLevels is the number of merkle tree levels in case the Type uses a
 	// merkle tree.  If the Type doesn't use a merkle tree, NLevels should
 	// be 0.
@@ -65,6 +65,9 @@ var (
 	// PrefixKeyMTSco is the key prefix for score merkle tree in the db
 	PrefixKeyMTSco = []byte("ms:")
 )
+
+// TypeStateDB determines the type of StateDB
+type TypeStateDB string
 
 // StateDB represents the state database with an integrated Merkle tree.
 type StateDB struct {
@@ -103,15 +106,21 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 		return nil, common.Wrap(err)
 	}
 
-	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTAcc), 14)
-	mtVouch, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTVoc), 14)
-	mtScore, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTSco), 14)
+	mtAccount, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTAcc), 24)
+	mtVouch, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTVoc), 24)
+	mtScore, _ := merkletree.NewMerkleTree(kv.StorageWithPrefix(PrefixKeyMTSco), 24)
 	return &StateDB{
+		cfg:         cfg,
 		db:          kv,
 		AccountTree: mtAccount,
 		VouchTree:   mtVouch,
 		ScoreTree:   mtScore,
 	}, nil
+}
+
+// Type returns the StateDB configured Type
+func (s *StateDB) Type() TypeStateDB {
+	return s.cfg.Type
 }
 
 // Close closes the StateDB.
@@ -169,6 +178,14 @@ func (s *StateDB) Reset(batchNum common.BatchNum) error {
 		s.ScoreTree = scoreTree
 	}
 	return nil
+}
+
+// MakeCheckpoint does a checkpoint at the given batchNum in the defined path.
+// Internally this advances & stores the current BatchNum, and then stores a
+// Checkpoint of the current state of the StateDB.
+func (s *StateDB) MakeCheckpoint() error {
+	log.Debugw("Making StateDB checkpoint", "batch", s.CurrentBatch()+1, "type", s.cfg.Type)
+	return s.db.MakeCheckpoint()
 }
 
 // CurrentBatch returns the current in-memory CurrentBatch of the StateDB.db
