@@ -20,3 +20,6 @@ public.json
 
 #stateDB
 stateDB
+
+#.env
+.env
