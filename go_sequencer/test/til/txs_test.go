@@ -109,7 +109,7 @@ func TestGenerateBlocks(t *testing.T) {
 	tc.checkL2TxParams(t, blocks[0].Rollup.Batches[2].L2Txs[2], common.TxTypeCreateVouch, "A",
 		"C", nil, common.BatchNum(3))
 	// #8: CreateVouch A-B
-	tc.checkL2TxParams(t, blocks[0].Rollup.Batches[2].L2Txs[3], common.TxTypeCreateVouch, "A",
+	tc.checkL2TxParams(t, blocks[0].Rollup.Batches[2].L2Txs[3], common.TxTypeDeleteVouch, "A",
 		"B", nil, common.BatchNum(3))
 	// #9: CreateVouch C-D
 	tc.checkL2TxParams(t, blocks[1].Rollup.Batches[0].L2Txs[0], common.TxTypeCreateVouch, "C",

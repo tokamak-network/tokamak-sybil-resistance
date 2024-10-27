@@ -364,10 +364,10 @@ func TestSyncGeneral(t *testing.T) {
 	set1 := `
 		Type: Blockchain
 
-		CreateAccountDeposit C: 2000 // Idx=256+2=258
-		CreateAccountDeposit A: 2000 // Idx=256+3=259
-		CreateAccountDeposit D: 500  // Idx=256+4=260
-		CreateAccountDeposit B: 500  // Idx=256+5=261
+		CreateAccountDeposit C: 2000 // Idx=256+0=256
+		CreateAccountDeposit A: 2000 // Idx=256+1=257
+		CreateAccountDeposit D: 500  // Idx=256+2=258
+		CreateAccountDeposit B: 500  // Idx=256+3=259
 
 		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{4}
 		> batchL1 // forge defined L1UserTxs{4}, freeze L1UserTxs{nil}
@@ -380,8 +380,8 @@ func TestSyncGeneral(t *testing.T) {
 		Exit C: 50
 		Exit D: 30
 
-		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{3}
-		> batchL1 // forge L1UserTxs{3}, freeze defined L1UserTxs{nil}
+		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{2}
+		> batchL1 // forge L1UserTxs{2}, freeze defined L1UserTxs{nil}
 		> block // blockNum=3
 	`
 	tc := til.NewContext(chainID, common.RollupConstMaxL1UserTx)

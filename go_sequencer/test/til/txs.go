@@ -777,7 +777,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 							BJJ:      user.BJJ.Public().Compress(),
 							EthAddr:  user.Addr,
 							Nonce:    0,
-							Balance:  big.NewInt(100),
+							Balance:  big.NewInt(0),
 						})
 					if !tx.UserOrigin {
 						tx.EffectiveFromIdx = common.AccountIdx(tc.extra.idx)
