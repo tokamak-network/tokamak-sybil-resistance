@@ -1329,9 +1329,13 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 			tx.FromEthAddr.Hex(), accSender.EthAddr.Hex())
 		tx.EffectiveAmount = big.NewInt(0)
 <<<<<<< HEAD
+<<<<<<< HEAD
 		return
 =======
 >>>>>>> 28c52d3 (add calcEffectiveAmount into txProcessor)
+=======
+		return
+>>>>>>> 17c8896 (add return after check tx.FromAddr and sender's ethAddr)
 	}
 
 	if tx.ToIdx == common.AccountIdx(1) || tx.ToIdx == common.AccountIdx(0) {
