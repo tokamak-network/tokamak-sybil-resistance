@@ -1,0 +1,7 @@
+version: '3'
+
+tasks:
+  test-historydb:
+    dotenv: [".env"]
+    cmds:
+      - go test ./database/historydb -v
