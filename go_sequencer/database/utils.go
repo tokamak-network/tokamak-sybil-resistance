@@ -15,6 +15,7 @@ import (
 
 	"github.com/gobuffalo/packr/v2"
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
 	"github.com/russross/meddler"
@@ -98,6 +99,10 @@ func InitSQLDB(port int, host, user, password, name string) (*sqlx.DB, error) {
 
 // InitTestSQLDB opens test PostgreSQL database
 func InitTestSQLDB() (*sqlx.DB, error) {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		log.Info("Error loading .env file")
+	}
 	host := os.Getenv("PGHOST")
 	if host == "" {
 		host = "localhost"
