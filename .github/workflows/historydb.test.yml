@@ -6,6 +6,7 @@ on:
       - "main"
     paths:
       - "go_sequencer/database/historydb/**"
+      - "go_sequencer/database/utils.go"
   workflow_dispatch:
 
 jobs:
