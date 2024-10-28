@@ -145,11 +145,11 @@ type ProcessTxOutput struct {
 func newErrorNotEnoughBalance(tx common.Tx) error {
 	var msg error
 	if tx.IsL1 {
-		msg = fmt.Errorf("Invalid transaction, not enough balance on sender account. "+
+		msg = fmt.Errorf("invalid transaction, not enough balance on sender account. "+
 			"TxID: %s, TxType: %s, FromIdx: %d, ToIdx: %d, Amount: %d",
 			tx.TxID, tx.Type, tx.FromIdx, tx.ToIdx, tx.Amount)
 	} else {
-		msg = fmt.Errorf("Invalid transaction, not enough balance on sender account. "+
+		msg = fmt.Errorf("invalid transaction, not enough balance on sender account. "+
 			"TxID: %s, TxType: %s, FromIdx: %d, ToIdx: %d, Amount: %d, Fee: %d",
 			tx.TxID, tx.Type, tx.FromIdx, tx.ToIdx, tx.Amount, tx.Fee)
 	}
@@ -298,6 +298,7 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 		}
 	}
 
+<<<<<<< HEAD
 	// Process L1CoordinatorTxs
 	for i := 0; i < len(l1coordinatortxs); i++ {
 		exitIdx, _, _, createdAccount, err := txProcessor.ProcessL1Tx(exitTree, &l1coordinatortxs[i])
@@ -335,6 +336,47 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 		// 	txProcessor.txIndex++
 		// }
 	}
+=======
+<<<<<<< HEAD
+=======
+	// // Process L1CoordinatorTxs
+	// for i := 0; i < len(l1coordinatortxs); i++ {
+	// 	exitIdx, _, _, createdAccount, err := txProcessor.ProcessL1Tx(exitTree, &l1coordinatortxs[i])
+	// 	if err != nil {
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	if exitIdx != nil {
+	// 		log.Error("Unexpected Exit in L1CoordinatorTx")
+	// 	}
+	// 	if txProcessor.state.Type() == statedb.TypeSynchronizer {
+	// 		if createdAccount != nil {
+	// 			createdAccounts = append(createdAccounts, *createdAccount)
+	// 			l1coordinatortxs[i].EffectiveFromIdx = createdAccount.Idx
+	// 		} else {
+	// 			l1coordinatortxs[i].EffectiveFromIdx = l1coordinatortxs[i].FromIdx
+	// 		}
+	// 	}
+	// if txProcessor.zki != nil {
+	// l1TxData, err := l1coordinatortxs[i].BytesGeneric()
+	// 	if err != nil {
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
+	// 	l1TxDataAvailability, err :=
+	// 		l1coordinatortxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
+	// 	if err != nil {
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	txProcessor.zki.Metadata.L1TxsDataAvailability =
+	// 		append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
+
+	// 	txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
+	// 	txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
+	// 	txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
+	// 	txProcessor.txIndex++
+	// }
+	// }
+>>>>>>> 372b5a0 (add calcEffectiveAmount into txProcessor)
 
 	// // remove repeated CoordIdxs that are for the same TokenID (use the
 	// // first occurrence)
@@ -384,6 +426,10 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 	// 	copy(txProcessor.zki.FeePlanTokens, feePlanTokens)
 	// }
 
+<<<<<<< HEAD
+=======
+>>>>>>> 28c52d3 (add calcEffectiveAmount into txProcessor)
+>>>>>>> 372b5a0 (add calcEffectiveAmount into txProcessor)
 	// Process L2Txs
 	for i := 0; i < len(l2txs); i++ {
 		exitIdx, exitAccount, newExit, err := txProcessor.ProcessL2Tx(exitTree, &l2txs[i])
@@ -1242,3 +1288,59 @@ func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common
 
 	return exitAccount, false, nil
 }
+<<<<<<< HEAD
+=======
+
+// computeEffectiveAmounts checks that the L1Tx data is correct
+func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
+	tx.EffectiveAmount = tx.Amount
+	tx.EffectiveDepositAmount = tx.DepositAmount
+
+	if tx.Type == common.TxTypeCreateAccountDeposit {
+		return
+	}
+
+	accSender, err := txProcessor.state.GetAccount(tx.FromIdx)
+	if err != nil {
+		log.Debugf("EffectiveAmount & EffectiveDepositAmount = 0: can not get account for tx.FromIdx: %d",
+			tx.FromIdx)
+		tx.EffectiveDepositAmount = big.NewInt(0)
+		tx.EffectiveAmount = big.NewInt(0)
+		return
+	}
+
+	// check that Sender has enough balance
+	bal := accSender.Balance
+	if tx.DepositAmount != nil {
+		bal = new(big.Int).Add(bal, tx.EffectiveDepositAmount)
+	}
+	cmp := bal.Cmp(tx.Amount)
+	if cmp == -1 {
+		log.Debugf("EffectiveAmount = 0: Not enough funds (%s<%s)", bal.String(), tx.Amount.String())
+		tx.EffectiveAmount = big.NewInt(0)
+		return
+	}
+
+	// check that the tx.FromEthAddr is the same than the EthAddress of the
+	// Sender
+	if !bytes.Equal(tx.FromEthAddr.Bytes(), accSender.EthAddr.Bytes()) {
+		log.Debugf("EffectiveAmount = 0: tx.FromEthAddr (%s) must be the same EthAddr of "+
+			"the sender account by the Idx (%s)",
+			tx.FromEthAddr.Hex(), accSender.EthAddr.Hex())
+		tx.EffectiveAmount = big.NewInt(0)
+<<<<<<< HEAD
+		return
+=======
+>>>>>>> 28c52d3 (add calcEffectiveAmount into txProcessor)
+	}
+
+	if tx.ToIdx == common.AccountIdx(1) || tx.ToIdx == common.AccountIdx(0) {
+		// if transfer is Exit type, there are no more checks
+		return
+	}
+<<<<<<< HEAD
+=======
+
+>>>>>>> 28c52d3 (add calcEffectiveAmount into txProcessor)
+}
+>>>>>>> 372b5a0 (add calcEffectiveAmount into txProcessor)
