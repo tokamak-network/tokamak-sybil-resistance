@@ -82,6 +82,7 @@ lines does:
 package txprocessor
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -145,11 +146,11 @@ type ProcessTxOutput struct {
 func newErrorNotEnoughBalance(tx common.Tx) error {
 	var msg error
 	if tx.IsL1 {
-		msg = fmt.Errorf("Invalid transaction, not enough balance on sender account. "+
+		msg = fmt.Errorf("invalid transaction, not enough balance on sender account. "+
 			"TxID: %s, TxType: %s, FromIdx: %d, ToIdx: %d, Amount: %d",
 			tx.TxID, tx.Type, tx.FromIdx, tx.ToIdx, tx.Amount)
 	} else {
-		msg = fmt.Errorf("Invalid transaction, not enough balance on sender account. "+
+		msg = fmt.Errorf("invalid transaction, not enough balance on sender account. "+
 			"TxID: %s, TxType: %s, FromIdx: %d, ToIdx: %d, Amount: %d, Fee: %d",
 			tx.TxID, tx.Type, tx.FromIdx, tx.ToIdx, tx.Amount, tx.Fee)
 	}
@@ -188,7 +189,7 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 
 	if txProcessor.zki != nil {
 		return nil, common.Wrap(
-			errors.New("Expected StateDB.zki==nil, something went wrong and it's not empty"))
+			errors.New("expected StateDB.zki==nil, something went wrong and it's not empty"))
 	}
 	// defer txProcessor.resetZKInputs()
 
@@ -298,43 +299,43 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 		}
 	}
 
-	// Process L1CoordinatorTxs
-	for i := 0; i < len(l1coordinatortxs); i++ {
-		exitIdx, _, _, createdAccount, err := txProcessor.ProcessL1Tx(exitTree, &l1coordinatortxs[i])
-		if err != nil {
-			return nil, common.Wrap(err)
-		}
-		if exitIdx != nil {
-			log.Error("Unexpected Exit in L1CoordinatorTx")
-		}
-		if txProcessor.state.Type() == statedb.TypeSynchronizer {
-			if createdAccount != nil {
-				createdAccounts = append(createdAccounts, *createdAccount)
-				l1coordinatortxs[i].EffectiveFromIdx = createdAccount.Idx
-			} else {
-				l1coordinatortxs[i].EffectiveFromIdx = l1coordinatortxs[i].FromIdx
-			}
-		}
-		// if txProcessor.zki != nil {
-		// 	l1TxData, err := l1coordinatortxs[i].BytesGeneric()
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
-		// 	l1TxDataAvailability, err :=
-		// 		l1coordinatortxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsDataAvailability =
-		// 		append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
+	// // Process L1CoordinatorTxs
+	// for i := 0; i < len(l1coordinatortxs); i++ {
+	// 	exitIdx, _, _, createdAccount, err := txProcessor.ProcessL1Tx(exitTree, &l1coordinatortxs[i])
+	// 	if err != nil {
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	if exitIdx != nil {
+	// 		log.Error("Unexpected Exit in L1CoordinatorTx")
+	// 	}
+	// 	if txProcessor.state.Type() == statedb.TypeSynchronizer {
+	// 		if createdAccount != nil {
+	// 			createdAccounts = append(createdAccounts, *createdAccount)
+	// 			l1coordinatortxs[i].EffectiveFromIdx = createdAccount.Idx
+	// 		} else {
+	// 			l1coordinatortxs[i].EffectiveFromIdx = l1coordinatortxs[i].FromIdx
+	// 		}
+	// 	}
+	// if txProcessor.zki != nil {
+	// l1TxData, err := l1coordinatortxs[i].BytesGeneric()
+	// 	if err != nil {
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
+	// 	l1TxDataAvailability, err :=
+	// 		l1coordinatortxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
+	// 	if err != nil {
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	txProcessor.zki.Metadata.L1TxsDataAvailability =
+	// 		append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
 
-		// 	txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
-		// 	txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
-		// 	txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
-		// 	txProcessor.txIndex++
-		// }
-	}
+	// 	txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
+	// 	txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
+	// 	txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
+	// 	txProcessor.txIndex++
+	// }
+	// }
 
 	// // remove repeated CoordIdxs that are for the same TokenID (use the
 	// // first occurrence)
@@ -615,7 +616,7 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 
 	switch tx.Type {
 	case common.TxTypeCreateAccountDeposit:
-		// txProcessor.computeEffectiveAmounts(tx)
+		txProcessor.computeEffectiveAmounts(tx)
 
 		// add new account to the MT, update balance of the MT account
 		err := txProcessor.applyCreateAccount(tx)
@@ -624,7 +625,7 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 			return nil, nil, false, nil, common.Wrap(err)
 		}
 	case common.TxTypeDeposit:
-		// txProcessor.computeEffectiveAmounts(tx)
+		txProcessor.computeEffectiveAmounts(tx)
 
 		// update balance of the MT account
 		err := txProcessor.applyDeposit(tx, false)
@@ -633,7 +634,7 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 			return nil, nil, false, nil, common.Wrap(err)
 		}
 	case common.TxTypeForceExit:
-		// txProcessor.computeEffectiveAmounts(tx)
+		txProcessor.computeEffectiveAmounts(tx)
 
 		// execute exit flow
 		// coordIdxsMap is 'nil', as at L1Txs there is no L2 fees
@@ -674,7 +675,7 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 			// this in TypeSynchronizer should never be reached
 			log.Error("WARNING: In StateDB with Synchronizer mode L2.ToIdx can't be 0")
 			return nil, nil, false,
-				common.Wrap(fmt.Errorf("In StateDB with Synchronizer mode L2.ToIdx can't be 0"))
+				common.Wrap(fmt.Errorf("in StateDB with Synchronizer mode L2.ToIdx can't be 0"))
 		}
 		// case when tx.Type == common.TxTypeTransferToEthAddr or
 		// common.TxTypeTransferToBJJ:
@@ -1241,4 +1242,50 @@ func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common
 	}
 
 	return exitAccount, false, nil
+}
+
+// computeEffectiveAmounts checks that the L1Tx data is correct
+func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
+	tx.EffectiveAmount = tx.Amount
+	tx.EffectiveDepositAmount = tx.DepositAmount
+
+	if tx.Type == common.TxTypeCreateAccountDeposit {
+		return
+	}
+
+	accSender, err := txProcessor.state.GetAccount(tx.FromIdx)
+	if err != nil {
+		log.Debugf("EffectiveAmount & EffectiveDepositAmount = 0: can not get account for tx.FromIdx: %d",
+			tx.FromIdx)
+		tx.EffectiveDepositAmount = big.NewInt(0)
+		tx.EffectiveAmount = big.NewInt(0)
+		return
+	}
+
+	// check that Sender has enough balance
+	bal := accSender.Balance
+	if tx.DepositAmount != nil {
+		bal = new(big.Int).Add(bal, tx.EffectiveDepositAmount)
+	}
+	cmp := bal.Cmp(tx.Amount)
+	if cmp == -1 {
+		log.Debugf("EffectiveAmount = 0: Not enough funds (%s<%s)", bal.String(), tx.Amount.String())
+		tx.EffectiveAmount = big.NewInt(0)
+		return
+	}
+
+	// check that the tx.FromEthAddr is the same than the EthAddress of the
+	// Sender
+	if !bytes.Equal(tx.FromEthAddr.Bytes(), accSender.EthAddr.Bytes()) {
+		log.Debugf("EffectiveAmount = 0: tx.FromEthAddr (%s) must be the same EthAddr of "+
+			"the sender account by the Idx (%s)",
+			tx.FromEthAddr.Hex(), accSender.EthAddr.Hex())
+		tx.EffectiveAmount = big.NewInt(0)
+	}
+
+	if tx.ToIdx == common.AccountIdx(1) || tx.ToIdx == common.AccountIdx(0) {
+		// if transfer is Exit type, there are no more checks
+		return
+	}
+
 }
