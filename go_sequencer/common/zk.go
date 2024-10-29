@@ -13,7 +13,6 @@ import (
 type ZKMetadataCommon struct {
 	// Circuit parameters
 	// absolute maximum of L1 or L2 transactions allowed
-	//TODO: Need to check if we'll have different levels for different merkle trees and based on the same we'll update this.
 	MaxLevels uint32
 	// merkle tree depth
 	NLevels uint32
@@ -21,9 +20,6 @@ type ZKMetadataCommon struct {
 	MaxL1Tx uint32
 	// total txs allowed
 	MaxTx uint32
-	// Maximum number of Idxs where Fees can be send in a batch (currently
-	// is constant for all circuits: 64)
-	MaxFeeIdxs uint32
 
 	L1TxsData             [][]byte
 	L1TxsDataAvailability [][]byte
@@ -70,18 +66,6 @@ type ZKInputs struct {
 	// GlobalChainID is the blockchain ID (0 for Ethereum mainnet). This
 	// value can be get from the smart contract.
 	GlobalChainID *big.Int `json:"globalChainID"` // uint16
-	// FeeIdxs is an array of merkle tree indexes (Idxs) where the
-	// coordinator will receive the accumulated fees
-	FeeIdxs []*big.Int `json:"feeIdxs"` // uint64 (max nLevels bits), len: [maxFeeIdxs]
-
-	// accumulate fees
-	// FeePlanTokens contains all the tokenIDs for which the fees are being
-	// accumulated and those fees accumulated will be paid to the FeeIdxs
-	// array.  The order of FeeIdxs & FeePlanTokens & State3 must match.
-	// Coordinator fees are processed correlated such as:
-	// [FeePlanTokens[i], FeeIdxs[i]]
-	FeePlanTokens []*big.Int `json:"feePlanTokens"` // uint32 (max nLevels bits), len: [maxFeeIdxs]
-
 	//
 	// Txs (L1&L2)
 	//
@@ -133,29 +117,6 @@ type ZKInputs struct {
 	//
 	// Txs/L2Txs
 	//
-
-	// RqOffset relative transaction position to be linked. Used to perform
-	// atomic transactions. The format works like this:
-	// rqTxOffset   |	relativeIndex
-	// ----------------------------------------
-	// 0 			|	no linked transaction
-	// 1 			|	1
-	// 2 			|	2
-	// 3 			|	3
-	// 4 			|	-4
-	// 5 			|	-3
-	// 6 			|	-2
-	// 7 			|	-1
-	RqOffset []*big.Int `json:"rqOffset"` // uint8 (max 3 bits), len: [maxTx]
-
-	// transaction L2 request data
-	// RqTxCompressedDataV2 big.Int (max 251 bits), len: [maxTx]
-	RqTxCompressedDataV2 []*big.Int `json:"rqTxCompressedDataV2"`
-	// RqToEthAddr
-	RqToEthAddr []*big.Int `json:"rqToEthAddr"` // ethCommon.Address, len: [maxTx]
-	// RqToBJJAy
-	RqToBJJAy []*big.Int `json:"rqToBjjAy"` // big.Int, len: [maxTx]
-
 	// transaction L2 signature
 	// S
 	S []*big.Int `json:"s"` // big.Int, len: [maxTx]
@@ -208,18 +169,6 @@ type ZKInputs struct {
 	OldKey2   []*big.Int `json:"oldKey2"`   // uint64 (max 40 bits), len: [maxTx]
 	OldValue2 []*big.Int `json:"oldValue2"` // Hash, len: [maxTx]
 
-	// state 3, fee leafs states, value of the account leaf receiver of the
-	// Fees fee tx. The values at the moment pre-smtprocessor of the update
-	// (before updating the Receiver leaf).
-	// The order of FeeIdxs & FeePlanTokens & State3 must match.
-	// TokenID3  []*big.Int   `json:"tokenID3"`  // uint32, len: [maxFeeIdxs]
-	Nonce3    []*big.Int   `json:"nonce3"`    // uint64 (max 40 bits), len: [maxFeeIdxs]
-	Sign3     []*big.Int   `json:"sign3"`     // bool, len: [maxFeeIdxs]
-	Ay3       []*big.Int   `json:"ay3"`       // big.Int, len: [maxFeeIdxs]
-	Balance3  []*big.Int   `json:"balance3"`  // big.Int (max 192 bits), len: [maxFeeIdxs]
-	EthAddr3  []*big.Int   `json:"ethAddr3"`  // ethCommon.Address, len: [maxFeeIdxs]
-	Siblings3 [][]*big.Int `json:"siblings3"` // Hash, len: [maxFeeIdxs][nLevels + 1]
-
 	//
 	// Intermediate States
 	//
@@ -247,19 +196,6 @@ type ZKInputs struct {
 	// ISExitTree root at the moment (once processed) of the Tx the value
 	// once the Tx is processed into the exit tree
 	ISExitRoot []*big.Int `json:"imExitRoot"` // Hash, len: [maxTx - 1]
-	// ISAccFeeOut accumulated fees once the Tx is processed.  Contains the
-	// array of FeeAccount Balances at each moment of each Tx processed.
-	ISAccFeeOut [][]*big.Int `json:"imAccFeeOut"` // big.Int, len: [maxTx - 1][maxFeeIdxs]
-	// fee-tx:
-	// ISStateRootFee root at the moment of the Tx (once processed), the
-	// state root value once the Tx is processed into the state tree
-	ISStateRootFee []*big.Int `json:"imStateRootFee"` // Hash, len: [maxFeeIdxs - 1]
-	// ISInitStateRootFee state root once all L1-L2 tx are processed
-	// (before computing the fees-tx)
-	ISInitStateRootFee *big.Int `json:"imInitStateRootFee"` // Hash
-	// ISFinalAccFee final accumulated fees (before computing the fees-tx).
-	// Contains the final values of the ISAccFeeOut parameter
-	ISFinalAccFee []*big.Int `json:"imFinalAccFee"` // big.Int, len: [maxFeeIdxs]
 }
 
 // func bigIntsToStrings(v interface{}) interface{} {
@@ -323,7 +259,6 @@ type ZKInputs struct {
 func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	currentNumBatch *big.Int) *ZKInputs {
 	zki := &ZKInputs{}
-	zki.MetadataAccount.MaxFeeIdxs = maxFeeIdxs
 	zki.MetadataAccount.MaxLevels = uint32(48) //nolint:gomnd
 	zki.MetadataAccount.NLevels = nLevels
 	zki.MetadataAccount.MaxL1Tx = maxL1Tx
@@ -339,8 +274,6 @@ func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	zki.OldStateRootVouch = big.NewInt(0)
 
 	zki.GlobalChainID = big.NewInt(int64(chainID))
-	zki.FeeIdxs = newSlice(maxFeeIdxs)
-	zki.FeePlanTokens = newSlice(maxFeeIdxs)
 
 	// Txs
 	zki.TxCompressedData = newSlice(maxTx)
@@ -368,10 +301,6 @@ func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	}
 
 	// L2
-	zki.RqOffset = newSlice(maxTx)
-	zki.RqTxCompressedDataV2 = newSlice(maxTx)
-	zki.RqToEthAddr = newSlice(maxTx)
-	zki.RqToBJJAy = newSlice(maxTx)
 	zki.S = newSlice(maxTx)
 	zki.R8x = newSlice(maxTx)
 	zki.R8y = newSlice(maxTx)
@@ -406,29 +335,11 @@ func NewZKInputs(chainID uint16, maxTx, maxL1Tx, maxFeeIdxs, nLevels uint32,
 	zki.OldKey2 = newSlice(maxTx)
 	zki.OldValue2 = newSlice(maxTx)
 
-	// zki.TokenID3 = newSlice(maxFeeIdxs)
-	zki.Nonce3 = newSlice(maxFeeIdxs)
-	zki.Sign3 = newSlice(maxFeeIdxs)
-	zki.Ay3 = newSlice(maxFeeIdxs)
-	zki.Balance3 = newSlice(maxFeeIdxs)
-	zki.EthAddr3 = newSlice(maxFeeIdxs)
-	zki.Siblings3 = make([][]*big.Int, maxFeeIdxs)
-	for i := 0; i < len(zki.Siblings3); i++ {
-		zki.Siblings3[i] = newSlice(nLevels + 1)
-	}
-
 	// Intermediate States
 	zki.ISOnChain = newSlice(maxTx - 1)
 	zki.ISOutIdxAccount = newSlice(maxTx - 1)
 	zki.ISStateRootAccount = newSlice(maxTx - 1)
 	zki.ISExitRoot = newSlice(maxTx - 1)
-	zki.ISAccFeeOut = make([][]*big.Int, maxTx-1)
-	for i := 0; i < len(zki.ISAccFeeOut); i++ {
-		zki.ISAccFeeOut[i] = newSlice(maxFeeIdxs)
-	}
-	zki.ISStateRootFee = newSlice(maxFeeIdxs - 1)
-	zki.ISInitStateRootFee = big.NewInt(0)
-	zki.ISFinalAccFee = newSlice(maxFeeIdxs)
 
 	return zki
 }

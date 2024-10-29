@@ -133,11 +133,9 @@ type processedExit struct {
 
 // ProcessTxOutput contains the output of the ProcessTxs method
 type ProcessTxOutput struct {
-	ZKInputs           *common.ZKInputs
-	ExitInfos          []common.ExitInfo
-	CreatedAccounts    []common.Account
-	CoordinatorIdxsMap map[common.TokenID]common.AccountIdx
-	CollectedFees      map[common.TokenID]*big.Int
+	ZKInputs        *common.ZKInputs
+	ExitInfos       []common.ExitInfo
+	CreatedAccounts []common.Account
 	// UpdatedAccounts returns the current state of each account
 	// created/updated by any of the processed transactions.
 	UpdatedAccounts map[common.AccountIdx]*common.Account
@@ -199,24 +197,17 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 	}
 	defer txProcessor.resetZKInputs()
 
-	if len(coordIdxs) > int(txProcessor.config.MaxFeeTx) {
-		return nil, common.Wrap(
-			fmt.Errorf("CoordIdxs (%d) length must be smaller than MaxFeeTx (%d)",
-				len(coordIdxs), txProcessor.config.MaxFeeTx))
-	}
-
-	//TODO: Need to check and confirm with team about the coordinatortxs and if we'll need them or not
-	nTx := len(l1usertxs) + len(l1coordinatortxs) + len(l2txs)
+	nTx := len(l1usertxs) + len(l2txs)
 
 	if nTx > int(txProcessor.config.MaxTx) {
 		return nil, common.Wrap(
-			fmt.Errorf("L1UserTx + L1CoordinatorTx + L2Tx (%d) can not be bigger than MaxTx (%d)",
+			fmt.Errorf("L1UserTx + L2Tx (%d) can not be bigger than MaxTx (%d)",
 				nTx, txProcessor.config.MaxTx))
 	}
-	if len(l1usertxs)+len(l1coordinatortxs) > int(txProcessor.config.MaxL1Tx) {
+	if len(l1usertxs) > int(txProcessor.config.MaxL1Tx) {
 		return nil,
-			common.Wrap(fmt.Errorf("L1UserTx + L1CoordinatorTx (%d) can not be bigger than MaxL1Tx (%d)",
-				len(l1usertxs)+len(l1coordinatortxs), txProcessor.config.MaxTx))
+			common.Wrap(fmt.Errorf("L1UserTx (%d) can not be bigger than MaxL1Tx (%d)",
+				len(l1usertxs), txProcessor.config.MaxTx))
 	}
 
 	if txProcessor.state.Type() == statedb.TypeSynchronizer {
@@ -256,7 +247,6 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 			return nil, common.Wrap(err)
 		}
 		defer sto.Close()
-		//TODO: Check and update this, if we'll have exit tree for different merkle tree
 		exitTree, err = merkletree.NewMerkleTree(sto, txProcessor.state.AccountTree.MaxLevels())
 		if err != nil {
 			return nil, common.Wrap(err)
@@ -317,116 +307,31 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 		}
 	}
 
-	//TODO: Check the need to coordinator transactions in our implementation and remove this based on the same.
-	// Process L1CoordinatorTxs
-	for i := 0; i < len(l1coordinatortxs); i++ {
-		exitIdx, _, _, createdAccount, err := txProcessor.ProcessL1Tx(exitTree, &l1coordinatortxs[i])
-		if err != nil {
-			return nil, common.Wrap(err)
-		}
-		if exitIdx != nil {
-			log.Error("Unexpected Exit in L1CoordinatorTx")
-		}
-		if txProcessor.state.Type() == statedb.TypeSynchronizer {
-			if createdAccount != nil {
-				createdAccounts = append(createdAccounts, *createdAccount)
-				l1coordinatortxs[i].EffectiveFromIdx = createdAccount.Idx
-			} else {
-				l1coordinatortxs[i].EffectiveFromIdx = l1coordinatortxs[i].FromIdx
-			}
-		}
-		// if txProcessor.zki != nil {
-		// 	l1TxData, err := l1coordinatortxs[i].BytesGeneric()
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
-		// 	l1TxDataAvailability, err :=
-		// 		l1coordinatortxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsDataAvailability =
-		// 		append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
-
-		// 	txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
-		// 	txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
-		// 	txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
-		// 	txProcessor.txIndex++
-		// }
-	}
-
-	// // remove repeated CoordIdxs that are for the same TokenID (use the
-	// // first occurrence)
-	// usedCoordTokenIDs := make(map[common.TokenID]bool)
-	// var filteredCoordIdxs []common.Idx
-	// for i := 0; i < len(coordIdxs); i++ {
-	// 	accCoord, err := txProcessor.state.GetAccount(coordIdxs[i])
-	// 	if err != nil {
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	if !usedCoordTokenIDs[accCoord.TokenID] {
-	// 		usedCoordTokenIDs[accCoord.TokenID] = true
-	// 		filteredCoordIdxs = append(filteredCoordIdxs, coordIdxs[i])
-	// 	}
-	// }
-	// coordIdxs = filteredCoordIdxs
-
-	// txProcessor.AccumulatedFees = make(map[common.Idx]*big.Int)
-	// for _, idx := range coordIdxs {
-	// 	txProcessor.AccumulatedFees[idx] = big.NewInt(0)
-	// }
-
-	// // once L1UserTxs & L1CoordinatorTxs are processed, get TokenIDs of
-	// // coordIdxs. In this way, if a coordIdx uses an Idx that is being
-	// // created in the current batch, at this point the Idx will be created
-	// coordIdxsMap, err := txProcessor.state.GetTokenIDsFromIdxs(coordIdxs)
-	// if err != nil {
-	// 	return nil, common.Wrap(err)
-	// }
-	// // collectedFees will contain the amount of fee collected for each
-	// // TokenID
-	// var collectedFees map[common.TokenID]*big.Int
-	// if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
-	// 	collectedFees = make(map[common.TokenID]*big.Int)
-	// 	for tokenID := range coordIdxsMap {
-	// 		collectedFees[tokenID] = big.NewInt(0)
-	// 	}
-	// }
-
-	// if txProcessor.zki != nil {
-	// 	// get the feePlanTokens
-	// 	feePlanTokens, err := txProcessor.getFeePlanTokens(coordIdxs)
-	// 	if err != nil {
-	// 		log.Error(err)
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	copy(txProcessor.zki.FeePlanTokens, feePlanTokens)
-	// }
-
 	// Process L2Txs
 	for i := 0; i < len(l2txs); i++ {
 		exitIdx, exitAccount, newExit, err := txProcessor.ProcessL2Tx(exitTree, &l2txs[i])
 		if err != nil {
 			return nil, common.Wrap(err)
 		}
-		// if txProcessor.zki != nil {
-		// 	l2TxData, err := l2txs[i].L2Tx().BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L2TxsData = append(txProcessor.zki.Metadata.L2TxsData, l2TxData)
+		if txProcessor.zki != nil {
+			//TODO: Check out L2Tx data availablity it's processing and param to add
+			// l2TxData, err := l2txs[i].L2Tx().BytesDataAvailability(txProcessor.zki.MetadataVouch.NLevels) //NLevels for All the trees would be same
+			if err != nil {
+				return nil, common.Wrap(err)
+			}
+			// txProcessor.zki.Metadata.L2TxsData = append(txProcessor.zki.Metadata.L2TxsData, l2TxData)
 
-		// 	// Intermediate States
-		// 	if txProcessor.txIndex < nTx-1 {
-		// 		txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
-		// 		txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
-		// 		txProcessor.zki.ISAccFeeOut[txProcessor.txIndex] = formatAccumulatedFees(collectedFees, txProcessor.zki.FeePlanTokens, coordIdxs)
-		// 		if exitIdx == nil {
-		// 			txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
-		// 		}
-		// 	}
-		// }
+			// Intermediate States
+			if txProcessor.txIndex < nTx-1 {
+				//TODO: Fill out the OutIdx and StateRoot, need to check it's parameters
+
+				// txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
+				// txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
+				if exitIdx == nil {
+					txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
+				}
+			}
+		}
 		if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
 			if exitIdx != nil && exitTree != nil && exitAccount != nil {
 				exits[txProcessor.txIndex] = processedExit{
@@ -464,56 +369,6 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 	// 	copy(txProcessor.zki.ISFinalAccFee, isFinalAccFee)
 	// 	// before computing the Fees txs, set the ISInitStateRootFee
 	// 	txProcessor.zki.ISInitStateRootFee = txProcessor.state.AccountTree.Root().BigInt()
-	// }
-
-	// distribute the AccumulatedFees from the processed L2Txs into the
-	// Coordinator Idxs
-	indexFee := 0
-	for _, idx := range coordIdxs {
-		accumulatedFee := txProcessor.AccumulatedFees[idx]
-
-		// send the fee to the Idx of the Coordinator for the TokenID
-		// (even if the AccumulatedFee==0, as is how the zk circuit
-		// works)
-		accCoord, err := txProcessor.state.GetAccount(idx)
-		if err != nil {
-			log.Errorw("Can not distribute accumulated fees to coordinator account: "+
-				"No coord Idx to receive fee", "idx", idx)
-			return nil, common.Wrap(err)
-		}
-		// if txProcessor.zki != nil {
-		// 	txProcessor.zki.TokenID3[indexFee] = accCoord.TokenID.BigInt()
-		// 	txProcessor.zki.Nonce3[indexFee] = accCoord.Nonce.BigInt()
-		// 	coordBJJSign, coordBJJY := babyjub.UnpackSignY(accCoord.BJJ)
-		// 	if coordBJJSign {
-		// 		txProcessor.zki.Sign3[indexFee] = big.NewInt(1)
-		// 	}
-		// 	txProcessor.zki.Ay3[indexFee] = coordBJJY
-		// 	txProcessor.zki.Balance3[indexFee] = accCoord.Balance
-		// 	txProcessor.zki.EthAddr3[indexFee] = common.EthAddrToBigInt(accCoord.EthAddr)
-		// }
-		accCoord.Balance = new(big.Int).Add(accCoord.Balance, accumulatedFee)
-		pFee, err := txProcessor.updateAccount(idx, accCoord)
-		if err != nil {
-			log.Error(err)
-			return nil, common.Wrap(err)
-		}
-		if txProcessor.zki != nil {
-			txProcessor.zki.Siblings3[indexFee] = siblingsToZKInputFormat(pFee.Siblings)
-			if indexFee < len(txProcessor.zki.ISStateRootFee) {
-				txProcessor.zki.ISStateRootFee[indexFee] = txProcessor.state.AccountTree.Root().BigInt()
-			}
-		}
-		indexFee++
-	}
-	// if txProcessor.zki != nil {
-	// 	for i := len(txProcessor.AccumulatedFees); i < int(txProcessor.config.MaxFeeTx)-1; i++ {
-	// 		txProcessor.zki.ISStateRootFee[i] = txProcessor.state.AccountTree.Root().BigInt()
-	// 	}
-	// 	// add Coord Idx to ZKInputs.FeeTxsData
-	// 	for i := 0; i < len(coordIdxs); i++ {
-	// 		txProcessor.zki.FeeIdxs[i] = coordIdxs[i].BigInt()
-	// 	}
 	// }
 
 	if txProcessor.state.Type() == statedb.TypeTxSelector {
@@ -559,8 +414,6 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 			ZKInputs:        nil,
 			ExitInfos:       exitInfos,
 			CreatedAccounts: createdAccounts,
-			// CoordinatorIdxsMap: coordIdxsMap,
-			// CollectedFees:      collectedFees,
 			UpdatedAccounts: txProcessor.updatedAccounts,
 		}, nil
 	}
@@ -569,17 +422,13 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 	txProcessor.zki.GlobalChainID = big.NewInt(int64(txProcessor.config.ChainID))
 	txProcessor.zki.MetadataAccount.NewStateRootRaw = txProcessor.state.AccountTree.Root()
 	txProcessor.zki.MetadataVouch.NewStateRootRaw = txProcessor.state.VouchTree.Root()
-
-	//TODO: Need to check the exit tree implementation will this be different for different trees, vouches, account, score etc.
-	// txProcessor.zki.MetadataAccount.NewExitRootRaw = exitTree.Root()
+	txProcessor.zki.MetadataAccount.NewExitRootRaw = exitTree.Root()
 
 	// return ZKInputs as the BatchBuilder will return it to forge the Batch
 	return &ProcessTxOutput{
 		ZKInputs:        txProcessor.zki,
 		ExitInfos:       nil,
 		CreatedAccounts: nil,
-		// CoordinatorIdxsMap: coordIdxsMap,
-		CollectedFees: nil,
 	}, nil
 }
 
@@ -621,10 +470,7 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 			txProcessor.zki.ISOnChain[txProcessor.txIndex] = big.NewInt(1)
 		}
 
-		if tx.Type == common.TxTypeForceTransfer ||
-			tx.Type == common.TxTypeDepositTransfer ||
-			tx.Type == common.TxTypeCreateAccountDepositTransfer ||
-			tx.Type == common.TxTypeForceExit {
+		if tx.Type == common.TxTypeForceExit {
 			// in the cases where at L1Tx there is usage of the
 			// Amount parameter, add it at the ZKInputs.AmountF
 			// slot
@@ -655,13 +501,12 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 			log.Error(err)
 			return nil, nil, false, nil, common.Wrap(err)
 		}
-
-	//TODO: Check with team about the withdraw functionality it's mentioned as a non rollup txs, Need to check how it'll be handled.
 	case common.TxTypeForceExit:
 		txProcessor.computeEffectiveAmounts(tx)
 
 		// execute exit flow
 		// coordIdxsMap is 'nil', as at L1Txs there is no L2 fees
+		// TODO: Need to check and update logic with which we'll update account tree transfer the balance after exit from account tree to exit tree
 		exitAccount, newExit, err := txProcessor.applyExit(nil, nil, exitTree, tx.Tx(), tx.Amount)
 		if err != nil {
 			log.Error(err)
@@ -674,8 +519,7 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 
 	var createdAccount *common.Account
 	if txProcessor.state.Type() == statedb.TypeSynchronizer &&
-		(tx.Type == common.TxTypeCreateAccountDeposit ||
-			tx.Type == common.TxTypeCreateAccountDepositTransfer) {
+		(tx.Type == common.TxTypeCreateAccountDeposit) {
 		var err error
 		createdAccount, err = txProcessor.state.GetAccount(txProcessor.state.CurrentAccountIdx())
 		if err != nil {
@@ -692,8 +536,7 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 // related to the Exit (in case of): Idx, ExitAccount, boolean determining if
 // the Exit created a new Leaf in the ExitTree.
 
-//TODO: Need to update this to have vouches tree in the L2 transactions instead of accounts
-
+// TODO: Need to check and update L2 txs here.
 func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 	tx *common.PoolL2Tx) (*common.AccountIdx, *common.Account, bool, error) {
 	var err error
@@ -753,23 +596,6 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 		txProcessor.zki.NewAccount[txProcessor.txIndex] = big.NewInt(0)
 		txProcessor.zki.MaxNumBatch[txProcessor.txIndex] = big.NewInt(int64(tx.MaxNumBatch))
 
-		// Rq fields: set zki to link the requested tx
-		if tx.RqOffset != 0 {
-			if tx.RqOffset > 7 { //nolint:gomnd
-				return nil, nil, false, common.New(ErrInvalidRqOffset)
-			}
-			rqOffset := big.NewInt(int64(tx.RqOffset))
-			txProcessor.zki.RqOffset[txProcessor.txIndex] = rqOffset
-			txProcessor.zki.RqTxCompressedDataV2[txProcessor.txIndex], err = tx.RqTxCompressedDataV2()
-			if err != nil {
-				return nil, nil, false, common.Wrap(err)
-			}
-			if tx.RqToBJJ != common.EmptyBJJComp {
-				_, txProcessor.zki.RqToBJJAy[txProcessor.txIndex] = babyjub.UnpackSignY(tx.RqToBJJ)
-			}
-			txProcessor.zki.RqToEthAddr[txProcessor.txIndex] = common.EthAddrToBigInt(tx.RqToEthAddr)
-		}
-
 		signature, err := tx.Signature.Decompress()
 		if err != nil {
 			log.Error(err)
@@ -792,14 +618,7 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 	}
 
 	switch tx.Type {
-	case common.TxTypeTransfer, common.TxTypeTransferToEthAddr, common.TxTypeTransferToBJJ:
-		// go to the MT account of sender and receiver, and update
-		// balance & nonce
-		err = txProcessor.applyTransfer(nil, nil, tx.Tx(), tx.AuxToIdx)
-		if err != nil {
-			log.Error(err)
-			return nil, nil, false, common.Wrap(err)
-		}
+	//TODO: Add transaction types here add vouch, delete vouch etc.
 	case common.TxTypeExit:
 		// execute exit flow
 		exitAccount, newExit, err := txProcessor.applyExit(nil, nil, exitTree,
@@ -1278,41 +1097,7 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 	tx.EffectiveAmount = tx.Amount
 	tx.EffectiveDepositAmount = tx.DepositAmount
 
-	if !tx.UserOrigin {
-		// case where the L1Tx is generated by the Coordinator
-		tx.EffectiveAmount = big.NewInt(0)
-		tx.EffectiveDepositAmount = big.NewInt(0)
-		return
-	}
-
 	if tx.Type == common.TxTypeCreateAccountDeposit {
-		return
-	}
-
-	if tx.ToIdx >= common.UserThreshold && tx.FromIdx == common.AccountIdx(0) {
-		// CreateAccountDepositTransfer case
-		cmp := tx.DepositAmount.Cmp(tx.Amount)
-		if cmp == -1 { // DepositAmount<Amount
-			tx.EffectiveAmount = big.NewInt(0)
-			return
-		}
-
-		// check if tx.TokenID==receiver.TokenID
-		//TODO: Check and update this if we'll have TokenID in the transaction and for account.
-		// accReceiver, err := txProcessor.state.GetAccount(tx.ToIdx)
-		// if err != nil {
-		// 	log.Debugf("EffectiveAmount & EffectiveDepositAmount = 0: can not get account for tx.ToIdx: %d",
-		// 		tx.ToIdx)
-		// 	tx.EffectiveDepositAmount = big.NewInt(0)
-		// 	tx.EffectiveAmount = big.NewInt(0)
-		// 	return
-		// }
-		// if tx.TokenID != accReceiver.TokenID {
-		// 	log.Debugf("EffectiveAmount = 0: tx TokenID (%d) != receiver account TokenID (%d)",
-		// 		tx.TokenID, accReceiver.TokenID)
-		// 	tx.EffectiveAmount = big.NewInt(0)
-		// 	return
-		// }
 		return
 	}
 
@@ -1324,16 +1109,6 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 		tx.EffectiveAmount = big.NewInt(0)
 		return
 	}
-
-	// check that tx.TokenID corresponds to the Sender account TokenID
-	// if tx.TokenID != accSender.TokenID {
-	// 	log.Debugf("EffectiveAmount & EffectiveDepositAmount = 0: "+
-	// 		"tx.TokenID (%d) !=sender account TokenID (%d)",
-	// 		tx.TokenID, accSender.TokenID)
-	// 	tx.EffectiveDepositAmount = big.NewInt(0)
-	// 	tx.EffectiveAmount = big.NewInt(0)
-	// 	return
-	// }
 
 	// check that Sender has enough balance
 	bal := accSender.Balance
@@ -1354,33 +1129,11 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 			"the sender account by the Idx (%s)",
 			tx.FromEthAddr.Hex(), accSender.EthAddr.Hex())
 		tx.EffectiveAmount = big.NewInt(0)
+		return
 	}
 
 	if tx.ToIdx == common.AccountIdx(1) || tx.ToIdx == common.AccountIdx(0) {
 		// if transfer is Exit type, there are no more checks
 		return
 	}
-
-	// check that TokenID is the same for Sender & Receiver account
-	// accReceiver, err := txProcessor.state.GetAccount(tx.ToIdx)
-	// if err != nil {
-	// 	log.Debugf("EffectiveAmount & EffectiveDepositAmount = 0: can not get account for tx.ToIdx: %d",
-	// 		tx.ToIdx)
-	// 	tx.EffectiveDepositAmount = big.NewInt(0)
-	// 	tx.EffectiveAmount = big.NewInt(0)
-	// 	return
-	// }
-	// if accSender.TokenID != accReceiver.TokenID {
-	// 	log.Debugf("EffectiveAmount = 0: sender account TokenID (%d) != receiver account TokenID (%d)",
-	// 		accSender.TokenID, accReceiver.TokenID)
-	// 	tx.EffectiveAmount = big.NewInt(0)
-	// 	return
-	// }
-	// if tx.TokenID != accReceiver.TokenID {
-	// 	log.Debugf("EffectiveAmount & EffectiveDepositAmount = 0: "+
-	// 		"tx TokenID (%d) != receiver account TokenID (%d)",
-	// 		tx.TokenID, accReceiver.TokenID)
-	// 	tx.EffectiveAmount = big.NewInt(0)
-	// 	return
-	// }
 }
