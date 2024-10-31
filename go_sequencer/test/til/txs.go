@@ -173,11 +173,13 @@ func (tc *Context) GenerateBlocksFromInstructions(set []Instruction) ([]common.B
 			accountNames = append(accountNames, inst.From)
 			addedNames[inst.From] = true
 		}
-		if _, ok := addedNames[inst.To]; !ok {
-			// If the name wasn't already added
-			accountNames = append(accountNames, inst.To)
-			addedNames[inst.To] = true
-		}
+
+		// Only when the instruction is a transfer type
+		// if _, ok := addedNames[inst.To]; !ok {
+		// 	// If the name wasn't already added
+		// 	accountNames = append(accountNames, inst.To)
+		// 	addedNames[inst.To] = true
+		// }
 	}
 	tc.accountNames = accountNames
 	tc.instructions = set

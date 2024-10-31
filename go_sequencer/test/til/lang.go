@@ -322,11 +322,9 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 			c.Typ = common.TxTypeExit
 			// fee = true
 		case "CreateVouch":
-			// fmt.Println("---CreateVouch---")
 			c.Typ = common.TxTypeCreateVouch
 			vouch = true
 		case "DeleteVouch":
-			// fmt.Println("---DeleteVouch---")
 			c.Typ = common.TxTypeDeleteVouch
 			vouch = true
 		case "CreateAccountDeposit":
@@ -365,13 +363,16 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 	_, lit = p.scanIgnoreWhitespace()
 	c.Literal += lit
 	if vouch {
-		// fmt.Println("---Vouch, lit: ---", lit)
 		if lit != "-" {
+			line, _ := p.s.r.ReadString('\n')
+			c.Literal += line
 			return c, common.Wrap(fmt.Errorf("expected '-', found '%s'", lit))
 		}
 		_, lit = p.scanIgnoreWhitespace()
+		if lit == "" {
+			return c, common.Wrap(fmt.Errorf("expected 'to' account name, found '%s'", lit))
+		}
 		c.Literal += lit
-		// fmt.Println(c.Literal)
 		c.To = lit
 		line, _ := p.s.r.ReadString('\n')
 		c.Literal += line
