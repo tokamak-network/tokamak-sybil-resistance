@@ -5,3 +5,8 @@ tasks:
     dotenv: [".env"]
     cmds:
       - go test ./database/historydb -v
+  
+  test-til:
+    dotenv: [".env"]
+    cmds:
+      - go test ./test/til -v
