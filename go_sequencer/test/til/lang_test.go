@@ -50,6 +50,8 @@ func TestParseBlockchainTxs(t *testing.T) {
 	assert.Equal(t, TypeNewBatch, instructions.instructions[4].Typ)
 	assert.Equal(t, "DepositUser0:20", instructions.instructions[7].raw())
 	assert.Equal(t, "ExitA:5", instructions.instructions[12].raw())
+	assert.Equal(t, "CreateVouchA-B", instructions.instructions[3].raw())
+	assert.Equal(t, "DeleteVouchA-B", instructions.instructions[11].raw())
 	assert.Equal(t, "Type: Exit, From: A, Amount: 5\n",
 		instructions.instructions[12].String())
 }

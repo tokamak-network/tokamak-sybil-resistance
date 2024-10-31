@@ -107,18 +107,23 @@ func (i Instruction) raw() string {
 	// 	i.Typ == common.TxTypeCreateAccountDepositTransfer {
 	// 	fmt.Fprintf(buf, "-%s", i.To)
 	// }
-	fmt.Fprintf(buf, ":")
-	if i.Typ == common.TxTypeDeposit {
-		// i.Typ == common.TxTypeDepositTransfer ||
-		// i.Typ == common.TxTypeCreateAccountDepositTransfer {
-		fmt.Fprintf(buf, "%d", i.DepositAmount)
+	if i.Typ == common.TxTypeCreateVouch ||
+		i.Typ == common.TxTypeDeleteVouch {
+		fmt.Fprintf(buf, "-%s", i.To)
+	} else {
+		fmt.Fprintf(buf, ":")
+		if i.Typ == common.TxTypeDeposit {
+			// i.Typ == common.TxTypeDepositTransfer ||
+			// i.Typ == common.TxTypeCreateAccountDepositTransfer {
+			fmt.Fprintf(buf, "%d", i.DepositAmount)
+		}
+		if i.Typ != common.TxTypeDeposit {
+			fmt.Fprintf(buf, "%d", i.Amount)
+		}
+		// if i.Typ == common.TxTypeTransfer {
+		// 	fmt.Fprintf(buf, "(%d)", i.Fee)
+		// }
 	}
-	if i.Typ != common.TxTypeDeposit {
-		fmt.Fprintf(buf, "%d", i.Amount)
-	}
-	// if i.Typ == common.TxTypeTransfer {
-	// 	fmt.Fprintf(buf, "(%d)", i.Fee)
-	// }
 	return buf.String()
 }
 
@@ -317,9 +322,11 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 			c.Typ = common.TxTypeExit
 			// fee = true
 		case "CreateVouch":
+			// fmt.Println("---CreateVouch---")
 			c.Typ = common.TxTypeCreateVouch
 			vouch = true
 		case "DeleteVouch":
+			// fmt.Println("---DeleteVouch---")
 			c.Typ = common.TxTypeDeleteVouch
 			vouch = true
 		case "CreateAccountDeposit":
@@ -358,11 +365,13 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 	_, lit = p.scanIgnoreWhitespace()
 	c.Literal += lit
 	if vouch {
+		// fmt.Println("---Vouch, lit: ---", lit)
 		if lit != "-" {
 			return c, common.Wrap(fmt.Errorf("expected '-', found '%s'", lit))
 		}
 		_, lit = p.scanIgnoreWhitespace()
 		c.Literal += lit
+		// fmt.Println(c.Literal)
 		c.To = lit
 		line, _ := p.s.r.ReadString('\n')
 		c.Literal += line
