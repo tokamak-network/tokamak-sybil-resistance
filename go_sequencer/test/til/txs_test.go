@@ -139,3 +139,163 @@ func (tc *Context) checkL2TxParams(t *testing.T, tx common.L2Tx, typ common.TxTy
 	}
 	assert.Equal(t, batchNum, tx.BatchNum)
 }
+
+func TestGeneratePoolL2Txs(t *testing.T) {
+	set := `
+		Type: Blockchain
+		CreateAccountDeposit A: 10
+		CreateAccountDeposit A: 20
+		CreateAccountDeposit B: 5
+		CreateAccountDeposit C: 5
+		CreateAccountDeposit User0: 5
+		CreateAccountDeposit User1: 0
+		CreateAccountDeposit User0: 0
+		CreateAccountDeposit User1: 5
+		CreateAccountDeposit B: 5
+		CreateAccountDeposit D: 0
+		> batchL1
+		> batchL1
+	`
+	tc := NewContext(0, common.RollupConstMaxL1UserTx)
+	_, err := tc.GenerateBlocks(set)
+	require.NoError(t, err)
+	set = `
+		Type: PoolL2
+		PoolExit A: 3
+	`
+	poolL2Txs, err := tc.GeneratePoolL2Txs(set)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(poolL2Txs))
+	assert.Equal(t, common.TxTypeExit, poolL2Txs[0].Type)
+	assert.Equal(t, common.Nonce(1), poolL2Txs[0].Nonce)
+
+	// load another set in the same Context
+	set = `
+		Type: PoolL2
+		PoolExit B: 3
+	`
+	poolL2Txs, err = tc.GeneratePoolL2Txs(set)
+	require.NoError(t, err)
+	assert.Equal(t, common.Nonce(2), poolL2Txs[0].Nonce)
+}
+
+func TestGenerateErrors(t *testing.T) {
+	// check transactions when account is not created yet
+	set := `
+		Type: Blockchain
+		CreateAccountDeposit A: 10
+		> batchL1
+		CreateAccountDeposit B
+		> batch
+	`
+	tc := NewContext(0, common.RollupConstMaxL1UserTx)
+	_, err := tc.GenerateBlocks(set)
+	require.Equal(t, "line 4: CreateAccountDepositB> batch\n, err: "+
+		"expected ':', found '>'", err.Error())
+
+	set = `
+		Type: Blockchain
+		CreateAccountDeposit A: 10
+		> batchL1
+		> batch
+	`
+	tc = NewContext(0, common.RollupConstMaxL1UserTx)
+	_, err = tc.GenerateBlocks(set)
+	require.NoError(t, err)
+
+	// check nonces
+	set = `
+		Type: Blockchain
+		CreateAccountDeposit A: 10
+		> batchL1
+		Exit A: 3
+		> batch
+	`
+	tc = NewContext(0, common.RollupConstMaxL1UserTx)
+	_, err = tc.GenerateBlocks(set)
+	require.NoError(t, err)
+	assert.Equal(t, common.Nonce(2), tc.Accounts["A"].Nonce)
+	assert.Equal(t, common.AccountIdx(256), tc.Accounts["A"].Idx)
+}
+
+func TestGenerateBlocksFromInstructions(t *testing.T) {
+	// Generate block from instructions
+	setInst := []Instruction{}
+	i := 0
+	da := big.NewInt(10)
+	setInst = append(setInst, Instruction{
+		LineNum: i,
+		// Literal: "CreateAccountDeposit A: 10",
+		Typ:           common.TxTypeCreateAccountDeposit,
+		From:          "A",
+		DepositAmount: da,
+	})
+	i++
+	setInst = append(setInst, Instruction{
+		LineNum: i,
+		// Literal: "> batchL1",
+		Typ: TypeNewBatchL1,
+	})
+	i++
+	a := big.NewInt(3)
+	setInst = append(setInst, Instruction{
+		LineNum: i,
+		// Literal: "Exit A: 3",
+		Typ:    common.TxTypeExit,
+		From:   "A",
+		Amount: a,
+		Fee:    1,
+	})
+	i++
+	setInst = append(setInst, Instruction{
+		LineNum: i,
+		// Literal: "> batch",
+		Typ: TypeNewBatch,
+	})
+	setInst = append(setInst, Instruction{
+		LineNum: i,
+		// Literal: "> block",
+		Typ: TypeNewBlock,
+	})
+
+	tc := NewContext(0, common.RollupConstMaxL1UserTx)
+	blockFromInstructions, err := tc.GenerateBlocksFromInstructions(setInst)
+	require.NoError(t, err)
+
+	// Generate block from string
+	setString := `
+		Type: Blockchain
+		CreateAccountDeposit A: 10
+		> batchL1
+		Exit A: 3
+		> batch
+		> block
+	`
+	tc = NewContext(0, common.RollupConstMaxL1UserTx)
+	blockFromString, err := tc.GenerateBlocks(setString)
+	require.NoError(t, err)
+
+	// Generated data should be equivalent, except for Eth Addrs and BJJs
+	for i, strBatch := range blockFromString[0].Rollup.Batches {
+		// instBatch := blockFromInstructions[0].Rollup.Batches[i]
+		for j := 0; j < len(strBatch.L1CoordinatorTxs); j++ {
+			blockFromInstructions[0].Rollup.Batches[i].L1CoordinatorTxs[j].FromEthAddr =
+				blockFromString[0].Rollup.Batches[i].L1CoordinatorTxs[j].FromEthAddr
+			blockFromInstructions[0].Rollup.Batches[i].L1CoordinatorTxs[j].FromBJJ =
+				blockFromString[0].Rollup.Batches[i].L1CoordinatorTxs[j].FromBJJ
+		}
+		for j := 0; j < len(strBatch.L1UserTxs); j++ {
+			blockFromInstructions[0].Rollup.Batches[i].L1UserTxs[j].FromEthAddr =
+				blockFromString[0].Rollup.Batches[i].L1UserTxs[j].FromEthAddr
+			blockFromInstructions[0].Rollup.Batches[i].L1UserTxs[j].FromBJJ =
+				blockFromString[0].Rollup.Batches[i].L1UserTxs[j].FromBJJ
+		}
+	}
+	for i := 0; i < len(blockFromString[0].Rollup.L1UserTxs); i++ {
+		blockFromInstructions[0].Rollup.L1UserTxs[i].FromEthAddr =
+			blockFromString[0].Rollup.L1UserTxs[i].FromEthAddr
+		blockFromInstructions[0].Rollup.L1UserTxs[i].FromBJJ =
+			blockFromString[0].Rollup.L1UserTxs[i].FromBJJ
+	}
+	assert.Equal(t, blockFromString, blockFromInstructions)
+}

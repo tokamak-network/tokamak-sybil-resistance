@@ -162,6 +162,28 @@ func (tc *Context) GenerateBlocks(set string) ([]common.BlockData, error) {
 	return tc.generateBlocks()
 }
 
+// GenerateBlocksFromInstructions returns an array of BlockData for a given set
+// made of instructions. It uses the users (keys & nonces) of the Context.
+func (tc *Context) GenerateBlocksFromInstructions(set []Instruction) ([]common.BlockData, error) {
+	accountNames := []string{}
+	addedNames := make(map[string]bool)
+	for _, inst := range set {
+		if _, ok := addedNames[inst.From]; !ok {
+			// If the name wasn't already added
+			accountNames = append(accountNames, inst.From)
+			addedNames[inst.From] = true
+		}
+		if _, ok := addedNames[inst.To]; !ok {
+			// If the name wasn't already added
+			accountNames = append(accountNames, inst.To)
+			addedNames[inst.To] = true
+		}
+	}
+	tc.accountNames = accountNames
+	tc.instructions = set
+	return tc.generateBlocks()
+}
+
 func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 	tc.generateKeys(tc.accountNames)
 
@@ -446,21 +468,21 @@ func (tc *Context) GeneratePoolL2Txs(set string) ([]common.PoolL2Tx, error) {
 // GeneratePoolL2TxsFromInstructions returns an array of common.PoolL2Tx from a
 // given set made of instructions. It uses the users (keys) of the Context.
 // func (tc *Context) GeneratePoolL2TxsFromInstructions(set []Instruction) ([]common.PoolL2Tx, error) {
-// 	userNames := []string{}
+// 	accountNames := []string{}
 // 	addedNames := make(map[string]bool)
 // 	for _, inst := range set {
 // 		if _, ok := addedNames[inst.From]; !ok {
 // 			// If the name wasn't already added
-// 			userNames = append(userNames, inst.From)
+// 			accountNames = append(accountNames, inst.From)
 // 			addedNames[inst.From] = true
 // 		}
 // 		if _, ok := addedNames[inst.To]; !ok {
 // 			// If the name wasn't already added
-// 			userNames = append(userNames, inst.To)
+// 			accountNames = append(accountNames, inst.To)
 // 			addedNames[inst.To] = true
 // 		}
 // 	}
-// 	tc.userNames = userNames
+// 	tc.accountNames = accountNames
 // 	tc.instructions = set
 
 // 	return tc.generatePoolL2Txs()
