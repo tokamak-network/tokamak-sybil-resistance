@@ -3,6 +3,9 @@ const {
   ethers
 } = require("ethers");
 const txUtils = require("../utils/tx-utils");
+const {
+  fix2Float
+} = require('../utils/float40');
 
 // Global setup for ethers.js
 const provider = new ethers.JsonRpcProvider("https://rpc.thanos-sepolia.tokamak.network") // Add your RPC URL if needed
@@ -42,9 +45,16 @@ const contractABI = [{
 }];
 const contract = new ethers.Contract(contractAddress, contractABI, wallet); // Initialize contract globally
 
+const babyjub0 = '';
+const fromIdx0 = 0;
+const loadAmountF0 = 0;
+const amountF0 = 0;
+const tokenID0 = 0;
+const toIdx0 = 0;
+
 // Create Account Deposit Transaction
-async function l1UserTxCreateAccountDeposit(loadAmount, babyjub) {
-  const loadAmountF = loadAmount * 10 ** (18 - 8);
+let l1UserTxCreateAccountDeposit = async (loadAmount, babyjub) => {
+  const loadAmountF = loadAmount * 10 ** (18 - 8);;
 
   // Send transaction using ethers.js
   const txRes = await contract.addL1Transaction(
@@ -54,7 +64,7 @@ async function l1UserTxCreateAccountDeposit(loadAmount, babyjub) {
     0,
     0, {
       value: loadAmountF
-    } // Add the value for load amount
+    }
   );
 
   const txReceipt = await txRes.wait(); // Wait for the transaction to be mined
@@ -63,43 +73,82 @@ async function l1UserTxCreateAccountDeposit(loadAmount, babyjub) {
   return txReceipt.hash;
 }
 
-// Force Exit Transaction
-async function l1UserTxForceExit(fromIdx, amountF) {
-  const exitIdx = 1;
-
-  // equivalent L1 transaction:
-  const l1TxForceExit = {
-    toIdx: exitIdx,
-    amountF: amountF,
-    loadAmountF: 0,
-    fromIdx: fromIdx,
-    fromBjjCompressed: 0,
-    fromEthAddr: await wallet.getAddress(),
-  };
-  const l1Txbytes = `0x${txUtils.encodeL1TxFull(l1TxForceExit)}`;
-
-  const lastQueue = await contract.nextL1FillingQueue();
-  const lastQueueBytes = await contract.mapL1TxQueue(lastQueue);
-  const currentIndex = (lastQueueBytes.length - 2) / 2 / L1_USER_BYTES;
+let l1UserTxDepositTransfer = async (
+  loadAmount,
+  fromIdx,
+  toIdx,
+  amountF
+) => {
+  const loadAmountF = loadAmount * 10 ** (18 - 8);;
 
   // Send transaction using ethers.js
   const txRes = await contract.addL1Transaction(
-    '', // babyjub0 as an empty string
+    babyjub0,
     fromIdx,
-    0, // loadAmountF0
+    loadAmount,
     amountF,
-    exitIdx, {
-      value: ethers.utils.parseEther("0")
-    } // No ETH value for force exit
+    toIdx, {
+      value: loadAmountF
+    }
   );
 
   const txReceipt = await txRes.wait(); // Wait for the transaction to be mined
-  console.log('Force exit transaction successful:', txReceipt.transactionHash); // Log transaction hash
+  console.log('L1 User Tx Deposit transaction successful:', txReceipt.hash); // Log transaction hash
 
-  return l1Txbytes;
+  return txReceipt.hash;
+}
+
+let l1UserTxDeposit = async (
+  loadAmount,
+  fromIdx,
+) => {
+  const loadAmountF = loadAmount * 10 ** (18 - 8);;
+
+  // Send transaction using ethers.js
+  const txRes = await contract.addL1Transaction(
+    babyjub0,
+    fromIdx,
+    loadAmount,
+    amountF0,
+    toIdx0, {
+      value: loadAmountF
+    }
+  );
+
+  const txReceipt = await txRes.wait(); // Wait for the transaction to be mined
+  console.log('L1 User Tx Deposit transaction successful:', txReceipt.hash); // Log transaction hash
+
+  return txReceipt.hash;
+}
+
+async function l1UserTxCreateAccountDepositTransfer(
+  loadAmount,
+  toIdx,
+  amountF,
+  babyjub,
+) {
+  const loadAmountF = loadAmount * 10 ** (18 - 8);;
+
+  // Send transaction using ethers.js
+  const txRes = await contract.addL1Transaction(
+    babyjub,
+    fromIdx0,
+    loadAmount,
+    amountF,
+    toIdx, {
+      value: loadAmountF
+    }
+  );
+
+  const txReceipt = await txRes.wait(); // Wait for the transaction to be mined
+  console.log('L1 User Tx Deposit transaction tranfer successful:', txReceipt.hash); // Log transaction hash
+
+  return txReceipt.hash;
 }
 
 module.exports = {
   l1UserTxCreateAccountDeposit,
-  l1UserTxForceExit,
+  l1UserTxCreateAccountDepositTransfer,
+  l1UserTxDeposit,
+  l1UserTxDepositTransfer
 };

@@ -4,11 +4,15 @@ const {
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-
 const SybilAccount = require("../helpers/babyjub/sybilAccount/sybil-account");
 const {
-    l1UserTxCreateAccountDeposit
+    l1UserTxCreateAccountDeposit,
+    l1UserTxDeposit,
+    l1UserTxDepositTransfer,
+    l1UserTxCreateAccountDepositTransfer
 } = require('../helpers/contractFunctions/addL1Tx');
+const RollupDB = require('../helpers/rollupdb/rollup-db');
+const { SMTMemDb } = require('circomlibjs');
 
 const provider = new ethers.JsonRpcProvider("https://rpc.thanos-sepolia.tokamak.network");
 
@@ -25,85 +29,35 @@ const contractABI = JSON.parse(abiFile).abi;
 // Create a contract instance
 const contract = new ethers.Contract(contractAddress, contractABI, wallet);
 
-let testFun = async () => {
+let executeL1Txs = async () => {
     const account = new SybilAccount();
     const accountInfo = await account.initialize();
 
-    l1UserTxCreateAccountDeposit(1000, accountInfo.bjjCompressed)
+    // l1UserTxCreateAccountDeposit(1000, accountInfo.bjjCompressed) //working
+
+    l1UserTxDeposit(1000, 257); //working
+
+    // l1UserTxDepositTransfer(1000, 256, 257, 100)
+
+    // l1UserTxCreateAccountDepositTransfer(1000, 256, 10, accountInfo.bjjCompressed)
 }
 
 
+async function executeForgeBatch() {
+    let chainId = ;
 
-// async function executeAddL1Transaction() {
-//     const account = new SybilAccount();
-//     const accountInfo = await account.initialize();
+    
+    const rollupDB = await RollupDB(new SMTMemDb(), chainId);
+    const forgerTest = new ForgerTest(
+        maxTx,
+        maxL1Tx,
+        nLevels,
+        hardhatHermez,
+        rollupDB
+    );
 
-//     const babyPubKey = `0x${accountInfo.bjjCompressed}`;
-//     console.log("babay key:", babyPubKey);
-//     const fromIdx = 256;
-//     const loadAmountF = 1000;
-//     const amountF = 0;
-//     const toIdx = 0;
-
-//     try {
-//         let loadAmount = loadAmountF * 10 ** (18 - 8);
-
-//         const tx = await contract.addL1Transaction(babyPubKey, fromIdx, loadAmountF, amountF, toIdx, {
-//             value: loadAmount
-//         });
-//         console.log("Transaction sent:", tx.hash);
-//         const receipt = await tx.wait();
-//         console.log("Transaction confirmed in block:", receipt.blockNumber);
-//     } catch (error) {
-//         console.error("Error executing addL1Transaction:", error);
-//     }
-
-// try {
-//     // Example of calling a view function (read-only)
-//     const result = await contract.getLastForgedBatch();
-//     console.log("Function call result:", result);
-// } catch (error) {
-//     console.error("Error calling get function:", error);
-// }
-// }
-
-// async function executeForgeBatch() {
-//     const newLastIdx = 123456n;
-//     const newStRoot = 9876543210123456789n;
-//     const newVouchRoot = 567890123456789n;
-//     const newScoreRoot = 123450987654321n;
-//     const newExitRoot = 876543210123456789n;
-//     const verifierIdx = 1;
-//     const l1Batch = true;
-//     const proofA = [0, 0]; // Example proof arrays
-//     const proofB = [
-//         [0, 0],
-//         [0, 0]
-//     ];
-//     const proofC = [0, 0];
-//     const input = 1234567890123456789n;
-
-//     try {
-//         const tx = await contract.forgeBatch(
-//             newLastIdx, 
-//             newStRoot, 
-//             newVouchRoot, 
-//             newScoreRoot, 
-//             newExitRoot, 
-//             verifierIdx, 
-//             l1Batch, 
-//             proofA, 
-//             proofB, 
-//             proofC, 
-//             input
-//         );
-//         console.log("Transaction sent:", tx.hash);
-//         const receipt = await tx.wait();
-//         console.log("Transaction confirmed in block:", receipt.blockNumber);
-//     } catch (error) {
-//         console.error("Error executing forgeBatch:", error);
-//     }
-// }
+    await forgerTest.forgeBatch(true, [], []);
+}
 
 async function executeWithdrawMerkleProof() {
     const amount = 1234567890123456789n; // Example values
@@ -130,7 +84,7 @@ async function executeWithdrawMerkleProof() {
 
 // Run one of the functions
 (async () => {
-    await testFun();
-    // await executeForgeBatch();
+    // await executeL1Txs();
+    await executeForgeBatch();
     // await executeWithdrawMerkleProof();
 })();
