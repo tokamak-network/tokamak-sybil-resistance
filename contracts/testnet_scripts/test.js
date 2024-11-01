@@ -12,7 +12,9 @@ const {
     l1UserTxCreateAccountDepositTransfer
 } = require('../helpers/contractFunctions/addL1Tx');
 const RollupDB = require('../helpers/rollupdb/rollup-db');
-const { SMTMemDb } = require('circomlibjs');
+const {SMTMemDb}  = require("circomlibjs");
+const ffjavascript = require("ffjavascript");
+const { ForgerTest } = require('../helpers/contractFunctions/forgeBatch')
 
 const provider = new ethers.JsonRpcProvider("https://rpc.thanos-sepolia.tokamak.network");
 
@@ -29,6 +31,7 @@ const contractABI = JSON.parse(abiFile).abi;
 // Create a contract instance
 const contract = new ethers.Contract(contractAddress, contractABI, wallet);
 
+
 let executeL1Txs = async () => {
     const account = new SybilAccount();
     const accountInfo = await account.initialize();
@@ -44,15 +47,19 @@ let executeL1Txs = async () => {
 
 
 async function executeForgeBatch() {
-    let chainId = ;
+    const maxL1Tx = 256;
+    const maxTx = 512;
+    const nLevels = 32;
 
-    
-    const rollupDB = await RollupDB(new SMTMemDb(), chainId);
+    const F = ffjavascript.F1Field; // Or appropriate finite field
+
+    let chainId = 111551119090;
+
+    const rollupDB = await RollupDB(new SMTMemDb(F), chainId);
     const forgerTest = new ForgerTest(
         maxTx,
         maxL1Tx,
         nLevels,
-        hardhatHermez,
         rollupDB
     );
 

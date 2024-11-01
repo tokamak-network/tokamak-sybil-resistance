@@ -24,15 +24,14 @@ const contractABI = [
 ];
 
 class ForgerTest {
-  constructor(maxTx, maxL1Tx, nLevels, rollupDB, realVerifier, provider) {
+  constructor(maxTx, maxL1Tx, nLevels, rollupDB) {
     this.maxTx = maxTx;
     this.maxL1Tx = maxL1Tx;
     this.nLevels = nLevels;
     this.rollupDB = rollupDB;
-    this.realVerifier = realVerifier;
     this.L1TxB = 544;
 
-    this.provider = provider || new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+    this.provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
     this.contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, this.provider.getSigner());
   }
 
