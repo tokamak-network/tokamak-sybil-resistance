@@ -167,27 +167,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 	var blocks []common.BlockData
 	for _, inst := range tc.instructions {
 		switch inst.Typ {
-		case common.TxTypeCreateAccountDeposit, common.TxTypeCreateAccountDepositTransfer:
-			// tx source: L1UserTx
-			tx := common.L1Tx{
-				FromEthAddr:   tc.Accounts[inst.From].Addr,
-				FromBJJ:       tc.Accounts[inst.From].BJJ.Public().Compress(),
-				Amount:        big.NewInt(0),
-				DepositAmount: inst.DepositAmount,
-				Type:          inst.Typ,
-			}
-			if inst.Typ == common.TxTypeCreateAccountDepositTransfer {
-				tx.Amount = inst.Amount
-			}
-			testTx := L1Tx{
-				lineNum:     inst.LineNum,
-				fromIdxName: inst.From,
-				toIdxName:   inst.To,
-				L1Tx:        tx,
-			}
-			if err := tc.addToL1UserQueue(testTx); err != nil {
-				return nil, common.Wrap(err)
-			}
+		//Removed case for TxTypeCreateAccountDepositTransfer
 		case common.TxTypeDeposit: // tx source: L1UserTx
 			if err := tc.checkIfAccountExists(inst.From, inst); err != nil {
 				log.Error(err)
@@ -384,8 +364,7 @@ func (tc *Context) addToL1UserQueue(tx L1Tx) error {
 	tx.L1Tx.Position = len(tc.Queues[tc.openToForge])
 
 	// When an L1UserTx is generated, all idxs must be available (except when idx == 0 or idx == 1)
-	if tx.L1Tx.Type != common.TxTypeCreateAccountDeposit &&
-		tx.L1Tx.Type != common.TxTypeCreateAccountDepositTransfer {
+	if tx.L1Tx.Type != common.TxTypeCreateAccountDeposit {
 		tx.L1Tx.FromIdx = tc.Accounts[tx.fromIdxName].Idx
 	}
 	tx.L1Tx.FromEthAddr = tc.Accounts[tx.fromIdxName].Addr
@@ -764,8 +743,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 			}
 			for k := range l1Txs {
 				tx := l1Txs[k]
-				if tx.Type == common.TxTypeCreateAccountDeposit ||
-					tx.Type == common.TxTypeCreateAccountDepositTransfer {
+				if tx.Type == common.TxTypeCreateAccountDeposit {
 					user, ok := tc.accountsByIdx[tc.extra.idx]
 					if !ok {
 						return common.Wrap(fmt.Errorf("Created account with idx: %v not found", tc.extra.idx))
