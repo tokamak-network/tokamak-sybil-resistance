@@ -346,8 +346,7 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 		depositAmountFloat, _ := laf.Float64()
 		var effectiveFromIdx *common.AccountIdx
 		if l1txs[i].UserOrigin {
-			if l1txs[i].Type != common.TxTypeCreateAccountDeposit &&
-				l1txs[i].Type != common.TxTypeCreateAccountDepositTransfer {
+			if l1txs[i].Type != common.TxTypeCreateAccountDeposit {
 				effectiveFromIdx = &l1txs[i].FromIdx
 			}
 		} else {

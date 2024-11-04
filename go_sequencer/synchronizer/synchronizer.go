@@ -784,7 +784,6 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			EthTxHash:          ethTxHash,
 			EthBlockNum:        blockNum,
 			ForgerAddr:         *sender,
-			CollectedFees:      processTxsOut.CollectedFees,
 			FeeIdxsCoordinator: forgeBatchArgs.FeeIdxCoordinator,
 			StateRoot:          forgeBatchArgs.NewStRoot,
 			NumAccounts:        len(batchData.CreatedAccounts),
