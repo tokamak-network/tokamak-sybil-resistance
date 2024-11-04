@@ -108,7 +108,7 @@ func (s *StateDB) GetAccount(idx common.AccountIdx) (*common.Account, error) {
 func accountsIter(db db.Storage, fn func(a *common.Account) (bool, error)) error {
 	idxDB := db.WithPrefix(PrefixKeyAccIdx)
 	if err := idxDB.Iterate(func(k []byte, v []byte) (bool, error) {
-		idx, err := common.IdxFromBytes(k)
+		idx, err := common.AccountIdxFromBytes(k)
 		if err != nil {
 			return false, common.Wrap(err)
 		}

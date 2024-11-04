@@ -11,7 +11,7 @@ var ErrNotInFF = errors.New("BigInt not inside the Finite Field")
 var ErrNumOverflow = errors.New("Value overflows the type")
 
 // ErrIdxOverflow is used when a given nonce overflows the maximum capacity of the Idx (2**48-1)
-var ErrIdxOverflow = errors.New("idx overflow, max value: 2**48 -1")
+var ErrIdxOverflow = errors.New("idx overflow, max value: 2**24 -1")
 
 // ErrScoreOverflow is used when a given score overflows the maximum capacity of the Score (2**32-1)
 var ErrScoreOverflow = errors.New("Score overflow, max value: 2**32-1")
