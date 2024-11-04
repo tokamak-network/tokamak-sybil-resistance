@@ -144,11 +144,11 @@ type ProcessTxOutput struct {
 func newErrorNotEnoughBalance(tx common.Tx) error {
 	var msg error
 	if tx.IsL1 {
-		msg = fmt.Errorf("Invalid transaction, not enough balance on sender account. "+
+		msg = fmt.Errorf("invalid transaction, not enough balance on sender account. "+
 			"TxID: %s, TxType: %s, FromIdx: %d, ToIdx: %d, Amount: %d",
 			tx.TxID, tx.Type, tx.FromIdx, tx.ToIdx, tx.Amount)
 	} else {
-		msg = fmt.Errorf("Invalid transaction, not enough balance on sender account. "+
+		msg = fmt.Errorf("invalid transaction, not enough balance on sender account. "+
 			"TxID: %s, TxType: %s, FromIdx: %d, ToIdx: %d, Amount: %d, Fee: %d",
 			tx.TxID, tx.Type, tx.FromIdx, tx.ToIdx, tx.Amount, tx.Fee)
 	}
