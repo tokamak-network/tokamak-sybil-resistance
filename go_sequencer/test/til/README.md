@@ -1,11 +1,11 @@
 # Til (Test instructions language)
-Language to define sets of instructions to simulate Hermez transactions (L1 & L2) with real data.
+Language to define sets of instructions to simulate Tokamak transactions (L1 & L2) with real data.
 
 ## Syntax
 ### Global
 Set type definition
 
-- Blockchain: generate the transactions that would come from the Hermez smart contract on the blockchain.
+- Blockchain: generate the transactions that would come from the Tokamak smart contract on the blockchain.
 	
 ```
 Type: Blockchain
@@ -84,7 +84,6 @@ Where `blocks` will contain:
 ```go
 // BatchData contains the information of a Batch
 type BatchData struct {
-    L1CoordinatorTxs        []common.L1Tx
     L2Txs                   []common.L2Tx
     CreatedAccounts         []common.Account
 }
