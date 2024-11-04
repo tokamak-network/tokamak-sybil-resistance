@@ -54,9 +54,9 @@ type RollupEventInitialize struct {
 
 // RollupEventL1UserTx is an event of the Rollup Smart Contract
 type RollupEventL1UserTx struct {
-	// ToForgeL1TxsNum int64 // QueueIndex       *big.Int
-	// Position        int   // TransactionIndex *big.Int
-	L1UserTx common.L1Tx
+	ToForgeL1TxsNum int64 // QueueIndex       *big.Int
+	Position        int   // TransactionIndex *big.Int
+	L1UserTx        common.L1Tx
 }
 
 // RollupEventL1UserTxAux is an event of the Rollup Smart Contract
@@ -654,7 +654,7 @@ func (c *RollupClient) RollupForgeBatchArgs(ethTxHash ethCommon.Hash,
 			copy(paddedFeeIdx[:],
 				aux.FeeIdxCoordinator[i*lenFeeIdxCoordinatorBytes:(i+1)*lenFeeIdxCoordinatorBytes])
 		}
-		feeIdxCoordinator, err := common.IdxFromBytes(paddedFeeIdx[:])
+		feeIdxCoordinator, err := common.AccountIdxFromBytes(paddedFeeIdx[:])
 		if err != nil {
 			return nil, nil, common.Wrap(err)
 		}
