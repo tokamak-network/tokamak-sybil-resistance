@@ -106,8 +106,11 @@ func (i Instruction) String() string {
 	}
 
 	if i.Typ == common.TxTypeDeposit ||
+<<<<<<< HEAD
 		i.Typ == common.TxTypeDepositTransfer ||
 <<<<<<< HEAD
+=======
+>>>>>>> 3523c13 (Fixed and removed redundant part)
 		i.Typ == common.TxTypeCreateAccountDeposit {
 		fmt.Fprintf(buf, "DepositAmount: %d, ", i.DepositAmount)
 	}
@@ -147,22 +150,12 @@ func (i Instruction) raw() string {
 	fmt.Fprintf(buf, "(%d)", i.TokenID)
 >>>>>>> 73c16ff (Merged sequencer initialisation changes into coordinator node initialisation)
 	fmt.Fprintf(buf, "%s", i.From)
-	if i.Typ == common.TxTypeTransfer ||
-		i.Typ == common.TxTypeDepositTransfer ||
-		i.Typ == common.TxTypeCreateAccountDepositTransfer {
-		fmt.Fprintf(buf, "-%s", i.To)
-	}
 	fmt.Fprintf(buf, ":")
-	if i.Typ == common.TxTypeDeposit ||
-		i.Typ == common.TxTypeDepositTransfer ||
-		i.Typ == common.TxTypeCreateAccountDepositTransfer {
+	if i.Typ == common.TxTypeDeposit {
 		fmt.Fprintf(buf, "%d", i.DepositAmount)
 	}
 	if i.Typ != common.TxTypeDeposit {
 		fmt.Fprintf(buf, "%d", i.Amount)
-	}
-	if i.Typ == common.TxTypeTransfer {
-		fmt.Fprintf(buf, "(%d)", i.Fee)
 	}
 	return buf.String()
 }

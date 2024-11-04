@@ -257,6 +257,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 	for _, inst := range tc.instructions {
 		switch inst.Typ {
 <<<<<<< HEAD
+<<<<<<< HEAD
 		case common.TxTypeCreateAccountDeposit, common.TxTypeCreateAccountDepositTransfer:
 			// tx source: L1UserTx
 			tx := common.L1Tx{
@@ -308,6 +309,9 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 				return nil, common.Wrap(err)
 			}
 <<<<<<< HEAD
+=======
+		//Removed case for TxTypeCreateAccountDepositTransfer
+>>>>>>> 3523c13 (Fixed and removed redundant part)
 		case common.TxTypeDeposit: // tx source: L1UserTx
 =======
 		case common.TxTypeDeposit, common.TxTypeDepositTransfer: // tx source: L1UserTx
@@ -697,9 +701,13 @@ func (tc *Context) addToL1UserQueue(tx L1Tx) error {
 	tx.L1Tx.Position = len(tc.Queues[tc.openToForge])
 
 	// When an L1UserTx is generated, all idxs must be available (except when idx == 0 or idx == 1)
+<<<<<<< HEAD
 	if tx.L1Tx.Type != common.TxTypeCreateAccountDeposit &&
 		tx.L1Tx.Type != common.TxTypeCreateAccountDepositTransfer {
 <<<<<<< HEAD
+=======
+	if tx.L1Tx.Type != common.TxTypeCreateAccountDeposit {
+>>>>>>> 3523c13 (Fixed and removed redundant part)
 		tx.L1Tx.FromIdx = tc.Accounts[tx.fromIdxName].Idx
 	}
 	tx.L1Tx.FromEthAddr = tc.Accounts[tx.fromIdxName].Addr
@@ -1251,9 +1259,13 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 			}
 			for k := range l1Txs {
 				tx := l1Txs[k]
+<<<<<<< HEAD
 				if tx.Type == common.TxTypeCreateAccountDeposit ||
 					tx.Type == common.TxTypeCreateAccountDepositTransfer {
 <<<<<<< HEAD
+=======
+				if tx.Type == common.TxTypeCreateAccountDeposit {
+>>>>>>> 3523c13 (Fixed and removed redundant part)
 					user, ok := tc.accountsByIdx[tc.extra.idx]
 =======
 					user, ok := tc.UsersByIdx[tc.extra.idx]
