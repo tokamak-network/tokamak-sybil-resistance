@@ -17,7 +17,7 @@ contract Hermez is InstantWithdrawManager {
     uint256 constant _L1_USER_TOTALBYTES = 74;
 
     // Maximum L1 transactions allowed to be queued in a batch
-    uint256 constant _MAX_L1_TX = 128;
+    uint256 constant _MAX_L1_TX = 128; 
 
     // Modulus zkSNARK
     uint256 constant _RFIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
