@@ -117,3 +117,14 @@ forge create --rpc-url https://rpc.thanos-sepolia.tokamak.network --legacy --pri
 ```shell
 node simulations/SybilQueue.test.js
 ```
+
+# How to generate Baby Jub Jub
+const SybilAccount = require("./sybilAccount/sybil-account");
+
+# Generate through Private Key
+const account = new SybilAccount(<private_key>);
+const accountInfo = await account.initialize();
+
+# Generate without Private Key
+const account = new SybilAccount();
+const accountInfo = await account.initialize();
