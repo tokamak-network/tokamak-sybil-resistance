@@ -73,9 +73,15 @@ cast --help
 
 # Poseidon Contracts (Thanos)
 
-Poseidon2Elements deployed at: 0xb84B26659fBEe08f36A2af5EF73671d66DDf83db
-Poseidon3Elements deployed at: 0xFc50367cf2bA87627f99EDD8703FF49252473AED
-Poseidon4Elements deployed at: 0xF8AB2781AA06A1c3eF41Bd379Ec1681a70A148e0
+Poseidon2Elements deployed at: 0x31c3EBCa9c9eFAeE59FD30A968BCA0634F42Ed95
+Poseidon3Elements deployed at: 0x82c5d2d227b5C6f69A978cfA7025654517e82351
+Poseidon4Elements deployed at: 0xfFe18609E5641527191408BfC5776129037794f2
+
+# Verifier Contract (Thanos)
+0x734fDa76b5BfaB6793E2bb69F20834aCDda510C7
+
+# Sybil Contract (Thanos)
+0x3b5008b4bB4489ddD36627d41E55D351D3fAa5dE
 
 # Deploy Poseidon
 
@@ -91,6 +97,19 @@ forge script script/DeployVerifier.s.sol --rpc-url https://rpc.thanos-sepolia.to
 
 ```shell
 forge script script/DeploySybil.s.sol --rpc-url https://rpc.thanos-sepolia.tokamak.network --private-key <your_private_key> --broadcast --legacy
+```
+
+# Verify Contract
+
+# VerifierRollupStub
+
+```shell
+forge create --rpc-url https://rpc.thanos-sepolia.tokamak.network --legacy --private-key <your_private_key> src/stub/VerifierRollupStub.sol:VerifierRollupStub --verify --verifier blockscout --verifier-url "https://explorer.thanos-sepolia.tokamak.network/api?module=contract&action=verify_via_sourcify&addressHash=0x734fDa76b5BfaB6793E2bb69F20834aCDda510C7"
+```
+
+# Sybil
+```shell
+forge create --rpc-url https://rpc.thanos-sepolia.tokamak.network --legacy --private-key <your_private_key> src/sybil.sol:Sybil --verify --verifier blockscout --verifier-url "https://explorer.thanos-sepolia.tokamak.network/api?module=contract&action=verify_via_sourcify&addressHash=0x3b5008b4bB4489ddD36627d41E55D351D3fAa5dE"
 ```
 
 # Run Queue Simulation Test

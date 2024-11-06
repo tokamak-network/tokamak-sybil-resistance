@@ -26,9 +26,9 @@ contract FunctionScript is Script {
         nLevels[0] = 5;
 
         // Specify Poseidon contract addresses
-        address poseidon2Elements = 0xb84B26659fBEe08f36A2af5EF73671d66DDf83db;
-        address poseidon3Elements = 0xFc50367cf2bA87627f99EDD8703FF49252473AED;
-        address poseidon4Elements = 0xF8AB2781AA06A1c3eF41Bd379Ec1681a70A148e0;
+        address poseidon2Elements = 0x31c3EBCa9c9eFAeE59FD30A968BCA0634F42Ed95;
+        address poseidon3Elements = 0x82c5d2d227b5C6f69A978cfA7025654517e82351;
+        address poseidon4Elements = 0xfFe18609E5641527191408BfC5776129037794f2;
 
         vm.startBroadcast();
         // Deploy the Sybil contract
