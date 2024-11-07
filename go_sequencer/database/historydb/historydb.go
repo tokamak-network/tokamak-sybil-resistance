@@ -387,6 +387,9 @@ func (hdb *HistoryDB) AddL2Txs(l2txs []common.L2Tx) error {
 
 // addL2Txs inserts L2 txs to the DB. TokenID, USD and FeeUSD will be set automatically before storing the tx.
 func (hdb *HistoryDB) addL2Txs(d meddler.DB, l2txs []common.L2Tx) error {
+	if len(l2txs) == 0 {
+		return nil
+	}
 	txs := []txWrite{}
 	for i := 0; i < len(l2txs); i++ {
 		f := new(big.Float).SetInt(l2txs[i].Amount)
@@ -427,7 +430,6 @@ func (hdb *HistoryDB) addTxs(d meddler.DB, txs []txWrite) error {
 			to_idx,
 			amount,
 			amount_f,
-			token_id,
 			batch_num,
 			eth_block_num,
 			to_forge_l1_txs_num,

@@ -447,46 +447,46 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 	// 	txProcessor.zki.ISInitStateRootFee = txProcessor.state.AccountTree.Root().BigInt()
 	// }
 
-	// distribute the AccumulatedFees from the processed L2Txs into the
-	// Coordinator Idxs
-	indexFee := 0
-	for _, idx := range coordIdxs {
-		accumulatedFee := txProcessor.AccumulatedFees[idx]
+	// // distribute the AccumulatedFees from the processed L2Txs into the
+	// // Coordinator Idxs
+	// indexFee := 0
+	// for _, idx := range coordIdxs {
+	// 	accumulatedFee := txProcessor.AccumulatedFees[idx]
 
-		// send the fee to the Idx of the Coordinator for the TokenID
-		// (even if the AccumulatedFee==0, as is how the zk circuit
-		// works)
-		accCoord, err := txProcessor.state.GetAccount(idx)
-		if err != nil {
-			log.Errorw("Can not distribute accumulated fees to coordinator account: "+
-				"No coord Idx to receive fee", "idx", idx)
-			return nil, common.Wrap(err)
-		}
-		// if txProcessor.zki != nil {
-		// 	txProcessor.zki.TokenID3[indexFee] = accCoord.TokenID.BigInt()
-		// 	txProcessor.zki.Nonce3[indexFee] = accCoord.Nonce.BigInt()
-		// 	coordBJJSign, coordBJJY := babyjub.UnpackSignY(accCoord.BJJ)
-		// 	if coordBJJSign {
-		// 		txProcessor.zki.Sign3[indexFee] = big.NewInt(1)
-		// 	}
-		// 	txProcessor.zki.Ay3[indexFee] = coordBJJY
-		// 	txProcessor.zki.Balance3[indexFee] = accCoord.Balance
-		// 	txProcessor.zki.EthAddr3[indexFee] = common.EthAddrToBigInt(accCoord.EthAddr)
-		// }
-		accCoord.Balance = new(big.Int).Add(accCoord.Balance, accumulatedFee)
-		pFee, err := txProcessor.updateAccount(idx, accCoord)
-		if err != nil {
-			log.Error(err)
-			return nil, common.Wrap(err)
-		}
-		if txProcessor.zki != nil {
-			txProcessor.zki.Siblings3[indexFee] = siblingsToZKInputFormat(pFee.Siblings)
-			if indexFee < len(txProcessor.zki.ISStateRootFee) {
-				txProcessor.zki.ISStateRootFee[indexFee] = txProcessor.state.AccountTree.Root().BigInt()
-			}
-		}
-		indexFee++
-	}
+	// 	// send the fee to the Idx of the Coordinator for the TokenID
+	// 	// (even if the AccumulatedFee==0, as is how the zk circuit
+	// 	// works)
+	// 	accCoord, err := txProcessor.state.GetAccount(idx)
+	// 	if err != nil {
+	// 		log.Errorw("Can not distribute accumulated fees to coordinator account: "+
+	// 			"No coord Idx to receive fee", "idx", idx)
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	// if txProcessor.zki != nil {
+	// 	// 	txProcessor.zki.TokenID3[indexFee] = accCoord.TokenID.BigInt()
+	// 	// 	txProcessor.zki.Nonce3[indexFee] = accCoord.Nonce.BigInt()
+	// 	// 	coordBJJSign, coordBJJY := babyjub.UnpackSignY(accCoord.BJJ)
+	// 	// 	if coordBJJSign {
+	// 	// 		txProcessor.zki.Sign3[indexFee] = big.NewInt(1)
+	// 	// 	}
+	// 	// 	txProcessor.zki.Ay3[indexFee] = coordBJJY
+	// 	// 	txProcessor.zki.Balance3[indexFee] = accCoord.Balance
+	// 	// 	txProcessor.zki.EthAddr3[indexFee] = common.EthAddrToBigInt(accCoord.EthAddr)
+	// 	// }
+	// 	accCoord.Balance = new(big.Int).Add(accCoord.Balance, accumulatedFee)
+	// 	pFee, err := txProcessor.updateAccount(idx, accCoord)
+	// 	if err != nil {
+	// 		log.Error(err)
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// 	if txProcessor.zki != nil {
+	// 		txProcessor.zki.Siblings3[indexFee] = siblingsToZKInputFormat(pFee.Siblings)
+	// 		if indexFee < len(txProcessor.zki.ISStateRootFee) {
+	// 			txProcessor.zki.ISStateRootFee[indexFee] = txProcessor.state.AccountTree.Root().BigInt()
+	// 		}
+	// 	}
+	// 	indexFee++
+	// }
 	// if txProcessor.zki != nil {
 	// 	for i := len(txProcessor.AccumulatedFees); i < int(txProcessor.config.MaxFeeTx)-1; i++ {
 	// 		txProcessor.zki.ISStateRootFee[i] = txProcessor.state.AccountTree.Root().BigInt()
@@ -1087,16 +1087,16 @@ func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common
 		// increment nonce
 		acc.Nonce++
 
-		// compute fee and subtract it from the accSender
-		fee, err := common.CalcFeeAmount(tx.Amount, *tx.Fee)
-		if err != nil {
-			return nil, false, common.Wrap(err)
-		}
-		feeAndAmount := new(big.Int).Add(tx.Amount, fee)
-		acc.Balance = new(big.Int).Sub(acc.Balance, feeAndAmount)
-		if acc.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
-			return nil, false, newErrorNotEnoughBalance(tx)
-		}
+		// // compute fee and subtract it from the accSender
+		// fee, err := common.CalcFeeAmount(tx.Amount, *tx.Fee)
+		// if err != nil {
+		// 	return nil, false, common.Wrap(err)
+		// }
+		// feeAndAmount := new(big.Int).Add(tx.Amount, fee)
+		// acc.Balance = new(big.Int).Sub(acc.Balance, feeAndAmount)
+		// if acc.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
+		// 	return nil, false, newErrorNotEnoughBalance(tx)
+		// }
 
 		// if _, ok := coordIdxsMap[acc.TokenID]; ok {
 		// 	accCoord, err := txProcessor.state.GetAccount(coordIdxsMap[acc.TokenID])

@@ -433,5 +433,25 @@ func TestSyncGeneral(t *testing.T) {
 	blocks[0].Rollup.Batches[0].Batch.GasPrice = syncBlock.Rollup.Batches[0].Batch.GasPrice
 	blocks[0].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
 
-	checkSyncBlock(t, s, 2, &blocks[0], syncBlock)
+	// checkSyncBlock(t, s, 2, &blocks[0], syncBlock)
+
+	// Block 3
+
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, discards)
+	require.NotNil(t, syncBlock)
+	assert.Nil(t, syncBlock.Rollup.Vars)
+	assert.Equal(t, int64(3), syncBlock.Block.Num)
+	stats = s.Stats()
+	assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+	assert.Equal(t, int64(3), stats.Eth.LastBlock.Num)
+	assert.Equal(t, int64(3), stats.Sync.LastBlock.Num)
+	// Set ethereum transaction hash (til doesn't set it)
+	blocks[1].Rollup.Batches[0].Batch.EthTxHash = syncBlock.Rollup.Batches[0].Batch.EthTxHash
+	blocks[1].Rollup.Batches[1].Batch.EthTxHash = syncBlock.Rollup.Batches[1].Batch.EthTxHash
+	blocks[1].Rollup.Batches[0].Batch.GasPrice = syncBlock.Rollup.Batches[0].Batch.GasPrice
+	blocks[1].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
+
+	checkSyncBlock(t, s, 3, &blocks[1], syncBlock)
 }

@@ -177,7 +177,7 @@ CREATE TABLE tx (
     amount DECIMAL(78,0) NOT NULL,
     amount_success BOOLEAN NOT NULL DEFAULT true,
     amount_f NUMERIC NOT NULL,
-    token_id INT NOT NULL REFERENCES token (token_id),
+    token_id INT,
     amount_usd NUMERIC, -- Value of the amount in USD at the moment the tx was inserted in the DB
     batch_num BIGINT REFERENCES batch (batch_num) ON DELETE SET NULL, -- Can be NULL in the case of L1 txs that are on the queue but not forged yet.
     eth_block_num BIGINT NOT NULL REFERENCES block (eth_block_num) ON DELETE CASCADE,
@@ -495,7 +495,7 @@ BEGIN
             NEW.fee = (SELECT 0);
         END IF;
         -- Set token_id
-        NEW."token_id" = (SELECT token_id FROM account WHERE idx = NEW."from_idx");
+        -- NEW.token_id = (SELECT token_id FROM account WHERE idx = NEW.from_idx);
         -- Set from_{eth_addr,bjj}
         SELECT INTO NEW."from_eth_addr", NEW."from_bjj" eth_addr, bjj FROM account WHERE idx = NEW.from_idx;
     END IF;
