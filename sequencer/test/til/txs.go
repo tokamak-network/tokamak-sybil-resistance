@@ -220,6 +220,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			}
 			tx := common.L1Tx{
 				// TokenID:       inst.TokenID,
+				Amount:        big.NewInt(0),
 				DepositAmount: inst.DepositAmount,
 				Type:          inst.Typ,
 			}
@@ -879,7 +880,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 					batch.ExitTree = append(batch.ExitTree, common.ExitInfo{
 						BatchNum:   batch.Batch.BatchNum,
 						AccountIdx: tx.FromIdx,
-						// Balance:    tx.Amount,
+						Balance:    tx.Amount,
 					})
 				}
 				// fee, err := common.CalcFeeAmount(tx.Amount, tx.Fee)

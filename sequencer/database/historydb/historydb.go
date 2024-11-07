@@ -1,3 +1,23 @@
+/*
+Package historydb is responsible for storing and retrieving the historic data of the Hermez network.
+It's mostly but not exclusively used by the API and the synchronizer.
+
+Apart from the logic defined in this package, it's important to notice that there are some triggers defined in the
+migration files that have to be taken into consideration to understanding the results of some queries. This is especially true
+for reorgs: all the data is directly or indirectly related to a block, this makes handling reorgs as easy as deleting the
+reorged blocks from the block table, and all related items will be dropped in cascade. This is not the only case, in general
+functions defined in this package that get affected somehow by the SQL level defined logic has a special mention on the function description.
+
+Some of the database tooling used in this package such as meddler and migration tools is explained in the db package.
+
+This package is spitted in different files following these ideas:
+- historydb.go: constructor and functions used by packages other than the api.
+- views.go: structs used to retrieve/store data from/to the database. When possible, the common structs are used, however
+most of the time there is no 1:1 relation between the struct fields and the tables of the schema, especially when joining tables.
+In some cases, some of the structs defined in this file also include custom Marshallers to easily match the expected api formats.
+- nodeinfo.go: used to handle the interfaces and structs that allow communication across running in different machines/process but sharing the same database.
+*/
+
 package historydb
 
 import (
@@ -6,6 +26,7 @@ import (
 	"tokamak-sybil-resistance/database"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/tracerr"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/jmoiron/sqlx"
 	"github.com/russross/meddler"
@@ -37,6 +58,23 @@ func (hdb *HistoryDB) DB() *sqlx.DB {
 func (hdb *HistoryDB) AddBlock(block *common.Block) error { return hdb.addBlock(hdb.dbWrite, block) }
 func (hdb *HistoryDB) addBlock(d meddler.DB, block *common.Block) error {
 	return common.Wrap(meddler.Insert(d, "block", block))
+}
+
+// AddBlocks inserts blocks into the DB
+func (hdb *HistoryDB) AddBlocks(blocks []common.Block) error {
+	return tracerr.Wrap(hdb.addBlocks(hdb.dbWrite, blocks))
+}
+
+func (hdb *HistoryDB) addBlocks(d meddler.DB, blocks []common.Block) error {
+	return tracerr.Wrap(database.BulkInsert(
+		d,
+		`INSERT INTO block (
+			eth_block_num,
+			timestamp,
+			hash
+		) VALUES %s;`,
+		blocks,
+	))
 }
 
 // GetBlock retrieve a block from the DB, given a block number
@@ -322,6 +360,16 @@ func (hdb *HistoryDB) addAccountUpdates(d meddler.DB, accUpdates []common.Accoun
 	))
 }
 
+// GetAllAccountUpdates returns all the AccountUpdate from the DB
+func (hdb *HistoryDB) GetAllAccountUpdates() ([]common.AccountUpdate, error) {
+	var accUpdates []*common.AccountUpdate
+	err := meddler.QueryAll(
+		hdb.dbRead, &accUpdates,
+		"SELECT eth_block_num, batch_num, idx, nonce, balance FROM account_update ORDER BY idx;",
+	)
+	return database.SlicePtrsToSlice(accUpdates).([]common.AccountUpdate), tracerr.Wrap(err)
+}
+
 // AddL1Txs inserts L1 txs to the DB. USD and DepositAmountUSD will be set automatically before storing the tx.
 // If the tx is originated by a coordinator, BatchNum must be provided. If it's originated by a user,
 // BatchNum should be null, and the value will be setted by a trigger when a batch forges the tx.
@@ -427,7 +475,6 @@ func (hdb *HistoryDB) addTxs(d meddler.DB, txs []txWrite) error {
 			to_idx,
 			amount,
 			amount_f,
-			token_id,
 			batch_num,
 			eth_block_num,
 			to_forge_l1_txs_num,
@@ -463,7 +510,7 @@ func (hdb *HistoryDB) GetAllL1UserTxs() ([]common.L1Tx, error) {
 	err := meddler.QueryAll(
 		hdb.dbRead, &txs,
 		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
-		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
 		tx.amount, (CASE WHEN tx.batch_num IS NULL THEN NULL WHEN tx.amount_success THEN tx.amount ELSE 0 END) AS effective_amount,
 		tx.deposit_amount, (CASE WHEN tx.batch_num IS NULL THEN NULL WHEN tx.deposit_amount_success THEN tx.deposit_amount ELSE 0 END) AS effective_deposit_amount,
 		tx.eth_block_num, tx.type, tx.batch_num

@@ -177,7 +177,7 @@ CREATE TABLE tx (
     amount DECIMAL(78,0) NOT NULL,
     amount_success BOOLEAN NOT NULL DEFAULT true,
     amount_f NUMERIC NOT NULL,
-    token_id INT NOT NULL REFERENCES token (token_id),
+    --token_id INT NOT NULL REFERENCES token (token_id),
     amount_usd NUMERIC, -- Value of the amount in USD at the moment the tx was inserted in the DB
     batch_num BIGINT REFERENCES batch (batch_num) ON DELETE SET NULL, -- Can be NULL in the case of L1 txs that are on the queue but not forged yet.
     eth_block_num BIGINT NOT NULL REFERENCES block (eth_block_num) ON DELETE CASCADE,
@@ -495,26 +495,26 @@ BEGIN
             NEW.fee = (SELECT 0);
         END IF;
         -- Set token_id
-        NEW."token_id" = (SELECT token_id FROM account WHERE idx = NEW."from_idx");
+        -- NEW."token_id" = (SELECT token_id FROM account WHERE idx = NEW."from_idx");
         -- Set from_{eth_addr,bjj}
         SELECT INTO NEW."from_eth_addr", NEW."from_bjj" eth_addr, bjj FROM account WHERE idx = NEW.from_idx;
     END IF;
     -- Set USD related
-    SELECT INTO _value, _usd_update, _tx_timestamp 
-        usd / POWER(10, decimals), usd_update, timestamp FROM token INNER JOIN block on token.eth_block_num = block.eth_block_num WHERE token_id = NEW.token_id;
-    IF _usd_update - interval '24 hours' < _usd_update AND _usd_update + interval '24 hours' > _usd_update THEN
-        IF _value > 0.0 THEN
-            IF NEW."amount_f" > 0.0 THEN
-                NEW."amount_usd" = (SELECT _value * NEW."amount_f");
-                IF NOT NEW."is_l1" AND NEW."fee" > 0 THEN
-                    NEW."fee_usd" = (SELECT NEW."amount_usd" * fee_percentage(NEW.fee::NUMERIC));
-                END IF;
-            END IF;
-            IF NEW."is_l1" AND NEW."deposit_amount_f" > 0.0 THEN
-                NEW."deposit_amount_usd" = (SELECT _value * NEW.deposit_amount_f);
-            END IF;
-        END IF;
-    END IF;
+    -- SELECT INTO _value, _usd_update, _tx_timestamp 
+    --     usd / POWER(10, decimals), usd_update, timestamp FROM token INNER JOIN block on token.eth_block_num = block.eth_block_num WHERE token_id = NEW.token_id;
+    -- IF _usd_update - interval '24 hours' < _usd_update AND _usd_update + interval '24 hours' > _usd_update THEN
+    --     IF _value > 0.0 THEN
+    --         IF NEW."amount_f" > 0.0 THEN
+    --             NEW."amount_usd" = (SELECT _value * NEW."amount_f");
+    --             IF NOT NEW."is_l1" AND NEW."fee" > 0 THEN
+    --                 NEW."fee_usd" = (SELECT NEW."amount_usd" * fee_percentage(NEW.fee::NUMERIC));
+    --             END IF;
+    --         END IF;
+    --         IF NEW."is_l1" AND NEW."deposit_amount_f" > 0.0 THEN
+    --             NEW."deposit_amount_usd" = (SELECT _value * NEW.deposit_amount_f);
+    --         END IF;
+    --     END IF;
+    -- END IF;
     -- Set to_{eth_addr,bjj}
     IF NEW."to_idx" > 255 THEN
         SELECT INTO NEW."to_eth_addr", NEW."to_bjj" eth_addr, bjj FROM account WHERE idx = NEW."to_idx";
