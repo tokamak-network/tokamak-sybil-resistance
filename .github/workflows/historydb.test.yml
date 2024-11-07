@@ -5,8 +5,13 @@ on:
     branches-ignore:
       - "main"
     paths:
+<<<<<<< HEAD
       - "sequencer/database/historydb/**"
       - "sequencer/database/utils.go"
+=======
+      - "go_sequencer/database/historydb/**"
+      - "go_sequencer/database/utils.go"
+>>>>>>> f1c185b (merge feature/go-sequencer)
   workflow_dispatch:
 
 jobs:
