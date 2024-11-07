@@ -3,7 +3,7 @@ const Scalar = require("ffjavascript").Scalar;
 // const utilsScalar = require("ffjavascript").utils;
 const poseidonHash = require("circomlib").poseidon;
 // const babyJub = require("circomlib").babyJub;
-const SMT = require("circomlib").SMT;
+// const SMT = require("circomlib").SMT;
 
 const SMTTmpDb = require("./smt-tmp-db");
 const feeUtils = require("./fee-table");
@@ -12,6 +12,7 @@ const stateUtils = require("../utils/state-utils");
 const txUtils = require("../utils/tx-utils");
 const float40 = require("../utils/float40");
 const Constants = require("../utils/constants");
+const { SMT } = require("circomlibjs");
 
 module.exports = class BatchBuilder {
     constructor(rollupDB, batchNumber, root, initialIdx, maxNTx, nLevels, maxL1Tx, chainID, nFeeTx) {
@@ -1169,6 +1170,24 @@ module.exports = class BatchBuilder {
      * @return {Scalar} State root
      */
     getNewStateRoot() {
+        if (!this.builded) throw new Error("Batch must first be builded");
+        return this.stateTree.root;
+    }
+
+     /**
+     * Return the last state root after the batch is builded
+     * @return {Scalar} State root
+     */
+     getNewVouchRoot() {
+        if (!this.builded) throw new Error("Batch must first be builded");
+        return this.stateTree.root;
+    }
+
+    /**
+     * Return the last state root after the batch is builded
+     * @return {Scalar} State root
+     */
+    getNewScoreRoot() {
         if (!this.builded) throw new Error("Batch must first be builded");
         return this.stateTree.root;
     }

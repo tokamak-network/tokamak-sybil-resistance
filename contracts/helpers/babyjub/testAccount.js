@@ -4,6 +4,7 @@ const SybilAccount = require("./sybilAccount/sybil-account");
     const account = new SybilAccount();
     const accountInfo = await account.initialize();
 
+    console.log(accountInfo);
     console.log("Private Key:", accountInfo.privateKey);
     console.log("Ethereum Address:", accountInfo.ethAddr);
     console.log("BabyJubJub Public Key (ax):", accountInfo.ax);

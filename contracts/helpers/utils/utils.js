@@ -1,7 +1,7 @@
 const Scalar = require("ffjavascript").Scalar;
 const poseidonHash = require("circomlib").poseidon;
 const crypto = require("crypto");
-const babyJub = require("circomlib").babyJub;
+const babyJub = require("../utils/babyjub");
 
 /**
  * Convert to hexadecimal string padding until 256 characters
@@ -47,6 +47,7 @@ function sha256Snark(str) {
     const hash = crypto.createHash("sha256")
         .update(str, "hex")
         .digest("hex");
+
     const h = Scalar.mod(Scalar.fromString(hash, 16), babyJub.p);
     return h;
 }

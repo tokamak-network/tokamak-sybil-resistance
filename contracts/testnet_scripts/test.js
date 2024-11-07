@@ -12,9 +12,13 @@ const {
     l1UserTxCreateAccountDepositTransfer
 } = require('../helpers/contractFunctions/addL1Tx');
 const RollupDB = require('../helpers/rollupdb/rollup-db');
-const {SMTMemDb}  = require("circomlibjs");
+const {
+    SMTMemDb
+} = require("circomlibjs");
 const ffjavascript = require("ffjavascript");
-const { ForgerTest } = require('../helpers/contractFunctions/forgeBatch')
+const {
+    ForgerTest
+} = require('../helpers/contractFunctions/forgeBatch')
 
 const provider = new ethers.JsonRpcProvider("https://rpc.thanos-sepolia.tokamak.network");
 
@@ -47,6 +51,7 @@ let executeL1Txs = async () => {
 
 
 async function executeForgeBatch() {
+
     const maxL1Tx = 256;
     const maxTx = 512;
     const nLevels = 32;
@@ -64,6 +69,37 @@ async function executeForgeBatch() {
     );
 
     await forgerTest.forgeBatch(true, [], []);
+}
+
+async function executeL1TxAndForgeBatch() {
+    const maxL1Tx = 256;
+    const maxTx = 512;
+    const nLevels = 32;
+
+    const F = ffjavascript.F1Field; // Or appropriate finite field
+
+    let chainId = 111551119090;
+
+    const account = new SybilAccount();
+    const accountInfo = await account.initialize();
+
+    const l1TxUserArray = [];
+    let l1 = await l1UserTxCreateAccountDeposit(1000, accountInfo.bjjCompressed)
+    console.log("l1:", l1);
+    l1TxUserArray.push(l1);
+
+    const l1TxCoordiatorArray = [];
+
+    const rollupDB = await RollupDB(new SMTMemDb(F), chainId);
+    const forgerTest = new ForgerTest(
+        maxTx,
+        maxL1Tx,
+        nLevels,
+        rollupDB
+    );
+
+    await forgerTest.forgeBatch(true, [], []);
+    await forgerTest.forgeBatch(true, l1TxUserArray, l1TxCoordiatorArray);
 }
 
 async function executeWithdrawMerkleProof() {
@@ -92,6 +128,7 @@ async function executeWithdrawMerkleProof() {
 // Run one of the functions
 (async () => {
     // await executeL1Txs();
-    await executeForgeBatch();
+    // await executeForgeBatch();
+    await executeL1TxAndForgeBatch();
     // await executeWithdrawMerkleProof();
 })();

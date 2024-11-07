@@ -31,20 +31,30 @@ class ForgerTest {
     this.rollupDB = rollupDB;
     this.L1TxB = 544;
 
-    this.provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-    this.contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, this.provider.getSigner());
+    this.provider = new ethers.JsonRpcProvider(process.env.PROVIDER_URL);
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, this.provider); 
+    this.contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, wallet);
   }
 
-  async forgeBatch(l1TxUserArray, l1TxCoordiatorArray, l2txArray) {
+  async forgeBatch(l1Batch, l1TxUserArray, l1TxCoordiatorArray, l2txArray) {
     // 1. Build batch with rollupDB
     const bb = await this.rollupDB.buildBatch(this.maxTx, this.nLevels, this.maxL1Tx);
     
+    console.log("tx:", l1TxUserArray);
+
     // Add L1 and L2 transactions to the batch builder
     l1TxUserArray.forEach(tx => bb.addTx(tx));
     l1TxCoordiatorArray.forEach(tx => bb.addTx(tx));
-    l2txArray.forEach(tx => bb.addTx(tx));
+    // l2txArray.forEach(tx => bb.addTx(tx));
+    if (l2txArray) {
+      for (let tx of l2txArray) {
+        bb.addTx(tx);
+      }
+    }
 
     await bb.build();
+
+    console.log("bb:", bb);
 
     // 2. Retrieve data from rollupDB batch builder
     const newLastIdx = bb.getNewLastIdx();
@@ -57,7 +67,7 @@ class ForgerTest {
     const proofC = ["0", "0"];
     const input = bb.getHashInputs();
     const verifierIdx = 0;
-    const l1Batch = true;
+    // const l1Batch = true;
 
     // 3. Send forgeBatch transaction
     try {
@@ -80,9 +90,10 @@ class ForgerTest {
       await tx.wait();
       console.log("forgeBatch transaction confirmed");
 
+
       // 4. Consolidate batch in rollupDB
-      await this.rollupDB.consolidate(bb);
-      console.log("Batch consolidated in rollupDB");
+      // await this.rollupDB.consolidate(await bb);
+      // console.log("Batch consolidated in rollupDB");
     } catch (error) {
       console.error("Error in forgeBatch: ", error);
     }
