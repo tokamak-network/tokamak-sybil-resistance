@@ -1,12 +1,12 @@
-name: "SYB historydb test"
+name: "SYB all tests"
 
 on:
-  push:
-    branches-ignore:
+  pull_request:
+    branches:
       - "main"
     paths:
-      - "sequencer/database/historydb/**"
-      - "sequencer/database/utils.go"
+      - "sequencer/**"
+
   workflow_dispatch:
 
 jobs:
@@ -49,10 +49,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run historydb tests
+      - name: Run all tests
         run: |
           cd ./sequencer
-          task test-historydb
+          task test-sequencer
         env:
           PGHOST: "localhost"
           PGPORT: "5432"

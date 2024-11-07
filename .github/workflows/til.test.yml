@@ -5,8 +5,8 @@ on:
     branches-ignore:
       - "main"
     paths:
-      - "go_sequencer/test/til/**"
-      - "!go_sequencer/test/til/README.md"
+      - "sequencer/test/til/**"
+      - "!sequencer/test/til/README.md"
   workflow_dispatch:
 
 jobs:
@@ -37,11 +37,11 @@ jobs:
           go-version: "1.22.5"
           check-latest: true
           cache-dependency-path: |
-            ./go_sequencer/go.sum
+            ./sequencer/go.sum
 
       - name: Install dependencies
         run: |
-          cd ./go_sequencer
+          cd ./sequencer
           go mod tidy
 
       - name: Install Task
@@ -51,7 +51,7 @@ jobs:
 
       - name: Run TIL tests
         run: |
-          cd ./go_sequencer
+          cd ./sequencer
           task test-til
         env:
           PGHOST: "localhost"
