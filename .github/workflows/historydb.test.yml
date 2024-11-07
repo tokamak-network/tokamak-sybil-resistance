@@ -6,12 +6,17 @@ on:
       - "main"
     paths:
 <<<<<<< HEAD
+<<<<<<< HEAD
       - "sequencer/database/historydb/**"
       - "sequencer/database/utils.go"
 =======
       - "go_sequencer/database/historydb/**"
       - "go_sequencer/database/utils.go"
 >>>>>>> f1c185b (merge feature/go-sequencer)
+=======
+      - "sequencer/database/historydb/**"
+      - "sequencer/database/utils.go"
+>>>>>>> abf1465 (implement sequencer all tests workflow)
   workflow_dispatch:
 
 jobs:
