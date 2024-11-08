@@ -854,7 +854,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 					batch.ExitTree = append(batch.ExitTree, common.ExitInfo{
 						BatchNum:   batch.Batch.BatchNum,
 						AccountIdx: tx.FromIdx,
-						// Balance:    tx.Amount,
+						Balance:    tx.Amount,
 					})
 				}
 				// fee, err := common.CalcFeeAmount(tx.Amount, tx.Fee)

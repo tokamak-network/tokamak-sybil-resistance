@@ -764,7 +764,7 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 	}
 
 	switch tx.Type {
-	case common.TxTypeTransfer, common.TxTypeTransferToEthAddr, common.TxTypeTransferToBJJ:
+	case common.TxTypeCreateVouch, common.TxTypeDeleteVouch:
 		// go to the MT account of sender and receiver, and update
 		// balance & nonce
 		err = txProcessor.applyTransfer(nil, nil, tx.Tx(), tx.AuxToIdx)
@@ -791,7 +791,7 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 func (txProcessor *TxProcessor) applyCreateAccount(tx *common.L1Tx) error {
 	account := &common.Account{
 		Nonce:   0,
-		Balance: tx.Amount,
+		Balance: tx.EffectiveDepositAmount,
 		BJJ:     tx.FromBJJ,
 		EthAddr: tx.FromEthAddr,
 	}
@@ -970,15 +970,15 @@ func (txProcessor *TxProcessor) applyTransfer(coordIdxsMap map[common.TokenID]co
 		accSender.Nonce++
 
 		// compute fee and subtract it from the accSender
-		fee, err := common.CalcFeeAmount(tx.Amount, *tx.Fee)
-		if err != nil {
-			return common.Wrap(err)
-		}
-		feeAndAmount := new(big.Int).Add(tx.Amount, fee)
-		accSender.Balance = new(big.Int).Sub(accSender.Balance, feeAndAmount)
-		if accSender.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
-			return newErrorNotEnoughBalance(tx)
-		}
+		// fee, err := common.CalcFeeAmount(tx.Amount, *tx.Fee)
+		// if err != nil {
+		// 	return common.Wrap(err)
+		// }
+		// feeAndAmount := new(big.Int).Add(tx.Amount, fee)
+		// accSender.Balance = new(big.Int).Sub(accSender.Balance, feeAndAmount)
+		// if accSender.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
+		// 	return newErrorNotEnoughBalance(tx)
+		// }
 
 		// if _, ok := coordIdxsMap[accSender.TokenID]; ok {
 		// 	accCoord, err := txProcessor.state.GetAccount(coordIdxsMap[accSender.TokenID])

@@ -433,7 +433,7 @@ func TestSyncGeneral(t *testing.T) {
 	blocks[0].Rollup.Batches[0].Batch.GasPrice = syncBlock.Rollup.Batches[0].Batch.GasPrice
 	blocks[0].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
 
-	// checkSyncBlock(t, s, 2, &blocks[0], syncBlock)
+	checkSyncBlock(t, s, 2, &blocks[0], syncBlock)
 
 	// Block 3
 
