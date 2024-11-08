@@ -389,12 +389,11 @@ func TestTxs(t *testing.T) {
 	bn = common.BatchNum(5)
 	assert.Equal(t, bn, *dbL1Txs[3].BatchNum)
 
-	return
-
 	bn = common.BatchNum(7)
 	assert.Equal(t, &bn, dbL1Txs[3].BatchNum)
 	assert.Equal(t, &bn, dbL1Txs[4].BatchNum)
 	assert.Equal(t, &bn, dbL1Txs[5].BatchNum)
+	return
 
 	bn = common.BatchNum(8)
 	assert.Equal(t, &bn, dbL1Txs[6].BatchNum)
