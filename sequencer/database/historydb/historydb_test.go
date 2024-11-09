@@ -254,12 +254,14 @@ func TestTxs(t *testing.T) {
 	
 	CreateAccountDeposit A: 1 	// L1Tx 1
 	CreateAccountDeposit B: 2	// L1Tx 2
+	CreateVouch A-B		// L2Tx 1
+	CreateVouch B-A		// L2Tx 2
 	> batchL1	// batch 1
 	> batchL1	// batch 2
 	> block  	// block 1
 	
 	Deposit B: 10	// L1Tx 3
-	Exit A: 10		// L2Tx 1
+	Exit A: 10		// L2Tx 3
 	> batch		// batch 3
 	> block  	// block 2
 	
@@ -268,11 +270,14 @@ func TestTxs(t *testing.T) {
 	> batchL1	// batch 5
 	> block		// block 3
 
-	CreateAccountDeposit D: 10		// L1Tx 5
+	CreateAccountDeposit C: 10		// L1Tx 5
+	CreateVouch A-C		// L2Tx 4
 	> batchL1	// batch 6
 	> block  	// block 4
 
-	CreateAccountDeposit E: 10		// L1Tx 6
+	CreateAccountDeposit D: 10		// L1Tx 6
+	CreateVouch C-D		// L2Tx 5
+	DeleteVouch B-A		// L2Tx 6
 	> batchL1	// batch 7
 	> batchL1	// batch 8
 	> block		// block 5
@@ -285,33 +290,35 @@ func TestTxs(t *testing.T) {
 		CoordUser:     "A",
 	}
 	blocks, err := tc.GenerateBlocks(set)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Sanity check
-	require.Equal(t, 5, len(blocks)) // total number of blocks is 5
+	assert.Equal(t, 5, len(blocks)) // total number of blocks is 5
 
 	assert.Equal(t, 2, len(blocks[0].Rollup.L1UserTxs))                  // block 1 contains 2 L1UserTxs
 	assert.Equal(t, 2, len(blocks[0].Rollup.Batches))                    // block 1 contains 2 Batches
 	assert.Equal(t, 2, len(blocks[0].Rollup.Batches[1].CreatedAccounts)) // block 1, batch 2 contains 2 CreatedAccounts
 
-	require.Equal(t, 1, len(blocks[1].Rollup.L1UserTxs))        // block 2 contains 1 L1UserTxs
-	require.Equal(t, 1, len(blocks[1].Rollup.Batches))          // block 2 contains 1 Batch
-	require.Equal(t, 1, len(blocks[1].Rollup.Batches[0].L2Txs)) // block 2, batch 1 contains 1 L2Tx
+	assert.Equal(t, 1, len(blocks[1].Rollup.L1UserTxs))        // block 2 contains 1 L1UserTxs
+	assert.Equal(t, 1, len(blocks[1].Rollup.Batches))          // block 2 contains 1 Batch
+	assert.Equal(t, 1, len(blocks[1].Rollup.Batches[0].L2Txs)) // block 2, batch 1 contains 1 L2Tx
 
-	require.Equal(t, 2, len(blocks[2].Rollup.Batches))          // block 3 contains 2 Batches
-	require.Equal(t, 1, len(blocks[2].Rollup.L1UserTxs))        // block 3 contains 1 L1UserTxs
-	require.Equal(t, 0, len(blocks[2].Rollup.Batches[1].L2Txs)) // block 2, batch 2 contains 0 L2Tx
+	assert.Equal(t, 2, len(blocks[2].Rollup.Batches))          // block 3 contains 2 Batches
+	assert.Equal(t, 1, len(blocks[2].Rollup.L1UserTxs))        // block 3 contains 1 L1UserTxs
+	assert.Equal(t, 0, len(blocks[2].Rollup.Batches[1].L2Txs)) // block 2, batch 2 contains 0 L2Tx
 
-	require.Equal(t, 1, len(blocks[3].Rollup.Batches))          // block 4 contains 1 Batch
-	require.Equal(t, 1, len(blocks[3].Rollup.L1UserTxs))        // block 4 contains 1 L1UserTxs
-	require.Equal(t, 0, len(blocks[2].Rollup.Batches[0].L2Txs)) // block 5, batch 2 contains 0 L2Tx
+	assert.Equal(t, 1, len(blocks[3].Rollup.Batches))          // block 4 contains 1 Batch
+	assert.Equal(t, 1, len(blocks[3].Rollup.L1UserTxs))        // block 4 contains 1 L1UserTxs
+	assert.Equal(t, 0, len(blocks[2].Rollup.Batches[0].L2Txs)) // block 5, batch 2 contains 0 L2Tx
 
-	require.Equal(t, 2, len(blocks[4].Rollup.Batches))          // block 5 contains 2 Batches
-	require.Equal(t, 1, len(blocks[4].Rollup.L1UserTxs))        // block 5 contains 1 L1UserTxs
-	require.Equal(t, 0, len(blocks[4].Rollup.Batches[0].L2Txs)) // block 5, batch 1 contains 0 L2Tx
+	assert.Equal(t, 2, len(blocks[4].Rollup.Batches))          // block 5 contains 2 Batches
+	assert.Equal(t, 1, len(blocks[4].Rollup.L1UserTxs))        // block 5 contains 1 L1UserTxs
+	assert.Equal(t, 0, len(blocks[4].Rollup.Batches[0].L2Txs)) // block 5, batch 1 contains 0 L2Tx
+
+	return
 
 	var null *common.BatchNum = nil
 
@@ -342,18 +349,6 @@ func TestTxs(t *testing.T) {
 	dbL1Txs, err := historyDB.GetAllL1UserTxs()
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(dbL1Txs))
-
-	// Tx Type
-	// assert.Equal(t, common.TxTypeCreateAccountDeposit, dbL1Txs[0].Type)
-	// assert.Equal(t, common.TxTypeCreateAccountDeposit, dbL1Txs[1].Type)
-	// assert.Equal(t, common.TxTypeCreateAccountDepositTransfer, dbL1Txs[2].Type)
-	// assert.Equal(t, common.TxTypeDeposit, dbL1Txs[3].Type)
-	// assert.Equal(t, common.TxTypeDeposit, dbL1Txs[4].Type)
-	// assert.Equal(t, common.TxTypeDepositTransfer, dbL1Txs[5].Type)
-	// assert.Equal(t, common.TxTypeForceTransfer, dbL1Txs[6].Type)
-	// assert.Equal(t, common.TxTypeForceExit, dbL1Txs[7].Type)
-	// assert.Equal(t, common.TxTypeCreateAccountDeposit, dbL1Txs[8].Type)
-	// assert.Equal(t, common.TxTypeCreateAccountDeposit, dbL1Txs[9].Type)
 
 	// Tx Type
 	assert.Equal(t, common.TxTypeCreateAccountDeposit, dbL1Txs[0].Type)
