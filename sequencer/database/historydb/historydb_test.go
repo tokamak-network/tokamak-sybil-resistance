@@ -252,30 +252,30 @@ func TestTxs(t *testing.T) {
 	set := `
 	Type: Blockchain
 	
-	CreateAccountDeposit A: 1
-	CreateAccountDeposit B: 2
-	> batchL1
-	> batchL1
-	> block  // block 1
+	CreateAccountDeposit A: 1 	// L1Tx 1
+	CreateAccountDeposit B: 2	// L1Tx 2
+	> batchL1	// batch 1
+	> batchL1	// batch 2
+	> block  	// block 1
 	
-	Deposit B: 10
-	Exit A: 10
-	> batch
-	> block  // block 2
+	Deposit B: 10	// L1Tx 3
+	Exit A: 10		// L2Tx 1
+	> batch		// batch 3
+	> block  	// block 2
 	
-	ForceExit A: 5
-	> batchL1
-	> batchL1
-	> block	// block 3
+	ForceExit A: 5		// L1Tx 4
+	> batchL1	// batch 4
+	> batchL1	// batch 5
+	> block		// block 3
 
-	CreateAccountDeposit D: 10
-	> batchL1
-	> block  // block 4
+	CreateAccountDeposit D: 10		// L1Tx 5
+	> batchL1	// batch 6
+	> block  	// block 4
 
-	CreateAccountDeposit E: 10
-	> batchL1
-	> batchL1
-	> block	// block 5
+	CreateAccountDeposit E: 10		// L1Tx 6
+	> batchL1	// batch 7
+	> batchL1	// batch 8
+	> block		// block 5
 
 `
 
@@ -314,7 +314,6 @@ func TestTxs(t *testing.T) {
 	require.Equal(t, 0, len(blocks[4].Rollup.Batches[0].L2Txs)) // block 5, batch 1 contains 0 L2Tx
 
 	var null *common.BatchNum = nil
-	var txID common.TxID
 
 	// Insert blocks into DB
 	for i := range blocks {
@@ -387,36 +386,22 @@ func TestTxs(t *testing.T) {
 	assert.Equal(t, &bn, dbL1Txs[1].BatchNum)
 
 	bn = common.BatchNum(5)
+	assert.Equal(t, bn, *dbL1Txs[2].BatchNum)
 	assert.Equal(t, bn, *dbL1Txs[3].BatchNum)
 
 	bn = common.BatchNum(7)
-	assert.Equal(t, &bn, dbL1Txs[3].BatchNum)
 	assert.Equal(t, &bn, dbL1Txs[4].BatchNum)
-	assert.Equal(t, &bn, dbL1Txs[5].BatchNum)
 
 	bn = common.BatchNum(8)
-	assert.Equal(t, &bn, dbL1Txs[6].BatchNum)
-	assert.Equal(t, &bn, dbL1Txs[7].BatchNum)
-
-	return
-
-	bn = common.BatchNum(10)
-	assert.Equal(t, &bn, dbL1Txs[8].BatchNum)
-
-	bn = common.BatchNum(11)
-	assert.Equal(t, &bn, dbL1Txs[9].BatchNum)
+	assert.Equal(t, &bn, dbL1Txs[5].BatchNum)
 
 	// eth_block_num
 	assert.Equal(t, int64(2), dbL1Txs[0].EthBlockNum)
 	assert.Equal(t, int64(2), dbL1Txs[1].EthBlockNum)
 	assert.Equal(t, int64(3), dbL1Txs[2].EthBlockNum)
 	assert.Equal(t, int64(4), dbL1Txs[3].EthBlockNum)
-	assert.Equal(t, int64(4), dbL1Txs[4].EthBlockNum)
-	assert.Equal(t, int64(5), dbL1Txs[5].EthBlockNum)
-	assert.Equal(t, int64(6), dbL1Txs[6].EthBlockNum)
-	assert.Equal(t, int64(6), dbL1Txs[7].EthBlockNum)
-	assert.Equal(t, int64(7), dbL1Txs[8].EthBlockNum)
-	assert.Equal(t, int64(8), dbL1Txs[9].EthBlockNum)
+	assert.Equal(t, int64(5), dbL1Txs[4].EthBlockNum)
+	assert.Equal(t, int64(6), dbL1Txs[5].EthBlockNum)
 
 	// User Origin
 	assert.Equal(t, true, dbL1Txs[0].UserOrigin)
@@ -425,72 +410,37 @@ func TestTxs(t *testing.T) {
 	assert.Equal(t, true, dbL1Txs[3].UserOrigin)
 	assert.Equal(t, true, dbL1Txs[4].UserOrigin)
 	assert.Equal(t, true, dbL1Txs[5].UserOrigin)
-	assert.Equal(t, true, dbL1Txs[6].UserOrigin)
-	assert.Equal(t, true, dbL1Txs[7].UserOrigin)
-	assert.Equal(t, true, dbL1Txs[8].UserOrigin)
-	assert.Equal(t, true, dbL1Txs[9].UserOrigin)
 
 	// Deposit Amount
-	assert.Equal(t, big.NewInt(10), dbL1Txs[0].DepositAmount)
-	assert.Equal(t, big.NewInt(10), dbL1Txs[1].DepositAmount)
-	assert.Equal(t, big.NewInt(20), dbL1Txs[2].DepositAmount)
-	assert.Equal(t, big.NewInt(10), dbL1Txs[3].DepositAmount)
+	assert.Equal(t, big.NewInt(1), dbL1Txs[0].DepositAmount)
+	assert.Equal(t, big.NewInt(2), dbL1Txs[1].DepositAmount)
+	assert.Equal(t, big.NewInt(10), dbL1Txs[2].DepositAmount)
+	assert.Equal(t, big.NewInt(0), dbL1Txs[3].DepositAmount)
 	assert.Equal(t, big.NewInt(10), dbL1Txs[4].DepositAmount)
 	assert.Equal(t, big.NewInt(10), dbL1Txs[5].DepositAmount)
-	assert.Equal(t, big.NewInt(0), dbL1Txs[6].DepositAmount)
-	assert.Equal(t, big.NewInt(0), dbL1Txs[7].DepositAmount)
-	assert.Equal(t, big.NewInt(10), dbL1Txs[8].DepositAmount)
-	assert.Equal(t, big.NewInt(10), dbL1Txs[9].DepositAmount)
 
 	// Check saved txID's batch_num is not nil
-	assert.Equal(t, txID, dbL1Txs[len(dbL1Txs)-2].TxID)
 	assert.NotEqual(t, null, dbL1Txs[len(dbL1Txs)-2].BatchNum)
-
-	// Check Coordinator TXs
-	coordTxs, err := historyDB.GetAllL1CoordinatorTxs()
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(coordTxs))
-	assert.Equal(t, common.TxTypeCreateAccountDeposit, coordTxs[0].Type)
-	assert.Equal(t, false, coordTxs[0].UserOrigin)
 
 	// Check L2 TXs
 	dbL2Txs, err := historyDB.GetAllL2Txs()
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(dbL2Txs))
+	assert.Equal(t, 1, len(dbL2Txs))
 
 	// Tx Type
-	assert.Equal(t, common.TxTypeTransfer, dbL2Txs[0].Type)
-	assert.Equal(t, common.TxTypeTransfer, dbL2Txs[1].Type)
-	assert.Equal(t, common.TxTypeTransfer, dbL2Txs[2].Type)
-	assert.Equal(t, common.TxTypeExit, dbL2Txs[3].Type)
+	assert.Equal(t, common.TxTypeExit, dbL2Txs[0].Type)
 
 	// Tx ID
-	assert.Equal(t, "0x024e555248100b69a8aabf6d31719b9fe8a60dcc6c3407904a93c8d2d9ade18ee5", dbL2Txs[0].TxID.String())
-	assert.Equal(t, "0x021ae87ca34d50ff35d98dfc0d7c95f2bf2e4ffeebb82ea71f43a8b0dfa5d36d89", dbL2Txs[1].TxID.String())
-	assert.Equal(t, "0x024abce7f3f2382dc520ed557593f11dea1ee197e55b60402e664facc27aa19774", dbL2Txs[2].TxID.String())
-	assert.Equal(t, "0x02f921ad9e7a6e59606570fe12a7dde0e36014197de0363b9b45e5097d6f2b1dd0", dbL2Txs[3].TxID.String())
-
-	// Tx From and To IDx
-	assert.Equal(t, dbL2Txs[0].ToIdx, dbL2Txs[2].FromIdx)
-	assert.Equal(t, dbL2Txs[1].ToIdx, dbL2Txs[0].FromIdx)
-	assert.Equal(t, dbL2Txs[2].ToIdx, dbL2Txs[1].FromIdx)
+	assert.Equal(t, "0x0222d2c1f4190752ad0d273024267197c5c65e1069dfff1baca7302e3fbca3c523", dbL2Txs[0].TxID.String())
 
 	// Batch Number
-	assert.Equal(t, common.BatchNum(5), dbL2Txs[0].BatchNum)
-	assert.Equal(t, common.BatchNum(5), dbL2Txs[1].BatchNum)
-	assert.Equal(t, common.BatchNum(5), dbL2Txs[2].BatchNum)
-	assert.Equal(t, common.BatchNum(5), dbL2Txs[3].BatchNum)
+	assert.Equal(t, common.BatchNum(3), dbL2Txs[0].BatchNum)
 
 	// eth_block_num
-	assert.Equal(t, int64(4), dbL2Txs[0].EthBlockNum)
-	assert.Equal(t, int64(4), dbL2Txs[1].EthBlockNum)
-	assert.Equal(t, int64(4), dbL2Txs[2].EthBlockNum)
+	assert.Equal(t, int64(3), dbL2Txs[0].EthBlockNum)
 
 	// Amount
 	assert.Equal(t, big.NewInt(10), dbL2Txs[0].Amount)
-	assert.Equal(t, big.NewInt(10), dbL2Txs[1].Amount)
-	assert.Equal(t, big.NewInt(10), dbL2Txs[2].Amount)
-	assert.Equal(t, big.NewInt(10), dbL2Txs[3].Amount)
 }
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {

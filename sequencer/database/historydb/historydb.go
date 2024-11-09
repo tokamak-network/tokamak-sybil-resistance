@@ -542,7 +542,7 @@ func (hdb *HistoryDB) GetAllL2Txs() ([]common.L2Tx, error) {
 	err := meddler.QueryAll(
 		hdb.dbRead, &txs,
 		`SELECT tx.id, tx.batch_num, tx.position,
-		tx.from_idx, tx.to_idx, tx.amount, tx.token_id,
+		tx.from_idx, tx.to_idx, tx.amount,
 		tx.fee, tx.nonce, tx.type, tx.eth_block_num
 		FROM tx WHERE is_l1 = FALSE ORDER BY item_id;`,
 	)
