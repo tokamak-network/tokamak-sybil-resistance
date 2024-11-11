@@ -493,4 +493,33 @@ func TestSyncGeneral(t *testing.T) {
 
 	assert.True(t, foundA1)
 	assert.True(t, foundC1)
+
+	// Block 5
+	// Update variables manually
+	rollupVars, err := s.historyDB.GetSCVars()
+	require.NoError(t, err)
+	rollupVars.ForgeL1L2BatchTimeout = 42
+	_, err = client.RollupUpdateForgeL1L2BatchTimeout(rollupVars.ForgeL1L2BatchTimeout)
+	require.NoError(t, err)
+
+	client.CtlMineBlock()
+
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, discards)
+	require.NotNil(t, syncBlock)
+	assert.NotNil(t, syncBlock.Rollup.Vars)
+	assert.Equal(t, int64(5), syncBlock.Block.Num)
+	stats = s.Stats()
+	assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+	assert.Equal(t, int64(5), stats.Eth.LastBlock.Num)
+	assert.Equal(t, int64(5), stats.Sync.LastBlock.Num)
+	vars = s.SCVars()
+	assert.NotEqual(t, clientSetup.RollupVariables, vars.Rollup)
+
+	dbRollupVars, err := s.historyDB.GetSCVars()
+	require.NoError(t, err)
+	// Set EthBlockNum for Vars to the blockNum in which they were updated (should be 5)
+	rollupVars.EthBlockNum = syncBlock.Block.Num
+	assert.Equal(t, rollupVars, dbRollupVars)
 }
