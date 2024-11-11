@@ -3,13 +3,13 @@ A sybil-resistant zk-rollup that scores Ethereum addresses based on a network of
 
 The project consists of three components:
  
- <b>Contracts</b>
+ ## Contracts
  holds the state root, verifies batch proofs from the sequencer, updates the root, and stores transaction data for availability—while queuing essential L1 transactions for timely processing in the next batch. For more info, follow the [link](./contracts/README.md)
 
- <b>Sequencer</b>
+ ## Sequencer
  keeps track of the state as a Merkle tree, batches user transactions, and efficiently updates the network. For more info, setup, and running the sequencer follow the [link](./sequencer/README.md).
 
- <b>Circuit</b>
+ ## Circuit
  defines the logic for applying transactions and updating the state tree, producing a proof from transaction data and state roots that the contract can verify to confirm valid state transitions. For more info, follow the [link](./circuits/README.md)
 
  ## Architecture
