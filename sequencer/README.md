@@ -1,6 +1,8 @@
 # Sequencer for SYB
 
-We are developing a zk-rollup sequencer designed to compute a uniqueness score for each user account based on the vouches made between accounts. This score will reflect the interactions and endorsements that one account provides to another.The sequencer will serve as a backend middleware, facilitating communication between the smart contract and the Circuit, which is responsible for calculating the uniqueness index. By utilizing a zk-rollup architecture, we aim to significantly reduce the computational costs associated with calculating scores directly through smart contracts, which would otherwise be prohibitively high. This approach ensures efficiency and scalability while maintaining the integrity of our computations.
+SYB sequencer is a zk-rollup sequencer designed to compute uniqueness score for each user account based on the vouches made between accounts. This score will reflect the interactions and endorsements that one account provides to another. Acting as a backend middleware, sequencer facilitates communication between the smart contract and the Circuit, which is responsible for calculating the uniqueness score. 
+
+By utilizing a zk-rollup architecture, we aim to significantly reduce the computational costs associated with calculating scores directly through smart contracts, which would otherwise be prohibitively high. This approach ensures efficiency and scalability while maintaining the integrity of our computations.
 
 ## Setup
 ```bash
@@ -21,7 +23,7 @@ task test-<name> # for example: task test-historydb
 ### Sync flow
 <img src="../doc/images/sequencer_sync_flow.png" />
 
-<b>CMD to run sequencer in sync mode</b>
+## CMD to run sequencer in sync mode
 
 ```
 go run main.go run --mode sync --cfg cfg.toml
@@ -31,7 +33,7 @@ go run main.go run --mode sync --cfg cfg.toml
 ### Coord flow
 <img src="../doc/images/sequencer_coord_flow.png" />
 
-<b>CMD to run sequencer in coord mode</b>
+## CMD to run sequencer in coord mode
 
 ```
 go run main.go run --mode coord --cfg cfg.toml
