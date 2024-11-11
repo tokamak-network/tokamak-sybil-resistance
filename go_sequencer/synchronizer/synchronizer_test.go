@@ -454,4 +454,43 @@ func TestSyncGeneral(t *testing.T) {
 	blocks[1].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
 
 	checkSyncBlock(t, s, 3, &blocks[1], syncBlock)
+
+	// Block 4
+	// Generate 2 withdraws manually
+	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["A"].BJJ.Public().Compress(), 4, 257,
+		big.NewInt(100), []*big.Int{}, true)
+	require.NoError(t, err)
+	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["C"].BJJ.Public().Compress(), 3, 256,
+		big.NewInt(50), []*big.Int{}, false)
+	require.NoError(t, err)
+	client.CtlMineBlock()
+
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, discards)
+	require.NotNil(t, syncBlock)
+	assert.Nil(t, syncBlock.Rollup.Vars)
+	assert.Equal(t, int64(4), syncBlock.Block.Num)
+	stats = s.Stats()
+	assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+	assert.Equal(t, int64(4), stats.Eth.LastBlock.Num)
+	assert.Equal(t, int64(4), stats.Sync.LastBlock.Num)
+	vars = s.SCVars()
+	assert.Equal(t, *clientSetup.RollupVariables, vars.Rollup)
+
+	dbExits, err := s.historyDB.GetAllExits()
+	require.NoError(t, err)
+	foundA1, foundC1 := false, false
+
+	for _, exit := range dbExits {
+		if exit.AccountIdx == 257 && exit.BatchNum == 4 {
+			foundA1 = true
+		}
+		if exit.AccountIdx == 256 && exit.BatchNum == 3 {
+			foundC1 = true
+		}
+	}
+
+	assert.True(t, foundA1)
+	assert.True(t, foundC1)
 }
