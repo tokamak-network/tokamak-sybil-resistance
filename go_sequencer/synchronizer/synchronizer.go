@@ -708,8 +708,8 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 		tp := txprocessor.NewTxProcessor(s.stateDB, tpc)
 
 		// ProcessTxs updates poolL2Txs adding: Nonce (and also TokenID, but we don't use it).
-		processTxsOut, err := tp.ProcessTxs(forgeBatchArgs.FeeIdxCoordinator,
-			l1UserTxs, batchData.L1CoordinatorTxs, poolL2Txs)
+		processTxsOut, err := tp.ProcessTxs(
+			l1UserTxs, poolL2Txs)
 		if err != nil {
 			return nil, tracerr.Wrap(err)
 		}
