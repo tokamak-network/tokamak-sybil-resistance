@@ -20,7 +20,7 @@ task test-<name> # for example: task test-historydb
 ### E2E flow
 <img src="../doc/images/sequencer_e2e_flow.png" />
 
-### Sync flow
+### Sync flow ([interactive link](https://viewer.diagrams.net/?tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1#G10tKc2c3VyREzzdtekl2dcNMwI4HWOSfr#%7B%22pageId%22%3A%22mWZ3KBgQXANqmTgwyxpi%22%7D))
 <img src="../doc/images/sequencer_sync_flow.png" />
 
 ## CMD to run sequencer in sync mode
@@ -30,7 +30,7 @@ go run main.go run --mode sync --cfg cfg.toml
 ```
 
 
-### Coord flow
+### Coord flow ([interactive link](https://viewer.diagrams.net/?tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1#G10tKc2c3VyREzzdtekl2dcNMwI4HWOSfr#%7B%22pageId%22%3A%22MOlNjBzEnPvgUMVi-x9F%22%7D))
 <img src="../doc/images/sequencer_coord_flow.png" />
 
 ## CMD to run sequencer in coord mode
