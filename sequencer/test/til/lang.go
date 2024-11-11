@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"sort"
 	"strconv"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/log"
@@ -13,9 +14,9 @@ import (
 
 var eof = rune(0)
 var errof = fmt.Errorf("eof in parseline")
-var commentLine = fmt.Errorf("comment in parseline") //nolint:golint
-var newEventLine = fmt.Errorf("newEventLine")        //nolint:golint
-var setTypeLine = fmt.Errorf("setTypeLine")          //nolint:golint
+var errCommentLine = fmt.Errorf("comment in parseline") //nolint:golint
+var errNewEventLine = fmt.Errorf("newEventLine")        //nolint:golint
+var errSetTypeLine = fmt.Errorf("setTypeLine")          //nolint:golint
 
 // setType defines the type of the set
 type setType string
@@ -37,11 +38,6 @@ var TypeNewBatchL1 common.TxType = "InstrTypeNewBatchL1"
 // TypeNewBlock is used for testing purposes only, and represents the
 // common.TxType of a new ethereum block
 var TypeNewBlock common.TxType = "InstrTypeNewBlock"
-
-// TxTypeCreateAccountDepositCoordinator  is used for testing purposes only,
-// and represents the common.TxType of a create acount deposit made by the
-// coordinator
-var TxTypeCreateAccountDepositCoordinator common.TxType = "TypeCreateAccountDepositCoordinator"
 
 // nolint
 const (
@@ -82,13 +78,15 @@ func (i Instruction) String() string {
 	}
 
 	if i.Typ == common.TxTypeDeposit ||
-		i.Typ == common.TxTypeDepositTransfer ||
+		// i.Typ == common.TxTypeDepositTransfer ||
 		i.Typ == common.TxTypeCreateAccountDeposit {
 		fmt.Fprintf(buf, "DepositAmount: %d, ", i.DepositAmount)
 	}
-	// if i.Typ != common.TxTypeDeposit {
-	// 	fmt.Fprintf(buf, "Amount: %d, ", i.Amount)
-	// }
+
+	// TODO: remove `\n` from the end of the string when Token is implemented
+	if i.Typ != common.TxTypeDeposit {
+		fmt.Fprintf(buf, "Amount: %d\n", i.Amount)
+	}
 	// if i.Typ == common.TxTypeTransfer ||
 	// 	i.Typ == common.TxTypeDepositTransfer ||
 	// 	i.Typ == common.TxTypeCreateAccountDepositTransfer {
@@ -104,22 +102,27 @@ func (i Instruction) raw() string {
 	fmt.Fprintf(buf, "%s", i.Typ)
 	// fmt.Fprintf(buf, "(%d)", i.TokenID)
 	fmt.Fprintf(buf, "%s", i.From)
-	if i.Typ == common.TxTypeTransfer ||
-		i.Typ == common.TxTypeDepositTransfer ||
-		i.Typ == common.TxTypeCreateAccountDepositTransfer {
+	// if i.Typ == common.TxTypeTransfer ||
+	// 	i.Typ == common.TxTypeDepositTransfer ||
+	// 	i.Typ == common.TxTypeCreateAccountDepositTransfer {
+	// 	fmt.Fprintf(buf, "-%s", i.To)
+	// }
+	if i.Typ == common.TxTypeCreateVouch ||
+		i.Typ == common.TxTypeDeleteVouch {
 		fmt.Fprintf(buf, "-%s", i.To)
-	}
-	fmt.Fprintf(buf, ":")
-	if i.Typ == common.TxTypeDeposit ||
-		i.Typ == common.TxTypeDepositTransfer ||
-		i.Typ == common.TxTypeCreateAccountDepositTransfer {
-		fmt.Fprintf(buf, "%d", i.DepositAmount)
-	}
-	if i.Typ != common.TxTypeDeposit {
-		fmt.Fprintf(buf, "%d", i.Amount)
-	}
-	if i.Typ == common.TxTypeTransfer {
-		fmt.Fprintf(buf, "(%d)", i.Fee)
+	} else {
+		fmt.Fprintf(buf, ":")
+		if i.Typ == common.TxTypeDeposit {
+			// i.Typ == common.TxTypeDepositTransfer ||
+			// i.Typ == common.TxTypeCreateAccountDepositTransfer {
+			fmt.Fprintf(buf, "%d", i.DepositAmount)
+		}
+		if i.Typ != common.TxTypeDeposit {
+			fmt.Fprintf(buf, "%d", i.Amount)
+		}
+		// if i.Typ == common.TxTypeTransfer {
+		// 	fmt.Fprintf(buf, "(%d)", i.Fee)
+		// }
 	}
 	return buf.String()
 }
@@ -272,23 +275,23 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 	c.Literal += lit
 	if lit == "/" {
 		_, _ = p.s.r.ReadString('\n')
-		return nil, commentLine
+		return nil, errCommentLine
 	} else if lit == ">" {
 		if setType == SetTypePoolL2 {
-			return c, common.Wrap(fmt.Errorf("Unexpected '>' at PoolL2Txs set"))
+			return c, common.Wrap(fmt.Errorf("unexpected '>' at PoolL2Txs set"))
 		}
 		_, lit = p.scanIgnoreWhitespace()
 		if lit == "batch" {
 			_, _ = p.s.r.ReadString('\n')
-			return &Instruction{Typ: TypeNewBatch}, newEventLine
+			return &Instruction{Typ: TypeNewBatch}, errNewEventLine
 		} else if lit == "batchL1" {
 			_, _ = p.s.r.ReadString('\n')
-			return &Instruction{Typ: TypeNewBatchL1}, newEventLine
+			return &Instruction{Typ: TypeNewBatchL1}, errNewEventLine
 		} else if lit == "block" {
 			_, _ = p.s.r.ReadString('\n')
-			return &Instruction{Typ: TypeNewBlock}, newEventLine
+			return &Instruction{Typ: TypeNewBlock}, errNewEventLine
 		} else {
-			return c, common.Wrap(fmt.Errorf("Unexpected '> %s', expected '> batch' or '> block'", lit))
+			return c, common.Wrap(fmt.Errorf("unexpected '> %s', expected '> batch' or '> block'", lit))
 		}
 	} else if lit == "Type" {
 		if err := p.expectChar(c, ":"); err != nil {
@@ -296,17 +299,17 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		}
 		_, lit = p.scanIgnoreWhitespace()
 		if lit == "Blockchain" {
-			return &Instruction{Typ: "Blockchain"}, setTypeLine
+			return &Instruction{Typ: "Blockchain"}, errSetTypeLine
 		} else if lit == "PoolL2" {
-			return &Instruction{Typ: "PoolL2"}, setTypeLine
+			return &Instruction{Typ: "PoolL2"}, errSetTypeLine
 		} else {
 			return c,
-				common.Wrap(fmt.Errorf("Invalid set type: '%s'. Valid set types: 'Blockchain', 'PoolL2'", lit))
+				common.Wrap(fmt.Errorf("invalid set type: '%s'. Valid set types: 'Blockchain', 'PoolL2'", lit))
 		}
 	}
 
 	if setType == "" {
-		return c, common.Wrap(fmt.Errorf("Set type not defined"))
+		return c, common.Wrap(fmt.Errorf("set type not defined"))
 	}
 	vouch := false
 	fee := false
@@ -329,27 +332,27 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		case "ForceExit":
 			c.Typ = common.TxTypeForceExit
 		default:
-			return c, common.Wrap(fmt.Errorf("Unexpected Blockchain tx type: %s", lit))
+			return c, common.Wrap(fmt.Errorf("unexpected Blockchain tx type: %s", lit))
 		}
 	} else if setType == SetTypePoolL2 {
 		switch lit {
 		case "PoolCreateVouch":
 			c.Typ = common.TxTypeCreateVouch
 			vouch = true
-			fee = true
+			// fee = true
 		case "PoolDeleteVouch":
 			c.Typ = common.TxTypeDeleteVouch
 			vouch = true
-			fee = true
+			// fee = true
 		case "PoolExit":
 			c.Typ = common.TxTypeExit
-			fee = true
+			// fee = true
 		default:
-			return c, common.Wrap(fmt.Errorf("Unexpected PoolL2 tx type: %s", lit))
+			return c, common.Wrap(fmt.Errorf("unexpected PoolL2 tx type: %s", lit))
 		}
 	} else {
 		return c,
-			common.Wrap(fmt.Errorf("Invalid set type: '%s'. Valid set types: 'Blockchain', 'PoolL2'",
+			common.Wrap(fmt.Errorf("invalid set type: '%s'. Valid set types: 'Blockchain', 'PoolL2'",
 				setType))
 	}
 
@@ -361,9 +364,14 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 	c.Literal += lit
 	if vouch {
 		if lit != "-" {
-			return c, common.Wrap(fmt.Errorf("Expected '-', found '%s'", lit))
+			line, _ := p.s.r.ReadString('\n')
+			c.Literal += line
+			return c, common.Wrap(fmt.Errorf("expected '-', found '%s'", lit))
 		}
 		_, lit = p.scanIgnoreWhitespace()
+		if lit == "" {
+			return c, common.Wrap(fmt.Errorf("expected 'to' account name, found '%s'", lit))
+		}
 		c.Literal += lit
 		c.To = lit
 		line, _ := p.s.r.ReadString('\n')
@@ -372,7 +380,7 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		if lit != ":" {
 			line, _ := p.s.r.ReadString('\n')
 			c.Literal += line
-			return c, common.Wrap(fmt.Errorf("Expected ':', found '%s'", lit))
+			return c, common.Wrap(fmt.Errorf("expected ':', found '%s'", lit))
 		}
 		_, lit = p.scanIgnoreWhitespace()
 		c.Literal += lit
@@ -380,7 +388,7 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		if !ok {
 			line, _ := p.s.r.ReadString('\n')
 			c.Literal += line
-			return c, common.Wrap(fmt.Errorf("Can not parse number for Amount: %s", lit))
+			return c, common.Wrap(fmt.Errorf("can not parse number for Amount: %s", lit))
 		}
 		if c.Typ == common.TxTypeDeposit ||
 			c.Typ == common.TxTypeCreateAccountDeposit {
@@ -403,7 +411,7 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 			if fee > common.MaxFeePlan-1 {
 				line, _ := p.s.r.ReadString('\n')
 				c.Literal += line
-				return c, common.Wrap(fmt.Errorf("Fee %d can not be bigger than 255", fee))
+				return c, common.Wrap(fmt.Errorf("fee %d can not be bigger than 255", fee))
 			}
 			c.Fee = uint8(fee)
 
@@ -425,7 +433,7 @@ func (p *parser) expectChar(c *Instruction, ch string) error {
 	if lit != ch {
 		line, _ := p.s.r.ReadString('\n')
 		c.Literal += line
-		return common.Wrap(fmt.Errorf("Expected '%s', found '%s'", ch, lit))
+		return common.Wrap(fmt.Errorf("expected '%s', found '%s'", ch, lit))
 	}
 	return nil
 }
@@ -441,10 +449,10 @@ func (p *parser) parse() (*parsedSet, error) {
 		if common.Unwrap(err) == errof {
 			break
 		}
-		if common.Unwrap(err) == setTypeLine {
+		if common.Unwrap(err) == errSetTypeLine {
 			if ps.typ != "" {
 				return ps,
-					common.Wrap(fmt.Errorf("Line %d: Instruction of 'Type: %s' when "+
+					common.Wrap(fmt.Errorf("line %d: Instruction of 'Type: %s' when "+
 						"there is already a previous instruction 'Type: %s' defined",
 						i, instruction.Typ, ps.typ))
 			}
@@ -453,24 +461,24 @@ func (p *parser) parse() (*parsedSet, error) {
 			} else if instruction.Typ == "Blockchain" {
 				ps.typ = SetTypeBlockchain
 			} else {
-				log.Fatalf("Line %d: Invalid set type: '%s'. Valid set types: "+
+				log.Fatalf("line %d: Invalid set type: '%s'. Valid set types: "+
 					"'Blockchain', 'PoolL2'", i, instruction.Typ)
 			}
 			continue
 		}
-		if common.Unwrap(err) == commentLine {
+		if common.Unwrap(err) == errCommentLine {
 			continue
 		}
 		instruction.LineNum = i
-		if common.Unwrap(err) == newEventLine {
+		if common.Unwrap(err) == errNewEventLine {
 			ps.instructions = append(ps.instructions, *instruction)
 			continue
 		}
 		if err != nil {
-			return ps, common.Wrap(fmt.Errorf("Line %d: %s, err: %s", i, instruction.Literal, err.Error()))
+			return ps, common.Wrap(fmt.Errorf("line %d: %s, err: %s", i, instruction.Literal, err.Error()))
 		}
 		if ps.typ == "" {
-			return ps, common.Wrap(fmt.Errorf("Line %d: Set type not defined", i))
+			return ps, common.Wrap(fmt.Errorf("line %d: Set type not defined", i))
 		}
 		ps.instructions = append(ps.instructions, *instruction)
 		users[instruction.From] = true
@@ -478,6 +486,6 @@ func (p *parser) parse() (*parsedSet, error) {
 	for u := range users {
 		ps.users = append(ps.users, u)
 	}
-	// sort.Strings(ps.users)
+	sort.Strings(ps.users)
 	return ps, nil
 }

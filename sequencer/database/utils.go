@@ -101,7 +101,7 @@ func InitSQLDB(port int, host, user, password, name string) (*sqlx.DB, error) {
 func InitTestSQLDB() (*sqlx.DB, error) {
 	err := godotenv.Load("../.env")
 	if err != nil {
-		panic("Error loading .env file")
+		log.Info("Error loading .env file")
 	}
 	host := os.Getenv("PGHOST")
 	if host == "" {

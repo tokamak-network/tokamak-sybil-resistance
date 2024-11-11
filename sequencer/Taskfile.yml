@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  test-historydb:
+    dotenv: [".env"]
+    cmds:
+      - go test ./database/historydb -v
+  
+  test-til:
+    dotenv: [".env"]
+    cmds:
+      - go test ./test/til -v
+  
+  test-sequencer:
+    deps:
+      - test-historydb
+      - test-til

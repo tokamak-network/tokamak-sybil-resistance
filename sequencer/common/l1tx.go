@@ -82,8 +82,6 @@ func (tx *L1Tx) SetType() error {
 	if tx.FromIdx == 0 {
 		if tx.ToIdx == AccountIdx(0) {
 			tx.Type = TxTypeCreateAccountDeposit
-		} else if tx.ToIdx >= IdxUserThreshold {
-			tx.Type = TxTypeCreateAccountDepositTransfer
 		} else {
 			return Wrap(fmt.Errorf(
 				"cannot determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
@@ -93,12 +91,6 @@ func (tx *L1Tx) SetType() error {
 			tx.Type = TxTypeDeposit
 		} else if tx.ToIdx == AccountIdx(1) {
 			tx.Type = TxTypeForceExit
-		} else if tx.ToIdx >= IdxUserThreshold {
-			if tx.DepositAmount.Int64() == int64(0) {
-				tx.Type = TxTypeForceTransfer
-			} else {
-				tx.Type = TxTypeDepositTransfer
-			}
 		} else {
 			return Wrap(fmt.Errorf(
 				"cannot determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
