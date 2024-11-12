@@ -18,8 +18,8 @@ proof.json
 public.json
 *.wtns
 
-#stateDB
-stateDB
-
 #.env
 .env
+
+# etc
+.DS_Store
