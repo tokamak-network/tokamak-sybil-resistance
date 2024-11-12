@@ -599,7 +599,7 @@ func (hdb *HistoryDB) GetSCVars() (*common.RollupVariables, error) {
 	var rollup common.RollupVariables
 	if err := meddler.QueryRow(hdb.dbRead, &rollup,
 		"SELECT * FROM rollup_vars ORDER BY eth_block_num DESC LIMIT 1;"); err != nil {
-		return nil, common.Wrap(err)
+		return nil, err
 	}
 	return &rollup, nil
 }

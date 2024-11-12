@@ -14,6 +14,7 @@ import (
 	"tokamak-sybil-resistance/test/til"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/tracerr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,11 +60,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestBlocks(t *testing.T) {
+	// Reset DB
+	test.WipeDB(historyDB.DB())
+
 	var fromBlock, toBlock int64
 	fromBlock = 0
 	toBlock = 7
-	// Reset DB
-	test.WipeDB(historyDB.DB())
 	// Generate blocks using til
 	set1 := `
 		Type: Blockchain
@@ -119,6 +121,7 @@ func TestBlocks(t *testing.T) {
 func TestBatches(t *testing.T) {
 	// Reset DB
 	test.WipeDB(historyDB.DB())
+
 	// Generate batches using til (and blocks for foreign key)
 	set := `
 		Type: Blockchain
@@ -199,6 +202,9 @@ func TestBatches(t *testing.T) {
 }
 
 func TestAccounts(t *testing.T) {
+	// Reset DB
+	test.WipeDB(historyDB.DB())
+
 	const fromBlock int64 = 1
 	const toBlock int64 = 5
 
@@ -475,6 +481,9 @@ func TestTxs(t *testing.T) {
 }
 
 func TestExitTree(t *testing.T) {
+	// Reset DB
+	test.WipeDB(historyDB.DB())
+
 	nBatches := 17
 
 	blocks := setTestBlocks(1, 10)
@@ -492,6 +501,7 @@ func TestExitTree(t *testing.T) {
 }
 
 func TestGetUnforgedL1UserTxs(t *testing.T) {
+	// Reset DB
 	test.WipeDB(historyDB.DB())
 
 	set := `
@@ -553,6 +563,58 @@ func TestGetUnforgedL1UserTxs(t *testing.T) {
 	l1UserTxs, err = historyDB.GetUnforgedL1UserTxs(3)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(l1UserTxs))
+}
+
+func exampleInitSCVars() *common.RollupVariables { // *common.AuctionVariables,
+	// *common.WDelayerVariables,
+
+	rollup := &common.RollupVariables{
+		EthBlockNum: 0,
+		// FeeAddToken:           big.NewInt(10),
+		ForgeL1L2BatchTimeout: 12,
+		// WithdrawalDelay:       13,
+		Buckets:  []common.BucketParams{},
+		SafeMode: false,
+	}
+	// auction := &common.AuctionVariables{
+	// 	EthBlockNum:        0,
+	// 	DonationAddress:    ethCommon.BigToAddress(big.NewInt(2)),
+	// 	BootCoordinator:    ethCommon.BigToAddress(big.NewInt(3)),
+	// 	BootCoordinatorURL: "https://boot.coord.com",
+	// 	DefaultSlotSetBid: [6]*big.Int{
+	// 		big.NewInt(1), big.NewInt(2), big.NewInt(3),
+	// 		big.NewInt(4), big.NewInt(5), big.NewInt(6),
+	// 	},
+	// 	DefaultSlotSetBidSlotNum: 0,
+	// 	ClosedAuctionSlots:       2,
+	// 	OpenAuctionSlots:         4320,
+	// 	AllocationRatio:          [3]uint16{10, 11, 12},
+	// 	Outbidding:               1000,
+	// 	SlotDeadline:             20,
+	// }
+	// wDelayer := &common.WDelayerVariables{
+	// 	EthBlockNum:                0,
+	// 	HermezGovernanceAddress:    ethCommon.BigToAddress(big.NewInt(2)),
+	// 	EmergencyCouncilAddress:    ethCommon.BigToAddress(big.NewInt(3)),
+	// 	WithdrawalDelay:            13,
+	// 	EmergencyModeStartingBlock: 14,
+	// 	EmergencyMode:              false,
+	// }
+	return rollup //, auction, wDelayer
+}
+
+func TestSetInitialSCVars(t *testing.T) {
+	// Reset DB
+	test.WipeDB(historyDB.DB())
+
+	_, err := historyDB.GetSCVars()
+	assert.Equal(t, sql.ErrNoRows, tracerr.Unwrap(err))
+	rollup := exampleInitSCVars()
+	err = historyDB.SetInitialSCVars(rollup)
+	require.NoError(t, err)
+	dbRollup, err := historyDB.GetSCVars()
+	require.NoError(t, err)
+	require.Equal(t, rollup, dbRollup)
 }
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
