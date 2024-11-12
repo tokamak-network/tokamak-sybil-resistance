@@ -177,7 +177,7 @@ CREATE TABLE tx (
     amount DECIMAL(78,0) NOT NULL,
     amount_success BOOLEAN NOT NULL DEFAULT true,
     amount_f NUMERIC NOT NULL,
-    token_id INT,
+    -- token_id INT NOT NULL REFERENCES token (token_id),
     amount_usd NUMERIC, -- Value of the amount in USD at the moment the tx was inserted in the DB
     batch_num BIGINT REFERENCES batch (batch_num) ON DELETE SET NULL, -- Can be NULL in the case of L1 txs that are on the queue but not forged yet.
     eth_block_num BIGINT NOT NULL REFERENCES block (eth_block_num) ON DELETE CASCADE,
