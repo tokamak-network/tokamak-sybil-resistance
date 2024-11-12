@@ -1046,7 +1046,7 @@ func (txProcessor *TxProcessor) applyTransfer(coordIdxsMap map[common.TokenID]co
 	}
 
 	// add amount-feeAmount to the receiver
-	accReceiver.Balance = new(big.Int).Add(accReceiver.Balance, tx.Amount)
+	// accReceiver.Balance = new(big.Int).Add(accReceiver.Balance, tx.Amount)
 
 	// update receiver account in localStateDB
 	pReceiver, err := txProcessor.updateAccount(auxToIdx, accReceiver)
