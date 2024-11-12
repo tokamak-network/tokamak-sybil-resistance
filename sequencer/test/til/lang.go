@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"sort"
 	"strconv"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/log"
@@ -486,6 +485,6 @@ func (p *parser) parse() (*parsedSet, error) {
 	for u := range users {
 		ps.users = append(ps.users, u)
 	}
-	sort.Strings(ps.users)
+	// sort.Strings(ps.users)
 	return ps, nil
 }
