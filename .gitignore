@@ -17,3 +17,9 @@ verifier.sol
 proof.json
 public.json
 *.wtns
+
+#.env
+sequencer/.env
+
+# etc
+.DS_Store
