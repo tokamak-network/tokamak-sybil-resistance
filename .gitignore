@@ -22,4 +22,4 @@ public.json
 stateDB
 
 #.env
-.env
+sequencer/.env
