@@ -73,6 +73,13 @@ type PoolL2Tx struct {
 // PoolL2TxState is a string that represents the status of a L2 transaction
 type PoolL2TxState string
 
+// TxSelectorError struct that gives more details about the error
+type TxSelectorError struct {
+	Message string `meddler:"info,zeroisnull"`
+	Code    int    `meddler:"error_code,zeroisnull"`
+	Type    string `meddler:"error_type,zeroisnull"`
+}
+
 const (
 	// PoolL2TxStatePending represents a valid L2Tx that hasn't started the
 	// forging process
@@ -346,4 +353,22 @@ func (tx *PoolL2Tx) HashToSign(chainID uint16) (*big.Int, error) {
 
 	return poseidon.Hash([]*big.Int{toCompressedData, e1, toBJJY, rqTxCompressedDataV2,
 		rqToEthAddr, rqToBJJY})
+}
+
+// TxIDsFromPoolL2Txs returns an array of TxID from the []PoolL2Tx
+func TxIDsFromPoolL2Txs(txs []PoolL2Tx) []TxID {
+	txIDs := make([]TxID, len(txs))
+	for i, tx := range txs {
+		txIDs[i] = tx.TxID
+	}
+	return txIDs
+}
+
+// PoolL2TxsToL2Txs returns an array of []L2Tx from an array of []PoolL2Tx
+func PoolL2TxsToL2Txs(txs []PoolL2Tx) ([]L2Tx, error) {
+	l2Txs := make([]L2Tx, len(txs))
+	for i, poolTx := range txs {
+		l2Txs[i] = poolTx.L2Tx()
+	}
+	return l2Txs, nil
 }

@@ -205,6 +205,12 @@ func AccountFromBytes(b [32 * NAccountLeafElems]byte) (*Account, error) {
 	return &a, nil
 }
 
+// IdxNonce is a pair of Idx and Nonce representing an account
+type IdxAccountNonce struct {
+	Idx   AccountIdx `db:"idx"`
+	Nonce Nonce      `db:"nonce"`
+}
+
 // AccountUpdate represents an account balance and/or nonce update after a
 // processed batch
 type AccountUpdate struct {
