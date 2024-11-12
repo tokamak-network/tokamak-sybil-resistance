@@ -387,6 +387,9 @@ func (hdb *HistoryDB) AddL2Txs(l2txs []common.L2Tx) error {
 
 // addL2Txs inserts L2 txs to the DB. TokenID, USD and FeeUSD will be set automatically before storing the tx.
 func (hdb *HistoryDB) addL2Txs(d meddler.DB, l2txs []common.L2Tx) error {
+	if len(l2txs) == 0 {
+		return nil
+	}
 	txs := []txWrite{}
 	for i := 0; i < len(l2txs); i++ {
 		f := new(big.Float).SetInt(l2txs[i].Amount)
@@ -427,7 +430,6 @@ func (hdb *HistoryDB) addTxs(d meddler.DB, txs []txWrite) error {
 			to_idx,
 			amount,
 			amount_f,
-			token_id,
 			batch_num,
 			eth_block_num,
 			to_forge_l1_txs_num,
@@ -463,7 +465,7 @@ func (hdb *HistoryDB) GetAllL1UserTxs() ([]common.L1Tx, error) {
 	err := meddler.QueryAll(
 		hdb.dbRead, &txs,
 		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
-		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
 		tx.amount, (CASE WHEN tx.batch_num IS NULL THEN NULL WHEN tx.amount_success THEN tx.amount ELSE 0 END) AS effective_amount,
 		tx.deposit_amount, (CASE WHEN tx.batch_num IS NULL THEN NULL WHEN tx.deposit_amount_success THEN tx.deposit_amount ELSE 0 END) AS effective_deposit_amount,
 		tx.eth_block_num, tx.type, tx.batch_num
@@ -480,7 +482,7 @@ func (hdb *HistoryDB) GetAllL1CoordinatorTxs() ([]common.L1Tx, error) {
 	err := meddler.QueryAll(
 		hdb.dbRead, &txs,
 		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
-		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.from_idx, tx.effective_from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
 		tx.amount, tx.amount AS effective_amount,
 		tx.deposit_amount, tx.deposit_amount AS effective_deposit_amount,
 		tx.eth_block_num, tx.type, tx.batch_num
@@ -495,8 +497,8 @@ func (hdb *HistoryDB) GetAllL2Txs() ([]common.L2Tx, error) {
 	err := meddler.QueryAll(
 		hdb.dbRead, &txs,
 		`SELECT tx.id, tx.batch_num, tx.position,
-		tx.from_idx, tx.to_idx, tx.amount, tx.token_id,
-		tx.fee, tx.nonce, tx.type, tx.eth_block_num
+		tx.from_idx, tx.to_idx, tx.amount,
+		tx.nonce, tx.type, tx.eth_block_num
 		FROM tx WHERE is_l1 = FALSE ORDER BY item_id;`,
 	)
 	return database.SlicePtrsToSlice(txs).([]common.L2Tx), common.Wrap(err)
@@ -508,7 +510,7 @@ func (hdb *HistoryDB) GetUnforgedL1UserTxs(toForgeL1TxsNum int64) ([]common.L1Tx
 	err := meddler.QueryAll(
 		hdb.dbRead, &txs, // only L1 user txs can have batch_num set to null
 		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
-		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
 		tx.amount, NULL AS effective_amount,
 		tx.deposit_amount, NULL AS effective_deposit_amount,
 		tx.eth_block_num, tx.type, tx.batch_num

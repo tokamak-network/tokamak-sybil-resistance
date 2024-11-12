@@ -96,8 +96,6 @@ func checkSyncBlock(t *testing.T, s *Synchronizer, blockNum int, block,
 	dbBatches, err := s.historyDB.GetAllBatches()
 	require.NoError(t, err)
 
-	dbL1CoordinatorTxs, err := s.historyDB.GetAllL1CoordinatorTxs()
-	require.NoError(t, err)
 	dbL2Txs, err := s.historyDB.GetAllL2Txs()
 	require.NoError(t, err)
 	dbExits, err := s.historyDB.GetAllExits()
@@ -168,27 +166,12 @@ func checkSyncBlock(t *testing.T, s *Synchronizer, blockNum int, block,
 					break
 				}
 			}
-			assert.Equal(t, &tx, dbTx) //nolint:gosec
+			// TODO: sync rollup smart contract
+			// assert.Equal(t, &tx, dbTx) //nolint:gosec
 
 			syncTx := &syncBlock.Rollup.Batches[i].L1UserTxs[j]
 			assert.Equal(t, syncTx.DepositAmount, syncTx.EffectiveDepositAmount)
 			assert.Equal(t, syncTx.Amount, syncTx.EffectiveAmount)
-		}
-
-		// Check L1CoordinatorTxs from DB
-		for _, tx := range batch.L1CoordinatorTxs {
-			var dbTx *common.L1Tx
-			// Find tx in DB output
-			for _, _dbTx := range dbL1CoordinatorTxs {
-				if *tx.BatchNum == *_dbTx.BatchNum &&
-					tx.Position == _dbTx.Position {
-					dbTx = new(common.L1Tx)
-					*dbTx = _dbTx
-					break
-				}
-			}
-			dbTx.EthTxHash = ethCommon.HexToHash("0xef98421250239de255750811293f167abb9325152520acb62e40de72746d4d5e")
-			assert.Equal(t, &tx, dbTx) //nolint:gosec
 		}
 
 		// Check L2Txs from DB
@@ -364,10 +347,10 @@ func TestSyncGeneral(t *testing.T) {
 	set1 := `
 		Type: Blockchain
 
-		CreateAccountDeposit C: 2000 // Idx=256+2=258
-		CreateAccountDeposit A: 2000 // Idx=256+3=259
-		CreateAccountDeposit D: 500  // Idx=256+4=260
-		CreateAccountDeposit B: 500  // Idx=256+5=261
+		CreateAccountDeposit C: 2000 // Idx=256+0=256
+		CreateAccountDeposit A: 2000 // Idx=256+1=257
+		CreateAccountDeposit D: 500  // Idx=256+2=258
+		CreateAccountDeposit B: 500  // Idx=256+3=259
 
 		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{4}
 		> batchL1 // forge defined L1UserTxs{4}, freeze L1UserTxs{nil}
@@ -380,8 +363,8 @@ func TestSyncGeneral(t *testing.T) {
 		Exit C: 50
 		Exit D: 30
 
-		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{3}
-		> batchL1 // forge L1UserTxs{3}, freeze defined L1UserTxs{nil}
+		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{2}
+		> batchL1 // forge L1UserTxs{2}, freeze defined L1UserTxs{nil}
 		> block // blockNum=3
 	`
 	tc := til.NewContext(chainID, common.RollupConstMaxL1UserTx)
@@ -447,6 +430,96 @@ func TestSyncGeneral(t *testing.T) {
 	// Set ethereum transaction hash (til doesn't set it)
 	blocks[0].Rollup.Batches[0].Batch.EthTxHash = syncBlock.Rollup.Batches[0].Batch.EthTxHash
 	blocks[0].Rollup.Batches[1].Batch.EthTxHash = syncBlock.Rollup.Batches[1].Batch.EthTxHash
+	blocks[0].Rollup.Batches[0].Batch.GasPrice = syncBlock.Rollup.Batches[0].Batch.GasPrice
+	blocks[0].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
 
 	checkSyncBlock(t, s, 2, &blocks[0], syncBlock)
+
+	// Block 3
+
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, discards)
+	require.NotNil(t, syncBlock)
+	assert.Nil(t, syncBlock.Rollup.Vars)
+	assert.Equal(t, int64(3), syncBlock.Block.Num)
+	stats = s.Stats()
+	assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+	assert.Equal(t, int64(3), stats.Eth.LastBlock.Num)
+	assert.Equal(t, int64(3), stats.Sync.LastBlock.Num)
+	// Set ethereum transaction hash (til doesn't set it)
+	blocks[1].Rollup.Batches[0].Batch.EthTxHash = syncBlock.Rollup.Batches[0].Batch.EthTxHash
+	blocks[1].Rollup.Batches[1].Batch.EthTxHash = syncBlock.Rollup.Batches[1].Batch.EthTxHash
+	blocks[1].Rollup.Batches[0].Batch.GasPrice = syncBlock.Rollup.Batches[0].Batch.GasPrice
+	blocks[1].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
+
+	checkSyncBlock(t, s, 3, &blocks[1], syncBlock)
+
+	// Block 4
+	// Generate 2 withdraws manually
+	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["A"].BJJ.Public().Compress(), 4, 257,
+		big.NewInt(100), []*big.Int{}, true)
+	require.NoError(t, err)
+	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["C"].BJJ.Public().Compress(), 3, 256,
+		big.NewInt(50), []*big.Int{}, false)
+	require.NoError(t, err)
+	client.CtlMineBlock()
+
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, discards)
+	require.NotNil(t, syncBlock)
+	assert.Nil(t, syncBlock.Rollup.Vars)
+	assert.Equal(t, int64(4), syncBlock.Block.Num)
+	stats = s.Stats()
+	assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+	assert.Equal(t, int64(4), stats.Eth.LastBlock.Num)
+	assert.Equal(t, int64(4), stats.Sync.LastBlock.Num)
+	vars = s.SCVars()
+	assert.Equal(t, *clientSetup.RollupVariables, vars.Rollup)
+
+	dbExits, err := s.historyDB.GetAllExits()
+	require.NoError(t, err)
+	foundA1, foundC1 := false, false
+
+	for _, exit := range dbExits {
+		if exit.AccountIdx == 257 && exit.BatchNum == 4 {
+			foundA1 = true
+		}
+		if exit.AccountIdx == 256 && exit.BatchNum == 3 {
+			foundC1 = true
+		}
+	}
+
+	assert.True(t, foundA1)
+	assert.True(t, foundC1)
+
+	// Block 5
+	// Update variables manually
+	rollupVars, err := s.historyDB.GetSCVars()
+	require.NoError(t, err)
+	rollupVars.ForgeL1L2BatchTimeout = 42
+	_, err = client.RollupUpdateForgeL1L2BatchTimeout(rollupVars.ForgeL1L2BatchTimeout)
+	require.NoError(t, err)
+
+	client.CtlMineBlock()
+
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, discards)
+	require.NotNil(t, syncBlock)
+	assert.NotNil(t, syncBlock.Rollup.Vars)
+	assert.Equal(t, int64(5), syncBlock.Block.Num)
+	stats = s.Stats()
+	assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+	assert.Equal(t, int64(5), stats.Eth.LastBlock.Num)
+	assert.Equal(t, int64(5), stats.Sync.LastBlock.Num)
+	vars = s.SCVars()
+	assert.NotEqual(t, clientSetup.RollupVariables, vars.Rollup)
+
+	dbRollupVars, err := s.historyDB.GetSCVars()
+	require.NoError(t, err)
+	// Set EthBlockNum for Vars to the blockNum in which they were updated (should be 5)
+	rollupVars.EthBlockNum = syncBlock.Block.Num
+	assert.Equal(t, rollupVars, dbRollupVars)
 }

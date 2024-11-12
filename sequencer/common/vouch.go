@@ -38,16 +38,12 @@ func (idx VouchIdx) Bytes() ([2 * NLevelsAsBytes]byte, error) {
 }
 
 // GenerateVouchIdx
-func GenerateVouchIdx(fromIdx AccountIdx, toIdx AccountIdx) *big.Int {
-	// Create a new big.Int to hold the result
-	result := new(big.Int)
+func GenerateVouchIdx(fromIdx AccountIdx, toIdx AccountIdx) VouchIdx {
 
-	// Shift fromIdx left by 64 bits and add toIdx
-	result.SetUint64(uint64(fromIdx))
-	result.Lsh(result, 24)
-	result.Or(result, new(big.Int).SetUint64(uint64(toIdx)))
+	// Shift fromIdx left by 32 bits then concat with toIdx
+	vouchIdx := (uint64(fromIdx) << 32) | uint64(toIdx)
 
-	return result
+	return VouchIdx(vouchIdx)
 }
 
 func VouchIdxFromBytes(b []byte) (VouchIdx, error) {

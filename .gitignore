@@ -19,7 +19,7 @@ public.json
 *.wtns
 
 #.env
-.env
+sequencer/.env
 
 # etc
 .DS_Store

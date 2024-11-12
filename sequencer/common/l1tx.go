@@ -171,8 +171,8 @@ func (tx L1Tx) Tx() Tx {
 // [ 1 bits  ] empty (toBJJSign) // 1 byte
 // [ 8 bits  ] empty (userFee) // 1 byte
 // [ 40 bits ] empty (nonce) // 5 bytes
-// [ 48 bits ] toIdx // 6 bytes
-// [ 48 bits ] fromIdx // 6 bytes
+// [ 48 bits ] toIdx // 3 bytes
+// [ 48 bits ] fromIdx // 3 bytes
 // [ 16 bits ] chainId // 2 bytes
 // [ 32 bits ] empty (signatureConstant) // 4 bytes
 // Total bits compressed data:  225 bits // 29 bytes in *big.Int representation
@@ -213,7 +213,7 @@ func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	pkCompB := b[20:52]
 	pkCompL := SwapEndianness(pkCompB)
 	copy(tx.FromBJJ[:], pkCompL)
-	fromIdx, err := IdxFromBytes(b[52:58])
+	fromIdx, err := AccountIdxFromBytes(b[52:55])
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -226,7 +226,7 @@ func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	if err != nil {
 		return nil, Wrap(err)
 	}
-	tx.ToIdx, err = IdxFromBytes(b[72:78])
+	tx.ToIdx, err = AccountIdxFromBytes(b[72:75])
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -243,12 +243,12 @@ func L1TxFromDataAvailability(b []byte, nLevels uint32) (*L1Tx, error) {
 	amountBytes := b[idxLen*2 : idxLen*2+Float40BytesLength]
 
 	l1tx := L1Tx{}
-	fromIdx, err := IdxFromBytes(ethCommon.LeftPadBytes(fromIdxBytes, 6))
+	fromIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(fromIdxBytes, 3))
 	if err != nil {
 		return nil, Wrap(err)
 	}
 	l1tx.FromIdx = fromIdx
-	toIdx, err := IdxFromBytes(ethCommon.LeftPadBytes(toIdxBytes, 6))
+	toIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(toIdxBytes, 3))
 	if err != nil {
 		return nil, Wrap(err)
 	}

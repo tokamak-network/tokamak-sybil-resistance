@@ -509,9 +509,6 @@ var errTODO = fmt.Errorf("TODO: Not implemented yet")
 // 	if int64(l1Tx.FromIdx) > r.State.CurrentIdx {
 // 		panic("l1Tx.FromIdx > r.State.CurrentIdx")
 // 	}
-// 	if int(l1Tx.TokenID)+1 > len(r.State.TokenList) {
-// 		panic("l1Tx.TokenID + 1 > len(r.State.TokenList)")
-// 	}
 // 	queue.L1TxQueue = append(queue.L1TxQueue, *l1Tx)
 // 	r.Events.L1UserTx = append(r.Events.L1UserTx, eth.RollupEventL1UserTx{
 // 		L1Tx:            *l1Tx,
@@ -522,7 +519,7 @@ var errTODO = fmt.Errorf("TODO: Not implemented yet")
 
 // RollupL1UserTxERC20Permit is the interface to call the smart contract function
 func (c *Client) RollupL1UserTxERC20Permit(fromBJJ babyjub.PublicKeyComp, fromIdx int64,
-	depositAmount *big.Int, amount *big.Int, tokenID uint32, toIdx int64,
+	depositAmount *big.Int, amount *big.Int, toIdx int64,
 	deadline *big.Int) (tx *types.Transaction, err error) {
 	log.Error("TODO")
 	return nil, common.Wrap(errTODO)
@@ -586,7 +583,7 @@ func (c *Client) RollupL1UserTxERC20ETH(
 
 // RollupL1UserTxERC777 is the interface to call the smart contract function
 // func (c *Client) RollupL1UserTxERC777(fromBJJ *babyjub.PublicKey, fromIdx int64,
-// 	depositAmount *big.Int, amount *big.Int, tokenID uint32,
+// 	depositAmount *big.Int, amount *big.Int,
 //	toIdx int64) (*types.Transaction, error) {
 // 	log.Error("TODO")
 // 	return nil, errTODO
@@ -610,7 +607,7 @@ func (c *Client) RollupLastForgedBatch() (int64, error) {
 
 // RollupWithdrawCircuit is the interface to call the smart contract function
 func (c *Client) RollupWithdrawCircuit(proofA, proofC [2]*big.Int, proofB [2][2]*big.Int,
-	tokenID uint32, numExitRoot, idx int64, amount *big.Int,
+	numExitRoot, idx int64, amount *big.Int,
 	instantWithdraw bool) (*types.Transaction, error) {
 	log.Error("TODO")
 	return nil, common.Wrap(errTODO)
@@ -618,7 +615,7 @@ func (c *Client) RollupWithdrawCircuit(proofA, proofC [2]*big.Int, proofB [2][2]
 
 // RollupWithdrawMerkleProof is the interface to call the smart contract function
 func (c *Client) RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp,
-	tokenID uint32, numExitRoot, idx int64, amount *big.Int, siblings []*big.Int,
+	numExitRoot, idx int64, amount *big.Int, siblings []*big.Int,
 	instantWithdraw bool) (tx *types.Transaction, err error) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
@@ -643,7 +640,6 @@ func (c *Client) RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp,
 
 	type data struct {
 		BabyPubKey      *babyjub.PublicKey
-		TokenID         uint32
 		NumExitRoot     int64
 		Idx             int64
 		Amount          *big.Int
@@ -652,7 +648,6 @@ func (c *Client) RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp,
 	}
 	tx = r.addTransaction(c.newTransaction("withdrawMerkleProof", data{
 		BabyPubKey:      babyPubKeyDecomp,
-		TokenID:         tokenID,
 		NumExitRoot:     numExitRoot,
 		Idx:             idx,
 		Amount:          amount,

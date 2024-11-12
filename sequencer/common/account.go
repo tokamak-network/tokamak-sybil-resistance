@@ -26,7 +26,7 @@ type Account struct {
 }
 
 // AccountIdx represents the account Index in the MerkleTree
-type AccountIdx uint64
+type AccountIdx uint32
 
 const (
 	// NAccountLeafElems is the number of elements for a leaf in account tree
@@ -62,10 +62,10 @@ func (idx AccountIdx) Bytes() ([NLevelsAsBytes]byte, error) {
 	if idx > maxAccountIdxValue {
 		return [NLevelsAsBytes]byte{}, Wrap(ErrIdxOverflow)
 	}
-	var idxBytes [8]byte
-	binary.BigEndian.PutUint64(idxBytes[:], uint64(idx))
+	var idxBytes [4]byte
+	binary.BigEndian.PutUint32(idxBytes[:], uint32(idx))
 	var b [NLevelsAsBytes]byte
-	copy(b[:], idxBytes[8-NLevelsAsBytes:])
+	copy(b[:], idxBytes[4-NLevelsAsBytes:])
 	return b, nil
 }
 
@@ -75,9 +75,9 @@ func AccountIdxFromBytes(b []byte) (AccountIdx, error) {
 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
 			len(b), AccountIdxBytesLen))
 	}
-	var idxBytes [8]byte
-	copy(idxBytes[8-NLevelsAsBytes:], b[:])
-	idx := binary.BigEndian.Uint64(idxBytes[:])
+	var idxBytes [4]byte
+	copy(idxBytes[4-NLevelsAsBytes:], b[:])
+	idx := binary.BigEndian.Uint32(idxBytes[:])
 	return AccountIdx(idx), nil
 }
 
@@ -86,17 +86,17 @@ func (idx AccountIdx) BigInt() *big.Int {
 	return big.NewInt(int64(idx))
 }
 
-// IdxFromBytes returns Idx from a byte array
-func IdxFromBytes(b []byte) (AccountIdx, error) {
-	if len(b) != AccountIdxBytesLen {
-		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
-			len(b), AccountIdxBytesLen))
-	}
-	var idxBytes [8]byte
-	copy(idxBytes[2:], b[:])
-	idx := binary.BigEndian.Uint64(idxBytes[:])
-	return AccountIdx(idx), nil
-}
+// // IdxFromBytes returns Idx from a byte array
+// func IdxFromBytes(b []byte) (AccountIdx, error) {
+// 	if len(b) != AccountIdxBytesLen {
+// 		return 0, Wrap(fmt.Errorf("can not parse Idx, bytes len %d, expected %d",
+// 			len(b), AccountIdxBytesLen))
+// 	}
+// 	var idxBytes [8]byte
+// 	copy(idxBytes[2:], b[:])
+// 	idx := binary.BigEndian.Uint32(idxBytes[:])
+// 	return AccountIdx(idx), nil
+// }
 
 // Bytes returns the bytes representing the Account, in a way that each BigInt
 // is represented by 32 bytes, in spite of the BigInt could be represented in

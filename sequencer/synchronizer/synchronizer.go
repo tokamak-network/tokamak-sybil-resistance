@@ -19,7 +19,6 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/tracerr"
 )
 
 const (
@@ -566,9 +565,9 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 	// the expected one.
 	rollupEvents, err := s.EthClient.RollupEventsByBlock(blockNum, &ethBlock.Hash)
 	if err != nil && err.Error() == errStrUnknownBlock {
-		return nil, tracerr.Wrap(ErrUnknownBlock)
+		return nil, common.Wrap(ErrUnknownBlock)
 	} else if err != nil {
-		return nil, tracerr.Wrap(fmt.Errorf("RollupEventsByBlock: %w", err))
+		return nil, common.Wrap(fmt.Errorf("RollupEventsByBlock: %w", err))
 	}
 	// No events in this block
 	if rollupEvents == nil {
@@ -578,7 +577,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 	var nextForgeL1TxsNum int64 // forgeL1TxsNum for the next L1Batch
 	nextForgeL1TxsNumPtr, err := s.historyDB.GetLastL1TxsNum()
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 	if nextForgeL1TxsNumPtr != nil {
 		nextForgeL1TxsNum = *nextForgeL1TxsNumPtr + 1
@@ -589,7 +588,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 	// Get L1UserTX
 	rollupData.L1UserTxs, err = getL1UserTx(rollupEvents.L1UserTx, blockNum)
 	if err != nil {
-		return nil, tracerr.Wrap(err)
+		return nil, common.Wrap(err)
 	}
 
 	// Get ForgeBatch events to get the L1CoordinatorTxs
@@ -601,7 +600,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 		forgeBatchArgs, sender, err := s.EthClient.RollupForgeBatchArgs(evtForgeBatch.EthTxHash,
 			evtForgeBatch.L1UserTxsLen)
 		if err != nil {
-			return nil, tracerr.Wrap(fmt.Errorf("RollupForgeBatchArgs: %w", err))
+			return nil, common.Wrap(fmt.Errorf("RollupForgeBatchArgs: %w", err))
 		}
 		ethTxHash := evtForgeBatch.EthTxHash
 		gasUsed := evtForgeBatch.GasUsed
@@ -617,7 +616,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			// First try to find them in HistoryDB.
 			l1UserTxs, err = s.historyDB.GetUnforgedL1UserTxs(nextForgeL1TxsNum)
 			if err != nil {
-				return nil, tracerr.Wrap(err)
+				return nil, common.Wrap(err)
 			}
 			// Apart from the DB, try to find them in this block.
 			// This could happen because in a block there could be
@@ -637,44 +636,44 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 
 		l1TxsAuth := make([]common.AccountCreationAuth,
 			0, len(forgeBatchArgs.L1CoordinatorTxsAuths))
-		batchData.L1CoordinatorTxs = make([]common.L1Tx, 0, len(forgeBatchArgs.L1CoordinatorTxs))
-		// Get L1 Coordinator Txs
-		for i := range forgeBatchArgs.L1CoordinatorTxs {
-			l1CoordinatorTx := forgeBatchArgs.L1CoordinatorTxs[i]
-			l1CoordinatorTx.Position = position
-			// l1CoordinatorTx.ToForgeL1TxsNum = &forgeL1TxsNum
-			l1CoordinatorTx.UserOrigin = false
-			l1CoordinatorTx.EthBlockNum = blockNum
-			l1CoordinatorTx.BatchNum = &batchNum
-			l1CoordinatorTx.EthTxHash = ethTxHash
-			l1Tx, err := common.NewL1Tx(&l1CoordinatorTx)
-			if err != nil {
-				return nil, tracerr.Wrap(err)
-			}
+		// batchData.L1CoordinatorTxs = make([]common.L1Tx, 0, len(forgeBatchArgs.L1CoordinatorTxs))
+		// // Get L1 Coordinator Txs
+		// for i := range forgeBatchArgs.L1CoordinatorTxs {
+		// 	l1CoordinatorTx := forgeBatchArgs.L1CoordinatorTxs[i]
+		// 	l1CoordinatorTx.Position = position
+		// 	// l1CoordinatorTx.ToForgeL1TxsNum = &forgeL1TxsNum
+		// 	l1CoordinatorTx.UserOrigin = false
+		// 	l1CoordinatorTx.EthBlockNum = blockNum
+		// 	l1CoordinatorTx.BatchNum = &batchNum
+		// 	l1CoordinatorTx.EthTxHash = ethTxHash
+		// 	l1Tx, err := common.NewL1Tx(&l1CoordinatorTx)
+		// 	if err != nil {
+		// 		return nil, common.Wrap(err)
+		// 	}
 
-			batchData.L1CoordinatorTxs = append(batchData.L1CoordinatorTxs, *l1Tx)
-			position++
+		// 	batchData.L1CoordinatorTxs = append(batchData.L1CoordinatorTxs, *l1Tx)
+		// 	position++
 
-			// Create a slice of account creation auth to be
-			// inserted later if not exists
-			if l1CoordinatorTx.FromEthAddr != common.RollupConstEthAddressInternalOnly {
-				l1CoordinatorTxAuth := forgeBatchArgs.L1CoordinatorTxsAuths[i]
-				l1TxsAuth = append(l1TxsAuth, common.AccountCreationAuth{
-					EthAddr:   l1CoordinatorTx.FromEthAddr,
-					BJJ:       l1CoordinatorTx.FromBJJ,
-					Signature: l1CoordinatorTxAuth,
-				})
-			}
+		// 	// Create a slice of account creation auth to be
+		// 	// inserted later if not exists
+		// 	if l1CoordinatorTx.FromEthAddr != common.RollupConstEthAddressInternalOnly {
+		// 		l1CoordinatorTxAuth := forgeBatchArgs.L1CoordinatorTxsAuths[i]
+		// 		l1TxsAuth = append(l1TxsAuth, common.AccountCreationAuth{
+		// 			EthAddr:   l1CoordinatorTx.FromEthAddr,
+		// 			BJJ:       l1CoordinatorTx.FromBJJ,
+		// 			Signature: l1CoordinatorTxAuth,
+		// 		})
+		// 	}
 
-			// fmt.Println("DGB l1coordtx")
-		}
+		// 	// fmt.Println("DGB l1coordtx")
+		// }
 
 		// Insert the slice of account creation auth
 		// only if the node run as a coordinator
 		if s.l2DB != nil && len(l1TxsAuth) > 0 {
 			err = s.l2DB.AddManyAccountCreationAuth(l1TxsAuth)
 			if err != nil {
-				return nil, tracerr.Wrap(err)
+				return nil, common.Wrap(err)
 			}
 		}
 
@@ -685,7 +684,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 		// Set TxType to the forged L2Txs
 		for i := range forgeBatchArgs.L2TxsData {
 			if err := forgeBatchArgs.L2TxsData[i].SetType(); err != nil {
-				return nil, tracerr.Wrap(err)
+				return nil, common.Wrap(err)
 			}
 		}
 
@@ -694,7 +693,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 		poolL2Txs := common.L2TxsToPoolL2Txs(forgeBatchArgs.L2TxsData)
 
 		if int(forgeBatchArgs.VerifierIdx) >= len(s.consts.Rollup.Verifiers) {
-			return nil, tracerr.Wrap(fmt.Errorf("forgeBatchArgs.VerifierIdx (%v) >= "+
+			return nil, common.Wrap(fmt.Errorf("forgeBatchArgs.VerifierIdx (%v) >= "+
 				" len(s.consts.Rollup.Verifiers) (%v)",
 				forgeBatchArgs.VerifierIdx, len(s.consts.Rollup.Verifiers)))
 		}
@@ -711,15 +710,15 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 		processTxsOut, err := tp.ProcessTxs(forgeBatchArgs.FeeIdxCoordinator,
 			l1UserTxs, batchData.L1CoordinatorTxs, poolL2Txs)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 		if s.stateDB.CurrentBatch() != batchNum {
-			return nil, tracerr.Wrap(fmt.Errorf("stateDB.BatchNum (%v) != "+
+			return nil, common.Wrap(fmt.Errorf("stateDB.BatchNum (%v) != "+
 				"evtForgeBatch.BatchNum = (%v)",
 				s.stateDB.CurrentBatch(), batchNum))
 		}
 		// if s.stateDB.AccountTree.Root().BigInt().Cmp(forgeBatchArgs.NewStRoot) != 0 {
-		// 	return nil, tracerr.Wrap(fmt.Errorf("stateDB.MTRoot (%v) != "+
+		// 	return nil, common.Wrap(fmt.Errorf("stateDB.MTRoot (%v) != "+
 		// 		"forgeBatchArgs.NewStRoot (%v)",
 		// 		s.stateDB.AccountTree.Root().BigInt(), forgeBatchArgs.NewStRoot))
 		// }
@@ -729,7 +728,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			l2Txs[i] = tx.L2Tx()
 			// Set TxID, BlockNum, BatchNum and Position to the forged L2Txs
 			if err := l2Txs[i].SetID(); err != nil {
-				return nil, tracerr.Wrap(err)
+				return nil, common.Wrap(err)
 			}
 			l2Txs[i].EthBlockNum = blockNum
 			l2Txs[i].BatchNum = batchNum
@@ -849,7 +848,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 
 	// for _, evt := range rollupEvents.UpdateTokenExchange {
 	// 	if len(evt.AddressArray) != len(evt.ValueArray) {
-	// 		return nil, tracerr.Wrap(fmt.Errorf("in RollupEventUpdateTokenExchange "+
+	// 		return nil, common.Wrap(fmt.Errorf("in RollupEventUpdateTokenExchange "+
 	// 			"len(AddressArray) != len(ValueArray) (%v != %v)",
 	// 			len(evt.AddressArray), len(evt.ValueArray)))
 	// 	}
@@ -915,7 +914,7 @@ func getL1UserTx(eventsL1UserTx []eth.RollupEventL1UserTx, blockNum int64) ([]co
 		// Check validity of L1UserTx
 		l1Tx, err := common.NewL1Tx(&eventsL1UserTx[i].L1UserTx)
 		if err != nil {
-			return nil, tracerr.Wrap(err)
+			return nil, common.Wrap(err)
 		}
 		l1Txs[i] = *l1Tx
 	}

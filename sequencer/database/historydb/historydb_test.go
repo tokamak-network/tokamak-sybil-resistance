@@ -163,7 +163,7 @@ func TestBatches(t *testing.T) {
 			batch.Batch.GasPrice = big.NewInt(0)
 			batches = append(batches, batch.Batch)
 			forgeTxsNum := batch.Batch.ForgeL1TxsNum
-			if forgeTxsNum != nil && *lastL1TxsNum < *forgeTxsNum {
+			if forgeTxsNum != nil && (lastL1TxsNum == nil || *lastL1TxsNum < *forgeTxsNum) {
 				*lastL1TxsNum = *forgeTxsNum
 				lastL1BatchBlockNum = batch.Batch.EthBlockNum
 			}

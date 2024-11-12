@@ -495,7 +495,7 @@ BEGIN
             NEW.fee = (SELECT 0);
         END IF;
         -- Set token_id
-        NEW."token_id" = (SELECT token_id FROM account WHERE idx = NEW."from_idx");
+        -- NEW.token_id = (SELECT token_id FROM account WHERE idx = NEW.from_idx);
         -- Set from_{eth_addr,bjj}
         SELECT INTO NEW."from_eth_addr", NEW."from_bjj" eth_addr, bjj FROM account WHERE idx = NEW.from_idx;
     END IF;
