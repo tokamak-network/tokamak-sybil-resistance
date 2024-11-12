@@ -555,7 +555,7 @@ func (hdb *HistoryDB) GetUnforgedL1UserTxs(toForgeL1TxsNum int64) ([]common.L1Tx
 	err := meddler.QueryAll(
 		hdb.dbRead, &txs, // only L1 user txs can have batch_num set to null
 		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
-		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx, tx.token_id,
+		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
 		tx.amount, NULL AS effective_amount,
 		tx.deposit_amount, NULL AS effective_deposit_amount,
 		tx.eth_block_num, tx.type, tx.batch_num
@@ -564,6 +564,34 @@ func (hdb *HistoryDB) GetUnforgedL1UserTxs(toForgeL1TxsNum int64) ([]common.L1Tx
 		toForgeL1TxsNum,
 	)
 	return database.SlicePtrsToSlice(txs).([]common.L1Tx), common.Wrap(err)
+}
+
+// GetUnforgedL1UserFutureTxs gets L1 User Txs to be forged after the L1Batch
+// with toForgeL1TxsNum (in one of the future batches, not in the next one).
+func (hdb *HistoryDB) GetUnforgedL1UserFutureTxs(toForgeL1TxsNum int64) ([]common.L1Tx, error) {
+	var txs []*common.L1Tx
+	err := meddler.QueryAll(
+		hdb.dbRead, &txs, // only L1 user txs can have batch_num set to null
+		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
+		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
+		tx.amount, NULL AS effective_amount,
+		tx.deposit_amount, NULL AS effective_deposit_amount,
+		tx.eth_block_num, tx.type, tx.batch_num
+		FROM tx WHERE batch_num IS NULL AND to_forge_l1_txs_num > $1
+		ORDER BY position;`,
+		toForgeL1TxsNum,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.L1Tx), tracerr.Wrap(err)
+}
+
+// GetUnforgedL1UserTxsCount returns the count of unforged L1Txs (either in
+// open or frozen queues that are not yet forged)
+func (hdb *HistoryDB) GetUnforgedL1UserTxsCount() (int, error) {
+	row := hdb.dbRead.QueryRow(
+		`SELECT COUNT(*) FROM tx WHERE batch_num IS NULL;`,
+	)
+	var count int
+	return count, tracerr.Wrap(row.Scan(&count))
 }
 
 // GetSCVars returns the rollup, auction and wdelayer smart contracts variables at their last update.

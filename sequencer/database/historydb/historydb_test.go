@@ -491,6 +491,70 @@ func TestExitTree(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetUnforgedL1UserTxs(t *testing.T) {
+	test.WipeDB(historyDB.DB())
+
+	set := `
+		Type: Blockchain
+
+		CreateAccountDeposit A: 20
+		CreateAccountDeposit A: 20
+		CreateAccountDeposit B: 5
+		CreateAccountDeposit C: 5
+		CreateAccountDeposit D: 5
+		> block
+
+		> batchL1
+		> block
+
+		CreateAccountDeposit E: 5
+		CreateAccountDeposit F: 5
+		> block
+
+	`
+	tc := til.NewContext(uint16(0), 128)
+	blocks, err := tc.GenerateBlocks(set)
+	require.NoError(t, err)
+	// Sanity check
+	require.Equal(t, 3, len(blocks))
+	require.Equal(t, 5, len(blocks[0].Rollup.L1UserTxs))
+
+	for i := range blocks {
+		err = historyDB.AddBlockSCData(&blocks[i])
+		require.NoError(t, err)
+	}
+
+	l1UserTxs, err := historyDB.GetUnforgedL1UserFutureTxs(0)
+	require.NoError(t, err)
+	assert.Equal(t, 7, len(l1UserTxs))
+
+	l1UserTxs, err = historyDB.GetUnforgedL1UserTxs(1)
+	require.NoError(t, err)
+	assert.Equal(t, 5, len(l1UserTxs))
+	assert.Equal(t, blocks[0].Rollup.L1UserTxs, l1UserTxs)
+
+	l1UserTxs, err = historyDB.GetUnforgedL1UserFutureTxs(1)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(l1UserTxs))
+
+	count, err := historyDB.GetUnforgedL1UserTxsCount()
+	require.NoError(t, err)
+	assert.Equal(t, 7, count)
+
+	l1UserTxs, err = historyDB.GetUnforgedL1UserTxs(2)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(l1UserTxs))
+
+	l1UserTxs, err = historyDB.GetUnforgedL1UserFutureTxs(2)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(l1UserTxs))
+
+	// No l1UserTxs for this toForgeL1TxsNum
+	l1UserTxs, err = historyDB.GetUnforgedL1UserTxs(3)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(l1UserTxs))
+}
+
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
 	assert.Equal(t, expected.Num, actual.Num)
 	assert.Equal(t, expected.Hash, actual.Hash)
