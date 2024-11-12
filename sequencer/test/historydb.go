@@ -7,6 +7,7 @@ import (
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/babyjub"
+	"github.com/iden3/go-merkletree"
 )
 
 // WARNING: the generators in this file doesn't necessary follow the protocol
@@ -88,4 +89,51 @@ func GenBatches(nBatches int, blocks []common.Block) []common.Batch {
 		batches = append(batches, batch)
 	}
 	return batches
+}
+
+// GenExitTree generates an exitTree (as an array of Exits)
+//
+//nolint:gomnd
+func GenExitTree(
+	n int,
+	batches []common.Batch,
+	accounts []common.Account,
+	blocks []common.Block,
+) []common.ExitInfo {
+	exitTree := make([]common.ExitInfo, n)
+	for i := 0; i < n; i++ {
+		exitTree[i] = common.ExitInfo{
+			BatchNum:               batches[i%len(batches)].BatchNum,
+			InstantWithdrawn:       nil,
+			DelayedWithdrawRequest: nil,
+			DelayedWithdrawn:       nil,
+			AccountIdx:             accounts[i%len(accounts)].Idx,
+			MerkleProof: &merkletree.CircomVerifierProof{
+				Root: &merkletree.Hash{byte(i), byte(i + 1)},
+				Siblings: []*merkletree.Hash{
+					merkletree.NewHashFromBigInt(big.NewInt(int64(i) * 10)),
+					merkletree.NewHashFromBigInt(big.NewInt(int64(i)*100 + 1)),
+					merkletree.NewHashFromBigInt(big.NewInt(int64(i)*1000 + 2))},
+				OldKey:   &merkletree.Hash{byte(i * 1), byte(i*1 + 1)},
+				OldValue: &merkletree.Hash{byte(i * 2), byte(i*2 + 1)},
+				IsOld0:   i%2 == 0,
+				Key:      &merkletree.Hash{byte(i * 3), byte(i*3 + 1)},
+				Value:    &merkletree.Hash{byte(i * 4), byte(i*4 + 1)},
+				Fnc:      i % 2,
+			},
+			Balance: big.NewInt(int64(i) * 1000),
+		}
+		if i%2 == 0 {
+			instant := int64(blocks[i%len(blocks)].Num)
+			exitTree[i].InstantWithdrawn = &instant
+		} else if i%3 == 0 {
+			delayedReq := int64(blocks[i%len(blocks)].Num)
+			exitTree[i].DelayedWithdrawRequest = &delayedReq
+			if i%9 == 0 {
+				delayed := int64(blocks[i%len(blocks)].Num)
+				exitTree[i].DelayedWithdrawn = &delayed
+			}
+		}
+	}
+	return exitTree
 }

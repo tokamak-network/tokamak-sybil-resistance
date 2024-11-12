@@ -474,6 +474,23 @@ func TestTxs(t *testing.T) {
 	assert.Equal(t, big.NewInt(10), dbL2Txs[2].Amount)
 }
 
+func TestExitTree(t *testing.T) {
+	nBatches := 17
+
+	blocks := setTestBlocks(1, 10)
+	batches := test.GenBatches(nBatches, blocks)
+	err := historyDB.AddBatches(batches)
+	assert.NoError(t, err)
+
+	const nAccounts = 3
+	accs := test.GenAccounts(nAccounts, 0, nil, nil, batches)
+	assert.NoError(t, historyDB.AddAccounts(accs))
+
+	exitTree := test.GenExitTree(nBatches, batches, accs, blocks)
+	err = historyDB.AddExitTree(exitTree)
+	assert.NoError(t, err)
+}
+
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
 	assert.Equal(t, expected.Num, actual.Num)
 	assert.Equal(t, expected.Hash, actual.Hash)
