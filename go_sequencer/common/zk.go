@@ -15,15 +15,15 @@ type ZKInputs struct {
 	// OldLastIdx is the last index assigned to an account
 	OldLastIdx *uint32 `json:"oldLastIdx"` // uint32 (max nLevels bits)
 	// OldStateRoot is the current account merkle tree root
-	OldAccountRoot *big.Int `json:"oldAccountRoot"` // Hash (field TODO: Need to check this.)
+	OldAccountRoot *big.Int `json:"oldAccountRoot"`
 
 	//Vouches
 	// OldVouchRoot is the current vouch merkle tree root
-	OldVouchRoot *big.Int `json:"oldVouchRoot"` // Hash (field TODO: Need to check this.)
+	OldVouchRoot *big.Int `json:"oldVouchRoot"`
 
 	//Score
 	// OldScoreRoot is the current score merkle tree root
-	OldScoreRoot *big.Int `json:"oldScoreRoot"` // Hash (field TODO: Need to check this.)
+	OldScoreRoot *big.Int `json:"oldScoreRoot"`
 
 	// GlobalChainID is the blockchain ID (0 for Ethereum mainnet). This
 	// value can be get from the smart contract.

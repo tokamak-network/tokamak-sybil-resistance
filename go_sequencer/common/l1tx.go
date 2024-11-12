@@ -348,8 +348,7 @@ func (tx *L1Tx) BytesGeneric() ([]byte, error) {
 	}
 	copy(b[63:68], amountFloat40Bytes)
 
-	//TODO: Check this with the smart contract team, If we'll get TokenID in the transactions. And if we need to handle that.
-	//Else we can update this for better memory management.
+	//TODO: We can update this for better memory management.
 	// copy(b[68:72], tx.TokenID.Bytes())
 
 	toIdxBytes, err := tx.ToIdx.Bytes()
@@ -360,7 +359,6 @@ func (tx *L1Tx) BytesGeneric() ([]byte, error) {
 	return b[:], nil
 }
 
-// TODO: Need to check if we'll need to seperate this for Account, Vouches based on how we'll handle this in transaction processor.
 // BytesDataAvailability encodes a L1Tx into []byte for the Data Availability
 // [ fromIdx | toIdx | amountFloat40 | Fee ]
 func (tx *L1Tx) BytesDataAvailability(nLevels uint32) ([]byte, error) {

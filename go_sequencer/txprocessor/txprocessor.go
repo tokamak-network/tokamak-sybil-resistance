@@ -491,8 +491,6 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 		txProcessor.computeEffectiveAmounts(tx)
 
 		// execute exit flow
-		// coordIdxsMap is 'nil', as at L1Txs there is no L2 fees
-		// TODO: Need to check and update logic with which we'll update account tree transfer the balance after exit from account tree to exit tree
 		exitAccount, newExit, err := txProcessor.applyExit(exitTree, tx.Tx(), tx.Amount)
 		if err != nil {
 			log.Error(err)
