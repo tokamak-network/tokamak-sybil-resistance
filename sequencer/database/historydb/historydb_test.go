@@ -254,34 +254,43 @@ func TestTxs(t *testing.T) {
 	
 	CreateAccountDeposit A: 1 	// L1Tx 1
 	CreateAccountDeposit B: 2	// L1Tx 2
+	> batchL1					// batch 1
+	> batchL1					// batch 2
+
 	CreateVouch A-B		// L2Tx 1
 	CreateVouch B-A		// L2Tx 2
-	> batchL1	// batch 1
-	> batchL1	// batch 2
-	> block  	// block 1
+	> batch				// batch 3
+	> block  			// block 1
 	
 	Deposit B: 10	// L1Tx 3
 	Exit A: 10		// L2Tx 3
-	> batch		// batch 3
-	> block  	// block 2
+	> batch			// batch 4
+	> block  		// block 2
 	
 	ForceExit A: 5		// L1Tx 4
-	> batchL1	// batch 4
-	> batchL1	// batch 5
-	> block		// block 3
+	> batchL1			// batch 5
+	> batchL1			// batch 6
+	> block				// block 3
 
 	CreateAccountDeposit C: 10		// L1Tx 5
-	CreateVouch A-C		// L2Tx 4
-	> batchL1	// batch 6
-	> block  	// block 4
-
+	> batchL1						// batch 7
+	> block  						// block 4
+	
 	CreateAccountDeposit D: 10		// L1Tx 6
+	> batchL1						// batch 8
+	> batchL1						// batch 9
+	> block							// block 5
+	
+	CreateVouch A-C		// L2Tx 4
 	CreateVouch C-D		// L2Tx 5
 	DeleteVouch B-A		// L2Tx 6
-	> batchL1	// batch 7
-	> batchL1	// batch 8
-	> block		// block 5
+	> batch				// batch 10
+	> block 			// block 6
 
+	// CreateAccountDeposit E: 10		// L1Tx 7
+	// > batchL1						// batch 11
+	// > batchL1						// batch 12
+	// > block							// block 7
 `
 
 	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
@@ -296,11 +305,12 @@ func TestTxs(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Sanity check
-	assert.Equal(t, 5, len(blocks)) // total number of blocks is 5
+	assert.Equal(t, 6, len(blocks)) // total number of blocks is 6
 
 	assert.Equal(t, 2, len(blocks[0].Rollup.L1UserTxs))                  // block 1 contains 2 L1UserTxs
-	assert.Equal(t, 2, len(blocks[0].Rollup.Batches))                    // block 1 contains 2 Batches
+	assert.Equal(t, 3, len(blocks[0].Rollup.Batches))                    // block 1 contains 2 Batches
 	assert.Equal(t, 2, len(blocks[0].Rollup.Batches[1].CreatedAccounts)) // block 1, batch 2 contains 2 CreatedAccounts
+	assert.Equal(t, 2, len(blocks[0].Rollup.Batches[2].L2Txs))           // block 1, batch 1 contains 2 L2Txs
 
 	assert.Equal(t, 1, len(blocks[1].Rollup.L1UserTxs))        // block 2 contains 1 L1UserTxs
 	assert.Equal(t, 1, len(blocks[1].Rollup.Batches))          // block 2 contains 1 Batch
@@ -312,25 +322,31 @@ func TestTxs(t *testing.T) {
 
 	assert.Equal(t, 1, len(blocks[3].Rollup.Batches))          // block 4 contains 1 Batch
 	assert.Equal(t, 1, len(blocks[3].Rollup.L1UserTxs))        // block 4 contains 1 L1UserTxs
-	assert.Equal(t, 0, len(blocks[2].Rollup.Batches[0].L2Txs)) // block 5, batch 2 contains 0 L2Tx
+	assert.Equal(t, 0, len(blocks[3].Rollup.Batches[0].L2Txs)) // block 4, batch 2 contains 0 L2Tx
 
 	assert.Equal(t, 2, len(blocks[4].Rollup.Batches))          // block 5 contains 2 Batches
 	assert.Equal(t, 1, len(blocks[4].Rollup.L1UserTxs))        // block 5 contains 1 L1UserTxs
 	assert.Equal(t, 0, len(blocks[4].Rollup.Batches[0].L2Txs)) // block 5, batch 1 contains 0 L2Tx
 
-	return
+	assert.Equal(t, 1, len(blocks[5].Rollup.Batches))          // block 6 contains 1 Batch
+	assert.Equal(t, 0, len(blocks[5].Rollup.L1UserTxs))        // block 6 contains 0 L1UserTxs
+	assert.Equal(t, 3, len(blocks[5].Rollup.Batches[0].L2Txs)) // block 6, batch 1 contains 3 L2Tx
+
+	// assert.Equal(t, 2, len(blocks[6].Rollup.Batches))          // block 7 contains 1 Batch
+	// assert.Equal(t, 1, len(blocks[6].Rollup.L1UserTxs))        // block 7 contains 0 L1UserTxs
+	// assert.Equal(t, 0, len(blocks[6].Rollup.Batches[0].L2Txs)) // block 7, batch 1 contains 3 L2Tx
 
 	var null *common.BatchNum = nil
 
 	// Insert blocks into DB
 	for i := range blocks {
-		if i == len(blocks)-1 {
-			blocks[i].Block.Timestamp = time.Now()
-			dbL1Txs, err := historyDB.GetAllL1UserTxs()
-			assert.NoError(t, err)
-			// Check batch_num is nil before forging
-			assert.Equal(t, null, dbL1Txs[len(dbL1Txs)-1].BatchNum)
-		}
+		// if i == len(blocks)-1 {
+		// 	blocks[i].Block.Timestamp = time.Now()
+		// 	dbL1Txs, err := historyDB.GetAllL1UserTxs()
+		// 	assert.NoError(t, err)
+		// 	// Check batch_num is nil before forging
+		// 	assert.Equal(t, null, dbL1Txs[len(dbL1Txs)-1].BatchNum)
+		// }
 		err = historyDB.AddBlockSCData(&blocks[i])
 		assert.NoError(t, err)
 	}
@@ -343,7 +359,7 @@ func TestTxs(t *testing.T) {
 	// Check batches
 	batches, err := historyDB.GetAllBatches()
 	assert.NoError(t, err)
-	assert.Equal(t, 8, len(batches))
+	assert.Equal(t, 10, len(batches))
 
 	// Check L1 Transactions
 	dbL1Txs, err := historyDB.GetAllL1UserTxs()
@@ -380,14 +396,14 @@ func TestTxs(t *testing.T) {
 	assert.Equal(t, &bn, dbL1Txs[0].BatchNum)
 	assert.Equal(t, &bn, dbL1Txs[1].BatchNum)
 
-	bn = common.BatchNum(5)
+	bn = common.BatchNum(6)
 	assert.Equal(t, bn, *dbL1Txs[2].BatchNum)
 	assert.Equal(t, bn, *dbL1Txs[3].BatchNum)
 
-	bn = common.BatchNum(7)
+	bn = common.BatchNum(8)
 	assert.Equal(t, &bn, dbL1Txs[4].BatchNum)
 
-	bn = common.BatchNum(8)
+	bn = common.BatchNum(9)
 	assert.Equal(t, &bn, dbL1Txs[5].BatchNum)
 
 	// eth_block_num
@@ -420,22 +436,42 @@ func TestTxs(t *testing.T) {
 	// Check L2 TXs
 	dbL2Txs, err := historyDB.GetAllL2Txs()
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(dbL2Txs))
+	assert.Equal(t, 6, len(dbL2Txs))
 
 	// Tx Type
-	assert.Equal(t, common.TxTypeExit, dbL2Txs[0].Type)
+	assert.Equal(t, common.TxTypeCreateVouch, dbL2Txs[0].Type)
+	assert.Equal(t, common.TxTypeCreateVouch, dbL2Txs[1].Type)
+	assert.Equal(t, common.TxTypeExit, dbL2Txs[2].Type)
+	assert.Equal(t, common.TxTypeCreateVouch, dbL2Txs[3].Type)
+	assert.Equal(t, common.TxTypeCreateVouch, dbL2Txs[4].Type)
+	assert.Equal(t, common.TxTypeDeleteVouch, dbL2Txs[5].Type)
 
 	// Tx ID
 	assert.Equal(t, "0x0222d2c1f4190752ad0d273024267197c5c65e1069dfff1baca7302e3fbca3c523", dbL2Txs[0].TxID.String())
+	assert.Equal(t, "0x0297e5d629ad9740f54172116adcde0751068486987ffd904c0c46f3df8d9c81fb", dbL2Txs[1].TxID.String())
+	assert.Equal(t, "0x021c11dcf29666db7add866b4969e7e1cbbb9d22debe27709310004cd56d969957", dbL2Txs[2].TxID.String())
+	assert.Equal(t, "0x0217cc446dfb442ed9f0387b01c0e67166a5dbdc86fca8c6fef7df0fa2e2216c4a", dbL2Txs[3].TxID.String())
+	assert.Equal(t, "0x02cbd4e1312607ee5074dd9897b57e84f9d8730f00afdf34a78739a697baecd7d5", dbL2Txs[4].TxID.String())
+	assert.Equal(t, "0x028c138f5d828978c2c578280a70dc09353944312d5597e9972838146e8c539ec6", dbL2Txs[5].TxID.String())
 
 	// Batch Number
 	assert.Equal(t, common.BatchNum(3), dbL2Txs[0].BatchNum)
+	assert.Equal(t, common.BatchNum(3), dbL2Txs[1].BatchNum)
+	assert.Equal(t, common.BatchNum(4), dbL2Txs[2].BatchNum)
+	assert.Equal(t, common.BatchNum(10), dbL2Txs[3].BatchNum)
+	assert.Equal(t, common.BatchNum(10), dbL2Txs[4].BatchNum)
+	assert.Equal(t, common.BatchNum(10), dbL2Txs[5].BatchNum)
 
 	// eth_block_num
-	assert.Equal(t, int64(3), dbL2Txs[0].EthBlockNum)
+	assert.Equal(t, int64(2), dbL2Txs[0].EthBlockNum)
+	assert.Equal(t, int64(2), dbL2Txs[1].EthBlockNum)
+	assert.Equal(t, int64(3), dbL2Txs[2].EthBlockNum)
+	assert.Equal(t, int64(7), dbL2Txs[3].EthBlockNum)
+	assert.Equal(t, int64(7), dbL2Txs[4].EthBlockNum)
+	assert.Equal(t, int64(7), dbL2Txs[5].EthBlockNum)
 
 	// Amount
-	assert.Equal(t, big.NewInt(10), dbL2Txs[0].Amount)
+	assert.Equal(t, big.NewInt(10), dbL2Txs[2].Amount)
 }
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {

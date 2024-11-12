@@ -376,6 +376,7 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		c.To = lit
 		line, _ := p.s.r.ReadString('\n')
 		c.Literal += line
+		c.Amount = big.NewInt(0)
 	} else {
 		if lit != ":" {
 			line, _ := p.s.r.ReadString('\n')
