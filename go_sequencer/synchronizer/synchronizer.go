@@ -780,15 +780,14 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 
 		// Get Batch information
 		batch := common.Batch{
-			BatchNum:           batchNum,
-			EthTxHash:          ethTxHash,
-			EthBlockNum:        blockNum,
-			ForgerAddr:         *sender,
-			FeeIdxsCoordinator: forgeBatchArgs.FeeIdxCoordinator,
-			StateRoot:          forgeBatchArgs.NewStRoot,
-			NumAccounts:        len(batchData.CreatedAccounts),
-			LastIdx:            forgeBatchArgs.NewLastIdx,
-			ExitRoot:           forgeBatchArgs.NewExitRoot,
+			BatchNum:    batchNum,
+			EthTxHash:   ethTxHash,
+			EthBlockNum: blockNum,
+			ForgerAddr:  *sender,
+			StateRoot:   forgeBatchArgs.NewStRoot,
+			NumAccounts: len(batchData.CreatedAccounts),
+			LastIdx:     forgeBatchArgs.NewLastIdx,
+			ExitRoot:    forgeBatchArgs.NewExitRoot,
 			// SlotNum:            slotNum,
 			GasUsed:  gasUsed,
 			GasPrice: gasPrice,
