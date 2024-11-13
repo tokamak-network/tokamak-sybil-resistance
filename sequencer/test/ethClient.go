@@ -49,12 +49,12 @@ func (r *RollupBlock) addTransaction(tx *types.Transaction) *types.Transaction {
 	return tx
 }
 
-var (
-	errBidClosed   = fmt.Errorf("Bid has already been closed")
-	errBidNotOpen  = fmt.Errorf("Bid has not been opened yet")
-	errBidBelowMin = fmt.Errorf("Bid below minimum")
-	errCoordNotReg = fmt.Errorf("Coordinator not registered")
-)
+// var (
+// 	errBidClosed   = fmt.Errorf("bid has already been closed")
+// 	errBidNotOpen  = fmt.Errorf("bid has not been opened yet")
+// 	errBidBelowMin = fmt.Errorf("bid below minimum")
+// 	errCoordNotReg = fmt.Errorf("coordinator not registered")
+// )
 
 // EthereumBlock stores all the generic data related to the an ethereum block
 type EthereumBlock struct {
@@ -643,7 +643,6 @@ func (c *Client) RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp,
 
 	type data struct {
 		BabyPubKey      *babyjub.PublicKey
-		TokenID         uint32
 		NumExitRoot     int64
 		Idx             int64
 		Amount          *big.Int
@@ -652,7 +651,6 @@ func (c *Client) RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp,
 	}
 	tx = r.addTransaction(c.newTransaction("withdrawMerkleProof", data{
 		BabyPubKey:      babyPubKeyDecomp,
-		TokenID:         tokenID,
 		NumExitRoot:     numExitRoot,
 		Idx:             idx,
 		Amount:          amount,
@@ -801,7 +799,7 @@ func (c *Client) RollupEventsByBlock(blockNum int64,
 		return nil, common.Wrap(fmt.Errorf("Block %v doesn't exist", blockNum))
 	}
 	if blockHash != nil && *blockHash != block.Eth.Hash {
-		return nil, common.Wrap(fmt.Errorf("Hash mismatch, requested %v got %v",
+		return nil, common.Wrap(fmt.Errorf("hash mismatch, requested %v got %v",
 			blockHash, block.Eth.Hash))
 	}
 	return &block.Rollup.Events, nil
