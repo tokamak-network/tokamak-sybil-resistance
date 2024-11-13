@@ -500,21 +500,21 @@ BEGIN
         SELECT INTO NEW."from_eth_addr", NEW."from_bjj" eth_addr, bjj FROM account WHERE idx = NEW.from_idx;
     END IF;
     -- Set USD related
-    SELECT INTO _value, _usd_update, _tx_timestamp 
-        usd / POWER(10, decimals), usd_update, timestamp FROM token INNER JOIN block on token.eth_block_num = block.eth_block_num WHERE token_id = NEW.token_id;
-    IF _usd_update - interval '24 hours' < _usd_update AND _usd_update + interval '24 hours' > _usd_update THEN
-        IF _value > 0.0 THEN
-            IF NEW."amount_f" > 0.0 THEN
-                NEW."amount_usd" = (SELECT _value * NEW."amount_f");
-                IF NOT NEW."is_l1" AND NEW."fee" > 0 THEN
-                    NEW."fee_usd" = (SELECT NEW."amount_usd" * fee_percentage(NEW.fee::NUMERIC));
-                END IF;
-            END IF;
-            IF NEW."is_l1" AND NEW."deposit_amount_f" > 0.0 THEN
-                NEW."deposit_amount_usd" = (SELECT _value * NEW.deposit_amount_f);
-            END IF;
-        END IF;
-    END IF;
+    -- SELECT INTO _value, _usd_update, _tx_timestamp 
+    --     usd / POWER(10, decimals), usd_update, timestamp FROM token INNER JOIN block on token.eth_block_num = block.eth_block_num WHERE token_id = NEW.token_id;
+    -- IF _usd_update - interval '24 hours' < _usd_update AND _usd_update + interval '24 hours' > _usd_update THEN
+    --     IF _value > 0.0 THEN
+    --         IF NEW."amount_f" > 0.0 THEN
+    --             NEW."amount_usd" = (SELECT _value * NEW."amount_f");
+    --             IF NOT NEW."is_l1" AND NEW."fee" > 0 THEN
+    --                 NEW."fee_usd" = (SELECT NEW."amount_usd" * fee_percentage(NEW.fee::NUMERIC));
+    --             END IF;
+    --         END IF;
+    --         IF NEW."is_l1" AND NEW."deposit_amount_f" > 0.0 THEN
+    --             NEW."deposit_amount_usd" = (SELECT _value * NEW.deposit_amount_f);
+    --         END IF;
+    --     END IF;
+    -- END IF;
     -- Set to_{eth_addr,bjj}
     IF NEW."to_idx" > 255 THEN
         SELECT INTO NEW."to_eth_addr", NEW."to_bjj" eth_addr, bjj FROM account WHERE idx = NEW."to_idx";

@@ -39,6 +39,23 @@ func (hdb *HistoryDB) addBlock(d meddler.DB, block *common.Block) error {
 	return common.Wrap(meddler.Insert(d, "block", block))
 }
 
+// AddBlocks inserts blocks into the DB
+func (hdb *HistoryDB) AddBlocks(blocks []common.Block) error {
+	return common.Wrap(hdb.addBlocks(hdb.dbWrite, blocks))
+}
+
+func (hdb *HistoryDB) addBlocks(d meddler.DB, blocks []common.Block) error {
+	return common.Wrap(database.BulkInsert(
+		d,
+		`INSERT INTO block (
+			eth_block_num,
+			timestamp,
+			hash
+		) VALUES %s;`,
+		blocks,
+	))
+}
+
 // GetBlock retrieve a block from the DB, given a block number
 func (hdb *HistoryDB) GetBlock(blockNum int64) (*common.Block, error) {
 	block := &common.Block{}
@@ -322,6 +339,16 @@ func (hdb *HistoryDB) addAccountUpdates(d meddler.DB, accUpdates []common.Accoun
 	))
 }
 
+// GetAllAccountUpdates returns all the AccountUpdate from the DB
+func (hdb *HistoryDB) GetAllAccountUpdates() ([]common.AccountUpdate, error) {
+	var accUpdates []*common.AccountUpdate
+	err := meddler.QueryAll(
+		hdb.dbRead, &accUpdates,
+		"SELECT eth_block_num, batch_num, idx, nonce, balance FROM account_update ORDER BY idx;",
+	)
+	return database.SlicePtrsToSlice(accUpdates).([]common.AccountUpdate), common.Wrap(err)
+}
+
 // AddL1Txs inserts L1 txs to the DB. USD and DepositAmountUSD will be set automatically before storing the tx.
 // If the tx is originated by a coordinator, BatchNum must be provided. If it's originated by a user,
 // BatchNum should be null, and the value will be setted by a trigger when a batch forges the tx.
@@ -340,7 +367,15 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 	}
 	txs := []txWrite{}
 	for i := 0; i < len(l1txs); i++ {
-		af := new(big.Float).SetInt(l1txs[i].Amount)
+		var af *big.Float
+		if l1txs[i].Amount != nil {
+			af = new(big.Float).SetInt(l1txs[i].Amount)
+		} else {
+			// TODO: lang.go >> func parseLine() >> lines 394-399 leave amount as nil
+			// if tx type is deposit, which causes a panic here. Need to discuss how to handle this.
+			af = new(big.Float).SetInt(big.NewInt(0))
+			l1txs[i].Amount = big.NewInt(0)
+		}
 		amountFloat, _ := af.Float64()
 		laf := new(big.Float).SetInt(l1txs[i].DepositAmount)
 		depositAmountFloat, _ := laf.Float64()
@@ -353,6 +388,7 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 		} else {
 			effectiveFromIdx = &l1txs[i].EffectiveFromIdx
 		}
+
 		txs = append(txs, txWrite{
 			// Generic
 			IsL1:             true,
@@ -521,12 +557,40 @@ func (hdb *HistoryDB) GetUnforgedL1UserTxs(toForgeL1TxsNum int64) ([]common.L1Tx
 	return database.SlicePtrsToSlice(txs).([]common.L1Tx), common.Wrap(err)
 }
 
+// GetUnforgedL1UserFutureTxs gets L1 User Txs to be forged after the L1Batch
+// with toForgeL1TxsNum (in one of the future batches, not in the next one).
+func (hdb *HistoryDB) GetUnforgedL1UserFutureTxs(toForgeL1TxsNum int64) ([]common.L1Tx, error) {
+	var txs []*common.L1Tx
+	err := meddler.QueryAll(
+		hdb.dbRead, &txs, // only L1 user txs can have batch_num set to null
+		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
+		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
+		tx.amount, NULL AS effective_amount,
+		tx.deposit_amount, NULL AS effective_deposit_amount,
+		tx.eth_block_num, tx.type, tx.batch_num
+		FROM tx WHERE batch_num IS NULL AND to_forge_l1_txs_num > $1
+		ORDER BY position;`,
+		toForgeL1TxsNum,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.L1Tx), err
+}
+
+// GetUnforgedL1UserTxsCount returns the count of unforged L1Txs (either in
+// open or frozen queues that are not yet forged)
+func (hdb *HistoryDB) GetUnforgedL1UserTxsCount() (int, error) {
+	row := hdb.dbRead.QueryRow(
+		`SELECT COUNT(*) FROM tx WHERE batch_num IS NULL;`,
+	)
+	var count int
+	return count, row.Scan(&count)
+}
+
 // GetSCVars returns the rollup, auction and wdelayer smart contracts variables at their last update.
 func (hdb *HistoryDB) GetSCVars() (*common.RollupVariables, error) {
 	var rollup common.RollupVariables
 	if err := meddler.QueryRow(hdb.dbRead, &rollup,
 		"SELECT * FROM rollup_vars ORDER BY eth_block_num DESC LIMIT 1;"); err != nil {
-		return nil, common.Wrap(err)
+		return nil, err
 	}
 	return &rollup, nil
 }
