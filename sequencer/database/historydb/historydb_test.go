@@ -622,80 +622,80 @@ func TestSetInitialSCVars(t *testing.T) {
 	require.Equal(t, rollup, dbRollup)
 }
 
-// func TestSetExtraInfoForgedL1UserTxs(t *testing.T) {
-// 	test.WipeDB(historyDB.DB())
+func TestSetExtraInfoForgedL1UserTxs(t *testing.T) {
+	test.WipeDB(historyDB.DB())
 
-// 	set := `
-// 		Type: Blockchain
+	set := `
+		Type: Blockchain
 
-// 		CreateAccountDeposit A: 2000
-// 		CreateAccountDeposit B: 500
-// 		CreateAccountDeposit C: 500
+		CreateAccountDeposit A: 2000
+		CreateAccountDeposit B: 500
+		CreateAccountDeposit C: 500
 
-// 		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{*}
-// 		> block // blockNum=2
+		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{*}
+		> block // blockNum=2
 
-// 		> batchL1 // forge defined L1UserTxs{*}
-// 		> block // blockNum=3
-// 	`
+		> batchL1 // forge defined L1UserTxs{*}
+		> block // blockNum=3
+	`
 
-// 	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
-// 	tilCfgExtra := til.ConfigExtra{
-// 		BootCoordAddr: ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"),
-// 		CoordUser:     "A",
-// 	}
-// 	blocks, err := tc.GenerateBlocks(set)
-// 	require.NoError(t, err)
+	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	tilCfgExtra := til.ConfigExtra{
+		BootCoordAddr: ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"),
+		CoordUser:     "A",
+	}
+	blocks, err := tc.GenerateBlocks(set)
+	require.NoError(t, err)
 
-// 	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
-// 	require.NoError(t, err)
+	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
+	require.NoError(t, err)
 
-// 	err = tc.FillBlocksForgedL1UserTxs(blocks)
-// 	require.NoError(t, err)
+	err = tc.FillBlocksForgedL1UserTxs(blocks)
+	require.NoError(t, err)
 
-// 	// Add only first block so that the L1UserTxs are not marked as forged
-// 	for i := range blocks[:1] {
-// 		err = historyDB.AddBlockSCData(&blocks[i])
-// 		require.NoError(t, err)
-// 	}
-// 	// Add second batch to trigger the update of the batch_num,
-// 	// while avoiding the implicit call of setExtraInfoForgedL1UserTxs
-// 	err = historyDB.addBlock(historyDB.dbWrite, &blocks[1].Block)
-// 	require.NoError(t, err)
-// 	err = historyDB.addBatch(historyDB.dbWrite, &blocks[1].Rollup.Batches[0].Batch)
-// 	require.NoError(t, err)
-// 	err = historyDB.addAccounts(historyDB.dbWrite, blocks[1].Rollup.Batches[0].CreatedAccounts)
-// 	require.NoError(t, err)
+	// Add only first block so that the L1UserTxs are not marked as forged
+	for i := range blocks[:1] {
+		err = historyDB.AddBlockSCData(&blocks[i])
+		require.NoError(t, err)
+	}
+	// Add second batch to trigger the update of the batch_num,
+	// while avoiding the implicit call of setExtraInfoForgedL1UserTxs
+	err = historyDB.addBlock(historyDB.dbWrite, &blocks[1].Block)
+	require.NoError(t, err)
+	err = historyDB.addBatch(historyDB.dbWrite, &blocks[1].Rollup.Batches[0].Batch)
+	require.NoError(t, err)
+	err = historyDB.addAccounts(historyDB.dbWrite, blocks[1].Rollup.Batches[0].CreatedAccounts)
+	require.NoError(t, err)
 
-// 	// Set the Effective{Amount,DepositAmount} of the L1UserTxs that are forged in the second block
-// 	l1Txs := blocks[1].Rollup.Batches[0].L1UserTxs
-// 	require.Equal(t, 3, len(l1Txs))
-// 	// Change some values to test all cases
-// 	l1Txs[1].EffectiveAmount = big.NewInt(0)
-// 	l1Txs[2].EffectiveDepositAmount = big.NewInt(0)
-// 	l1Txs[2].EffectiveAmount = big.NewInt(0)
-// 	err = historyDB.setExtraInfoForgedL1UserTxs(historyDB.dbWrite, l1Txs)
-// 	require.NoError(t, err)
+	// Set the Effective{Amount,DepositAmount} of the L1UserTxs that are forged in the second block
+	l1Txs := blocks[1].Rollup.Batches[0].L1UserTxs
+	require.Equal(t, 3, len(l1Txs))
+	// Change some values to test all cases
+	l1Txs[1].EffectiveAmount = big.NewInt(0)
+	l1Txs[2].EffectiveDepositAmount = big.NewInt(0)
+	l1Txs[2].EffectiveAmount = big.NewInt(0)
+	err = historyDB.setExtraInfoForgedL1UserTxs(historyDB.dbWrite, l1Txs)
+	require.NoError(t, err)
 
-// 	dbL1Txs, err := historyDB.GetAllL1UserTxs()
-// 	require.NoError(t, err)
-// 	for i, tx := range dbL1Txs {
-// 		log.Infof("%d %v %v", i, tx.EffectiveAmount, tx.EffectiveDepositAmount)
-// 		assert.NotNil(t, tx.EffectiveAmount)
-// 		assert.NotNil(t, tx.EffectiveDepositAmount)
-// 		switch tx.TxID {
-// 		case l1Txs[0].TxID:
-// 			assert.Equal(t, l1Txs[0].DepositAmount, tx.EffectiveDepositAmount)
-// 			assert.Equal(t, l1Txs[0].Amount, tx.EffectiveAmount)
-// 		case l1Txs[1].TxID:
-// 			assert.Equal(t, l1Txs[1].DepositAmount, tx.EffectiveDepositAmount)
-// 			assert.Equal(t, big.NewInt(0), tx.EffectiveAmount)
-// 		case l1Txs[2].TxID:
-// 			assert.Equal(t, big.NewInt(0), tx.EffectiveDepositAmount)
-// 			assert.Equal(t, big.NewInt(0), tx.EffectiveAmount)
-// 		}
-// 	}
-// }
+	dbL1Txs, err := historyDB.GetAllL1UserTxs()
+	require.NoError(t, err)
+	for i, tx := range dbL1Txs {
+		log.Infof("%d %v %v", i, tx.EffectiveAmount, tx.EffectiveDepositAmount)
+		assert.NotNil(t, tx.EffectiveAmount)
+		assert.NotNil(t, tx.EffectiveDepositAmount)
+		switch tx.TxID {
+		case l1Txs[0].TxID:
+			assert.Equal(t, l1Txs[0].DepositAmount, tx.EffectiveDepositAmount)
+			assert.Equal(t, l1Txs[0].Amount, tx.EffectiveAmount)
+		case l1Txs[1].TxID:
+			assert.Equal(t, l1Txs[1].DepositAmount, tx.EffectiveDepositAmount)
+			assert.Equal(t, big.NewInt(0), tx.EffectiveAmount)
+		case l1Txs[2].TxID:
+			assert.Equal(t, big.NewInt(0), tx.EffectiveDepositAmount)
+			assert.Equal(t, big.NewInt(0), tx.EffectiveAmount)
+		}
+	}
+}
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
 	assert.Equal(t, expected.Num, actual.Num)
