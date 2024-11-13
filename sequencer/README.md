@@ -38,3 +38,6 @@ go run main.go run --mode sync --cfg cfg.toml
 ```
 go run main.go run --mode coord --cfg cfg.toml
 ```
+
+<!-- will be deleted -->
+intizar-test
