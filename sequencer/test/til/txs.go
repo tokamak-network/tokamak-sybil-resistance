@@ -313,11 +313,11 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 				tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
 				tc.idx++
 			}
-			for _, tx := range tc.currBatchTest.l1CoordinatorTxs {
-				tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
-				tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
-				tc.idx++
-			}
+			// for _, tx := range tc.currBatchTest.l1CoordinatorTxs {
+			// 	tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
+			// 	tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
+			// 	tc.idx++
+			// }
 			tc.currBatch.L1Batch = true
 			if err := tc.setIdxs(); err != nil {
 				return nil, common.Wrap(err)
@@ -512,7 +512,7 @@ func (tc *Context) generatePoolL2Txs() ([]common.PoolL2Tx, error) {
 			// ToIdx, and use only ToEthAddr & ToBJJ
 			tx := common.PoolL2Tx{
 				FromIdx:     tc.Accounts[inst.From].Idx,
-				Amount:      big.NewInt(1),
+				Amount:      big.NewInt(0),
 				Fee:         common.FeeSelector(inst.Fee),
 				Nonce:       tc.Accounts[inst.From].Nonce,
 				State:       common.PoolL2TxStatePending,
@@ -526,9 +526,6 @@ func (tc *Context) generatePoolL2Txs() ([]common.PoolL2Tx, error) {
 				tx.ToIdx = tc.Accounts[inst.To].Idx
 				tx.ToEthAddr = common.EmptyAddr
 				tx.ToBJJ = common.EmptyBJJComp
-			}
-			if inst.LineNum == 3 {
-				// panic(tx.Type)
 			}
 			nTx, err := common.NewPoolL2Tx(&tx)
 			if err != nil {
@@ -622,10 +619,10 @@ func NewUser(keyDerivationIndex int, name string) Account {
 	idx := common.AccountIdx(255 + keyDerivationIndex)
 
 	// Balance
-	balance := big.NewInt(int64(keyDerivationIndex))
+	balance := big.NewInt(0)
 
 	// Nonce
-	nonce := common.Nonce(keyDerivationIndex)
+	nonce := common.Nonce(0)
 
 	// BatchNum
 
