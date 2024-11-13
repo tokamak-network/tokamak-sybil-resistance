@@ -855,7 +855,6 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 				L1CoordinatorTxs:      batch.L1CoordinatorTxs,
 				L1CoordinatorTxsAuths: auths,
 				L2TxsData:             batch.L2Txs,
-				FeeIdxCoordinator:     batch.Batch.FeeIdxsCoordinator,
 				// Circuit selector
 				VerifierIdx: 0, // Intentionally empty
 				L1Batch:     batch.L1Batch,

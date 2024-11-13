@@ -35,11 +35,14 @@ func newBatchData(batchNum int) common.BatchData {
 			BatchNum:  common.BatchNum(batchNum),
 			StateRoot: big.NewInt(0), ExitRoot: big.NewInt(0),
 <<<<<<< HEAD
+<<<<<<< HEAD
 			FeeIdxsCoordinator: make([]common.Idx, 0),
 <<<<<<< HEAD
 =======
 			FeeIdxsCoordinator: make([]common.AccountIdx, 0),
 >>>>>>> cc65ec6 (feat/go-synchronizer initial construction of stateDB)
+=======
+>>>>>>> be5a692 (Added todos and updated the txs file)
 			// CollectedFees:      make(map[common.TokenID]*big.Int),
 =======
 			CollectedFees:      make(map[common.TokenID]*big.Int),
@@ -311,7 +314,28 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 <<<<<<< HEAD
 =======
 		//Removed case for TxTypeCreateAccountDepositTransfer
+<<<<<<< HEAD
 >>>>>>> 3523c13 (Fixed and removed redundant part)
+=======
+		case common.TxTypeCreateAccountDeposit:
+			// tx source: L1UserTx
+			tx := common.L1Tx{
+				FromEthAddr:   tc.Accounts[inst.From].Addr,
+				FromBJJ:       tc.Accounts[inst.From].BJJ.Public().Compress(),
+				Amount:        big.NewInt(0),
+				DepositAmount: inst.DepositAmount,
+				Type:          inst.Typ,
+			}
+			testTx := L1Tx{
+				lineNum:     inst.LineNum,
+				fromIdxName: inst.From,
+				toIdxName:   inst.To,
+				L1Tx:        tx,
+			}
+			if err := tc.addToL1UserQueue(testTx); err != nil {
+				return nil, common.Wrap(err)
+			}
+>>>>>>> be5a692 (Added todos and updated the txs file)
 		case common.TxTypeDeposit: // tx source: L1UserTx
 =======
 		case common.TxTypeDeposit, common.TxTypeDepositTransfer: // tx source: L1UserTx
@@ -1396,6 +1420,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				// coordinator account to receive fee if it was
 				// created in this or a previous batch
 <<<<<<< HEAD
+<<<<<<< HEAD
 				if acc, ok := tc.l1CreatedAccounts[cfg.CoordUser]; ok &&
 =======
 				if acc, ok := tc.l1CreatedAccounts[idxTokenIDToString(cfg.CoordUser, fromAcc.TokenID)]; ok &&
@@ -1424,6 +1449,25 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 					// collected := batch.Batch.CollectedFees[fromAcc.TokenID]
 					// collected.Add(collected, fee)
 				}
+=======
+				// if acc, ok := tc.l1CreatedAccounts[cfg.CoordUser]; ok &&
+				// 	common.BatchNum(acc.BatchNum) <= batch.Batch.BatchNum {
+				// 	found := false
+				// 	for _, idx := range batch.Batch.FeeIdxsCoordinator {
+				// 		if idx == common.AccountIdx(acc.Idx) {
+				// 			found = true
+				// 			break
+				// 		}
+				// 	}
+				// 	// if !found {
+				// 	// 	batch.Batch.FeeIdxsCoordinator = append(batch.Batch.FeeIdxsCoordinator,
+				// 	// 		common.AccountIdx(acc.Idx))
+				// 	// 	batch.Batch.CollectedFees[fromAcc.TokenID] = big.NewInt(0)
+				// 	// }
+				// 	// collected := batch.Batch.CollectedFees[fromAcc.TokenID]
+				// 	// collected.Add(collected, fee)
+				// }
+>>>>>>> be5a692 (Added todos and updated the txs file)
 			}
 		}
 	}

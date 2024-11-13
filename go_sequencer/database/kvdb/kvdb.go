@@ -219,6 +219,11 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 		}
 		k.db = sto
 		k.CurrentAccountIdx = common.RollupConstReservedIDx // 255
+<<<<<<< HEAD
+=======
+		//TODO: Need to check and update this for VouchIDx, For reseting the same
+		k.CurrentVouchIdx = common.RollupConstReservedIDx
+>>>>>>> 17721e4 (Added todos and updated the txs file)
 		k.CurrentBatch = 0
 		if k.last != nil {
 			if err := k.last.setNew(); err != nil {
@@ -274,6 +279,23 @@ func (k *KVDB) GetCurrentAccountIdx() (common.AccountIdx, error) {
 	return common.AccountIdxFromBytes(idxBytes[:])
 }
 
+<<<<<<< HEAD
+=======
+// GetCurrentVouchIdx returns the stored Idx from the KVDB, which is the last Idx
+// used for an Vouch in the k.
+func (k *KVDB) GetCurrentVouchIdx() (common.VouchIdx, error) {
+	idxBytes, err := k.db.Get(keyCurrentVouchIdx)
+	if common.Unwrap(err) == db.ErrNotFound {
+		//TODO: Need to check and update this for VouchIDx
+		return common.RollupConstReservedIDx, nil // 255, nil
+	}
+	if err != nil {
+		return 0, common.Wrap(err)
+	}
+	return common.VouchIdxFromBytes(idxBytes[:])
+}
+
+>>>>>>> 17721e4 (Added todos and updated the txs file)
 // GetCurrentBatch returns the current BatchNum stored in the KVDB
 func (k *KVDB) GetCurrentBatch() (common.BatchNum, error) {
 	cbBytes, err := k.db.Get(KeyCurrentBatch)
