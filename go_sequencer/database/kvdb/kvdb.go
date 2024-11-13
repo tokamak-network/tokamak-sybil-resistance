@@ -222,6 +222,7 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 		}
 		k.db = sto
 		k.CurrentAccountIdx = common.RollupConstReservedIDx // 255
+		//TODO: Need to check and update this for VouchIDx, For reseting the same
 		k.CurrentVouchIdx = common.RollupConstReservedIDx
 		k.CurrentBatch = 0
 		if k.last != nil {
@@ -288,6 +289,7 @@ func (k *KVDB) GetCurrentAccountIdx() (common.AccountIdx, error) {
 func (k *KVDB) GetCurrentVouchIdx() (common.VouchIdx, error) {
 	idxBytes, err := k.db.Get(keyCurrentVouchIdx)
 	if common.Unwrap(err) == db.ErrNotFound {
+		//TODO: Need to check and update this for VouchIDx
 		return common.RollupConstReservedIDx, nil // 255, nil
 	}
 	if err != nil {

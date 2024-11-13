@@ -22,7 +22,6 @@ func newBatchData(batchNum int) common.BatchData {
 		Batch: common.Batch{
 			BatchNum:  common.BatchNum(batchNum),
 			StateRoot: big.NewInt(0), ExitRoot: big.NewInt(0),
-			FeeIdxsCoordinator: make([]common.AccountIdx, 0),
 			// CollectedFees:      make(map[common.TokenID]*big.Int),
 		},
 	}
@@ -168,6 +167,24 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 	for _, inst := range tc.instructions {
 		switch inst.Typ {
 		//Removed case for TxTypeCreateAccountDepositTransfer
+		case common.TxTypeCreateAccountDeposit:
+			// tx source: L1UserTx
+			tx := common.L1Tx{
+				FromEthAddr:   tc.Accounts[inst.From].Addr,
+				FromBJJ:       tc.Accounts[inst.From].BJJ.Public().Compress(),
+				Amount:        big.NewInt(0),
+				DepositAmount: inst.DepositAmount,
+				Type:          inst.Typ,
+			}
+			testTx := L1Tx{
+				lineNum:     inst.LineNum,
+				fromIdxName: inst.From,
+				toIdxName:   inst.To,
+				L1Tx:        tx,
+			}
+			if err := tc.addToL1UserQueue(testTx); err != nil {
+				return nil, common.Wrap(err)
+			}
 		case common.TxTypeDeposit: // tx source: L1UserTx
 			if err := tc.checkIfAccountExists(inst.From, inst); err != nil {
 				log.Error(err)
@@ -850,23 +867,23 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				// the collectedFees.  Only consider the
 				// coordinator account to receive fee if it was
 				// created in this or a previous batch
-				if acc, ok := tc.l1CreatedAccounts[cfg.CoordUser]; ok &&
-					common.BatchNum(acc.BatchNum) <= batch.Batch.BatchNum {
-					found := false
-					for _, idx := range batch.Batch.FeeIdxsCoordinator {
-						if idx == common.AccountIdx(acc.Idx) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						batch.Batch.FeeIdxsCoordinator = append(batch.Batch.FeeIdxsCoordinator,
-							common.AccountIdx(acc.Idx))
-						// batch.Batch.CollectedFees[fromAcc.TokenID] = big.NewInt(0)
-					}
-					// collected := batch.Batch.CollectedFees[fromAcc.TokenID]
-					// collected.Add(collected, fee)
-				}
+				// if acc, ok := tc.l1CreatedAccounts[cfg.CoordUser]; ok &&
+				// 	common.BatchNum(acc.BatchNum) <= batch.Batch.BatchNum {
+				// 	found := false
+				// 	for _, idx := range batch.Batch.FeeIdxsCoordinator {
+				// 		if idx == common.AccountIdx(acc.Idx) {
+				// 			found = true
+				// 			break
+				// 		}
+				// 	}
+				// 	// if !found {
+				// 	// 	batch.Batch.FeeIdxsCoordinator = append(batch.Batch.FeeIdxsCoordinator,
+				// 	// 		common.AccountIdx(acc.Idx))
+				// 	// 	batch.Batch.CollectedFees[fromAcc.TokenID] = big.NewInt(0)
+				// 	// }
+				// 	// collected := batch.Batch.CollectedFees[fromAcc.TokenID]
+				// 	// collected.Add(collected, fee)
+				// }
 			}
 		}
 	}
