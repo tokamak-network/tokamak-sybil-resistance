@@ -142,7 +142,7 @@ func performTxVouch(sto db.Storage, idx common.VouchIdx,
 }
 
 // CurrentIdx returns the current in-memory CurrentIdx of the StateDB.db
-func (s *StateDB) CurrentVouchIdx() common.VouchIdx {
+func (s *StateDB) GetCurrentVouchIdx() common.VouchIdx {
 	return s.db.CurrentVouchIdx
 }
 
