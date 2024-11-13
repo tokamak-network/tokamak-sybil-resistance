@@ -99,7 +99,7 @@ func InitSQLDB(port int, host, user, password, name string) (*sqlx.DB, error) {
 
 // InitTestSQLDB opens test PostgreSQL database
 func InitTestSQLDB() (*sqlx.DB, error) {
-	err := godotenv.Load("../.env")
+	err := godotenv.Load("../../.env")
 	if err != nil {
 		log.Info("Error loading .env file")
 	}
