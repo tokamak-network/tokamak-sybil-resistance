@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  core-build:
+  syb-historydb-test:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -59,4 +59,4 @@ jobs:
           PGUSER: "postgres"
           PGPASSWORD: "postgres"
           PGDATABASE: "statedb"
-
+          CI: true

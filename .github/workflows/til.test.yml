@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  core-build:
+  syb-til-test:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -60,4 +60,5 @@ jobs:
           PGPASSWORD: "postgres"
           PGDATABASE: "statedb"
           DEBUG: "true"
+          CI: true
 
