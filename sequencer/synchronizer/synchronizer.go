@@ -636,37 +636,37 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 
 		l1TxsAuth := make([]common.AccountCreationAuth,
 			0, len(forgeBatchArgs.L1CoordinatorTxsAuths))
-		// batchData.L1CoordinatorTxs = make([]common.L1Tx, 0, len(forgeBatchArgs.L1CoordinatorTxs))
-		// // Get L1 Coordinator Txs
-		// for i := range forgeBatchArgs.L1CoordinatorTxs {
-		// 	l1CoordinatorTx := forgeBatchArgs.L1CoordinatorTxs[i]
-		// 	l1CoordinatorTx.Position = position
-		// 	// l1CoordinatorTx.ToForgeL1TxsNum = &forgeL1TxsNum
-		// 	l1CoordinatorTx.UserOrigin = false
-		// 	l1CoordinatorTx.EthBlockNum = blockNum
-		// 	l1CoordinatorTx.BatchNum = &batchNum
-		// 	l1CoordinatorTx.EthTxHash = ethTxHash
-		// 	l1Tx, err := common.NewL1Tx(&l1CoordinatorTx)
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
+		batchData.L1CoordinatorTxs = make([]common.L1Tx, 0, len(forgeBatchArgs.L1CoordinatorTxs))
+		// Get L1 Coordinator Txs
+		for i := range forgeBatchArgs.L1CoordinatorTxs {
+			l1CoordinatorTx := forgeBatchArgs.L1CoordinatorTxs[i]
+			l1CoordinatorTx.Position = position
+			// l1CoordinatorTx.ToForgeL1TxsNum = &forgeL1TxsNum
+			l1CoordinatorTx.UserOrigin = false
+			l1CoordinatorTx.EthBlockNum = blockNum
+			l1CoordinatorTx.BatchNum = &batchNum
+			l1CoordinatorTx.EthTxHash = ethTxHash
+			l1Tx, err := common.NewL1Tx(&l1CoordinatorTx)
+			if err != nil {
+				return nil, common.Wrap(err)
+			}
 
-		// 	batchData.L1CoordinatorTxs = append(batchData.L1CoordinatorTxs, *l1Tx)
-		// 	position++
+			batchData.L1CoordinatorTxs = append(batchData.L1CoordinatorTxs, *l1Tx)
+			position++
 
-		// 	// Create a slice of account creation auth to be
-		// 	// inserted later if not exists
-		// 	if l1CoordinatorTx.FromEthAddr != common.RollupConstEthAddressInternalOnly {
-		// 		l1CoordinatorTxAuth := forgeBatchArgs.L1CoordinatorTxsAuths[i]
-		// 		l1TxsAuth = append(l1TxsAuth, common.AccountCreationAuth{
-		// 			EthAddr:   l1CoordinatorTx.FromEthAddr,
-		// 			BJJ:       l1CoordinatorTx.FromBJJ,
-		// 			Signature: l1CoordinatorTxAuth,
-		// 		})
-		// 	}
+			// Create a slice of account creation auth to be
+			// inserted later if not exists
+			if l1CoordinatorTx.FromEthAddr != common.RollupConstEthAddressInternalOnly {
+				l1CoordinatorTxAuth := forgeBatchArgs.L1CoordinatorTxsAuths[i]
+				l1TxsAuth = append(l1TxsAuth, common.AccountCreationAuth{
+					EthAddr:   l1CoordinatorTx.FromEthAddr,
+					BJJ:       l1CoordinatorTx.FromBJJ,
+					Signature: l1CoordinatorTxAuth,
+				})
+			}
 
-		// 	// fmt.Println("DGB l1coordtx")
-		// }
+			// fmt.Println("DGB l1coordtx")
+		}
 
 		// Insert the slice of account creation auth
 		// only if the node run as a coordinator
@@ -707,8 +707,8 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 		tp := txprocessor.NewTxProcessor(s.stateDB, tpc)
 
 		// ProcessTxs updates poolL2Txs adding: Nonce (and also TokenID, but we don't use it).
-		processTxsOut, err := tp.ProcessTxs(forgeBatchArgs.FeeIdxCoordinator,
-			l1UserTxs, batchData.L1CoordinatorTxs, poolL2Txs)
+		processTxsOut, err := tp.ProcessTxs(
+			l1UserTxs, poolL2Txs)
 		if err != nil {
 			return nil, common.Wrap(err)
 		}
@@ -779,16 +779,14 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 
 		// Get Batch information
 		batch := common.Batch{
-			BatchNum:           batchNum,
-			EthTxHash:          ethTxHash,
-			EthBlockNum:        blockNum,
-			ForgerAddr:         *sender,
-			CollectedFees:      processTxsOut.CollectedFees,
-			FeeIdxsCoordinator: forgeBatchArgs.FeeIdxCoordinator,
-			StateRoot:          forgeBatchArgs.NewStRoot,
-			NumAccounts:        len(batchData.CreatedAccounts),
-			LastIdx:            forgeBatchArgs.NewLastIdx,
-			ExitRoot:           forgeBatchArgs.NewExitRoot,
+			BatchNum:    batchNum,
+			EthTxHash:   ethTxHash,
+			EthBlockNum: blockNum,
+			ForgerAddr:  *sender,
+			StateRoot:   forgeBatchArgs.NewStRoot,
+			NumAccounts: len(batchData.CreatedAccounts),
+			LastIdx:     forgeBatchArgs.NewLastIdx,
+			ExitRoot:    forgeBatchArgs.NewExitRoot,
 			// SlotNum:            slotNum,
 			GasUsed:  gasUsed,
 			GasPrice: gasPrice,

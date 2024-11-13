@@ -78,12 +78,9 @@ func (i Instruction) String() string {
 	}
 
 	if i.Typ == common.TxTypeDeposit ||
-		// i.Typ == common.TxTypeDepositTransfer ||
 		i.Typ == common.TxTypeCreateAccountDeposit {
 		fmt.Fprintf(buf, "DepositAmount: %d, ", i.DepositAmount)
 	}
-
-	// TODO: remove `\n` from the end of the string when Token is implemented
 	if i.Typ != common.TxTypeDeposit {
 		fmt.Fprintf(buf, "Amount: %d\n", i.Amount)
 	}
@@ -102,27 +99,17 @@ func (i Instruction) raw() string {
 	fmt.Fprintf(buf, "%s", i.Typ)
 	// fmt.Fprintf(buf, "(%d)", i.TokenID)
 	fmt.Fprintf(buf, "%s", i.From)
-	// if i.Typ == common.TxTypeTransfer ||
-	// 	i.Typ == common.TxTypeDepositTransfer ||
-	// 	i.Typ == common.TxTypeCreateAccountDepositTransfer {
-	// 	fmt.Fprintf(buf, "-%s", i.To)
-	// }
 	if i.Typ == common.TxTypeCreateVouch ||
 		i.Typ == common.TxTypeDeleteVouch {
 		fmt.Fprintf(buf, "-%s", i.To)
 	} else {
 		fmt.Fprintf(buf, ":")
 		if i.Typ == common.TxTypeDeposit {
-			// i.Typ == common.TxTypeDepositTransfer ||
-			// i.Typ == common.TxTypeCreateAccountDepositTransfer {
 			fmt.Fprintf(buf, "%d", i.DepositAmount)
 		}
 		if i.Typ != common.TxTypeDeposit {
 			fmt.Fprintf(buf, "%d", i.Amount)
 		}
-		// if i.Typ == common.TxTypeTransfer {
-		// 	fmt.Fprintf(buf, "(%d)", i.Fee)
-		// }
 	}
 	return buf.String()
 }
@@ -339,14 +326,11 @@ func (p *parser) parseLine(setType setType) (*Instruction, error) {
 		case "PoolCreateVouch":
 			c.Typ = common.TxTypeCreateVouch
 			vouch = true
-			// fee = true
 		case "PoolDeleteVouch":
 			c.Typ = common.TxTypeDeleteVouch
 			vouch = true
-			// fee = true
 		case "PoolExit":
 			c.Typ = common.TxTypeExit
-			// fee = true
 		default:
 			return c, common.Wrap(fmt.Errorf("unexpected PoolL2 tx type: %s", lit))
 		}

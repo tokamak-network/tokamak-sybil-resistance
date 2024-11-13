@@ -171,8 +171,8 @@ func (tx L1Tx) Tx() Tx {
 // [ 1 bits  ] empty (toBJJSign) // 1 byte
 // [ 8 bits  ] empty (userFee) // 1 byte
 // [ 40 bits ] empty (nonce) // 5 bytes
-// [ 48 bits ] toIdx // 3 bytes
-// [ 48 bits ] fromIdx // 3 bytes
+// [ 48 bits ] toIdx // 6 bytes
+// [ 48 bits ] fromIdx // 6 bytes
 // [ 16 bits ] chainId // 2 bytes
 // [ 32 bits ] empty (signatureConstant) // 4 bytes
 // Total bits compressed data:  225 bits // 29 bytes in *big.Int representation
@@ -213,7 +213,7 @@ func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	pkCompB := b[20:52]
 	pkCompL := SwapEndianness(pkCompB)
 	copy(tx.FromBJJ[:], pkCompL)
-	fromIdx, err := AccountIdxFromBytes(b[52:55])
+	fromIdx, err := AccountIdxFromBytes(b[52:58])
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -226,7 +226,7 @@ func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	if err != nil {
 		return nil, Wrap(err)
 	}
-	tx.ToIdx, err = AccountIdxFromBytes(b[72:75])
+	tx.ToIdx, err = AccountIdxFromBytes(b[72:78])
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -243,12 +243,12 @@ func L1TxFromDataAvailability(b []byte, nLevels uint32) (*L1Tx, error) {
 	amountBytes := b[idxLen*2 : idxLen*2+Float40BytesLength]
 
 	l1tx := L1Tx{}
-	fromIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(fromIdxBytes, 3))
+	fromIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(fromIdxBytes, 6))
 	if err != nil {
 		return nil, Wrap(err)
 	}
 	l1tx.FromIdx = fromIdx
-	toIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(toIdxBytes, 3))
+	toIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(toIdxBytes, 6))
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -308,4 +308,86 @@ func L1CoordinatorTxFromBytes(b []byte, chainID *big.Int, tokamakAddress ethComm
 		tx.FromEthAddr = RollupConstEthAddressInternalOnly
 	}
 	return tx, nil
+}
+
+// BytesGeneric returns the generic representation of a L1Tx. This method is
+// used to compute the []byte representation of a L1UserTx, and also to compute
+// the L1TxData for the ZKInputs (at the HashGlobalInputs), using this method
+// for L1CoordinatorTxs & L1UserTxs (for the ZKInputs case).
+func (tx *L1Tx) BytesGeneric() ([]byte, error) {
+	var b [RollupConstL1UserTotalBytes]byte
+	copy(b[0:20], tx.FromEthAddr.Bytes())
+	if tx.FromBJJ != EmptyBJJComp {
+		pkCompL := tx.FromBJJ
+		pkCompB := SwapEndianness(pkCompL[:])
+		copy(b[20:52], pkCompB[:])
+	}
+	fromIdxBytes, err := tx.FromIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[52:58], fromIdxBytes[:])
+
+	depositAmountFloat40, err := NewFloat40(tx.DepositAmount)
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	depositAmountFloat40Bytes, err := depositAmountFloat40.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[58:63], depositAmountFloat40Bytes)
+
+	amountFloat40, err := NewFloat40(tx.Amount)
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	amountFloat40Bytes, err := amountFloat40.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[63:68], amountFloat40Bytes)
+
+	//TODO: We can update this for better memory management.
+	// copy(b[68:72], tx.TokenID.Bytes())
+
+	toIdxBytes, err := tx.ToIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[72:78], toIdxBytes[:])
+	return b[:], nil
+}
+
+// BytesDataAvailability encodes a L1Tx into []byte for the Data Availability
+// [ fromIdx | toIdx | amountFloat40 | Fee ]
+func (tx *L1Tx) BytesDataAvailability(nLevels uint32) ([]byte, error) {
+	idxLen := nLevels / 8 //nolint:gomnd
+
+	b := make([]byte, ((nLevels*2)+40+8)/8) //nolint:gomnd
+
+	fromIdxBytes, err := tx.FromIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[0:idxLen], fromIdxBytes[6-idxLen:])
+	toIdxBytes, err := tx.ToIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[idxLen:idxLen*2], toIdxBytes[6-idxLen:])
+
+	if tx.EffectiveAmount != nil {
+		amountFloat40, err := NewFloat40(tx.EffectiveAmount)
+		if err != nil {
+			return nil, Wrap(err)
+		}
+		amountFloat40Bytes, err := amountFloat40.Bytes()
+		if err != nil {
+			return nil, Wrap(err)
+		}
+		copy(b[idxLen*2:idxLen*2+Float40BytesLength], amountFloat40Bytes)
+	}
+	// fee = 0 (as is L1Tx)
+	return b[:], nil
 }

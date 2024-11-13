@@ -133,11 +133,9 @@ type processedExit struct {
 
 // ProcessTxOutput contains the output of the ProcessTxs method
 type ProcessTxOutput struct {
-	ZKInputs           *common.ZKInputs
-	ExitInfos          []common.ExitInfo
-	CreatedAccounts    []common.Account
-	CoordinatorIdxsMap map[common.TokenID]common.AccountIdx
-	CollectedFees      map[common.TokenID]*big.Int
+	ZKInputs        *common.ZKInputs
+	ExitInfos       []common.ExitInfo
+	CreatedAccounts []common.Account
 	// UpdatedAccounts returns the current state of each account
 	// created/updated by any of the processed transactions.
 	UpdatedAccounts map[common.AccountIdx]*common.Account
@@ -167,6 +165,12 @@ func NewTxProcessor(state *statedb.StateDB, config Config) *TxProcessor {
 	}
 }
 
+// Resets the zkInputs
+func (txProcessor *TxProcessor) resetZKInputs() {
+	txProcessor.zki = nil
+	txProcessor.txIndex = 0 // initialize current transaction index in the ZKInputs generation
+}
+
 // ProcessTxs process the given L1Txs & L2Txs applying the needed updates to
 // the StateDB depending on the transaction Type.  If StateDB
 // type==TypeBatchBuilder, returns the common.ZKInputs to generate the
@@ -176,7 +180,7 @@ func NewTxProcessor(state *statedb.StateDB, config Config) *TxProcessor {
 // the HistoryDB, and adds Nonce & TokenID to the L2Txs.
 // And if TypeSynchronizer returns an array of common.Account with all the
 // created accounts.
-func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1usertxs, l1coordinatortxs []common.L1Tx,
+func (txProcessor *TxProcessor) ProcessTxs(l1usertxs []common.L1Tx,
 	l2txs []common.PoolL2Tx) (ptOut *ProcessTxOutput, err error) {
 	defer func() {
 		if err == nil {
@@ -191,25 +195,19 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 		return nil, common.Wrap(
 			errors.New("expected StateDB.zki==nil, something went wrong and it's not empty"))
 	}
-	// defer txProcessor.resetZKInputs()
+	defer txProcessor.resetZKInputs()
 
-	if len(coordIdxs) > int(txProcessor.config.MaxFeeTx) {
-		return nil, common.Wrap(
-			fmt.Errorf("CoordIdxs (%d) length must be smaller than MaxFeeTx (%d)",
-				len(coordIdxs), txProcessor.config.MaxFeeTx))
-	}
-
-	nTx := len(l1usertxs) + len(l1coordinatortxs) + len(l2txs)
+	nTx := len(l1usertxs) + len(l2txs)
 
 	if nTx > int(txProcessor.config.MaxTx) {
 		return nil, common.Wrap(
-			fmt.Errorf("L1UserTx + L1CoordinatorTx + L2Tx (%d) can not be bigger than MaxTx (%d)",
+			fmt.Errorf("L1UserTx + L2Tx (%d) can not be bigger than MaxTx (%d)",
 				nTx, txProcessor.config.MaxTx))
 	}
-	if len(l1usertxs)+len(l1coordinatortxs) > int(txProcessor.config.MaxL1Tx) {
+	if len(l1usertxs) > int(txProcessor.config.MaxL1Tx) {
 		return nil,
-			common.Wrap(fmt.Errorf("L1UserTx + L1CoordinatorTx (%d) can not be bigger than MaxL1Tx (%d)",
-				len(l1usertxs)+len(l1coordinatortxs), txProcessor.config.MaxTx))
+			common.Wrap(fmt.Errorf("L1UserTx (%d) can not be bigger than MaxL1Tx (%d)",
+				len(l1usertxs), txProcessor.config.MaxTx))
 	}
 
 	if txProcessor.state.Type() == statedb.TypeSynchronizer {
@@ -218,18 +216,26 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 
 	exits := make([]processedExit, nTx)
 
-	// if txProcessor.state.Type() == statedb.TypeBatchBuilder {
-	// 	txProcessor.zki = common.NewZKInputs(txProcessor.config.ChainID, txProcessor.config.MaxTx, txProcessor.config.MaxL1Tx,
-	// 		txProcessor.config.MaxFeeTx, txProcessor.config.NLevels, (txProcessor.state.CurrentBatch() + 1).BigInt())
-	// 	txProcessor.zki.OldLastIdx = txProcessor.state.CurrentIdx().BigInt()
-	// 	txProcessor.zki.OldStateRoot = txProcessor.state.MT.Root().BigInt()
-	// 	txProcessor.zki.Metadata.NewLastIdxRaw = txProcessor.state.CurrentIdx()
-	// }
+	if txProcessor.state.Type() == statedb.TypeBatchBuilder {
+		currentBatchValueNum := uint32(uint32(txProcessor.state.CurrentBatch()) + 1)
+		txProcessor.zki = common.NewZKInputs(txProcessor.config.ChainID, txProcessor.config.MaxTx, txProcessor.config.MaxL1Tx,
+			txProcessor.config.NLevels, &currentBatchValueNum)
+		//For Accounts
+		oldLastIdxValue := uint32(txProcessor.state.CurrentAccountIdx())
+		txProcessor.zki.OldLastIdx = &(oldLastIdxValue)
+		txProcessor.zki.OldAccountRoot = txProcessor.state.GetMTRootAccount()
+
+		//For Vouches
+		txProcessor.zki.OldVouchRoot = txProcessor.state.GetMTRootVouch()
+
+		//For Score
+		txProcessor.zki.OldScoreRoot = txProcessor.state.GetMTRootScore()
+	}
 
 	// TBD if ExitTree is only in memory or stored in disk, for the moment
 	// is only needed in memory
 	if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
-		tmpDir, err := ioutil.TempDir("", "hermez-statedb-exittree")
+		tmpDir, err := ioutil.TempDir("", "tokamak-statedb-exittree")
 		if err != nil {
 			return nil, common.Wrap(err)
 		}
@@ -265,27 +271,14 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 				l1usertxs[i].EffectiveFromIdx = l1usertxs[i].FromIdx
 			}
 		}
-		// if txProcessor.zki != nil {
-		// 	l1TxData, err := l1usertxs[i].BytesGeneric()
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
-
-		// 	l1TxDataAvailability, err :=
-		// 		l1usertxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L1TxsDataAvailability =
-		// 		append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
-
-		// 	txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
-		// 	txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
-		// 	if exitIdx == nil {
-		// 		txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
-		// 	}
-		// }
+		if txProcessor.zki != nil {
+			valueCurrentAccountIdx := uint32(txProcessor.state.CurrentAccountIdx())
+			txProcessor.zki.ISOutIdx[txProcessor.txIndex] = &(valueCurrentAccountIdx)
+			txProcessor.zki.ISStateRootAccount[txProcessor.txIndex] = txProcessor.state.GetMTRootAccount()
+			if exitIdx == nil {
+				txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
+			}
+		}
 		if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
 			if exitIdx != nil && exitTree != nil && exitAccount != nil {
 				exits[txProcessor.txIndex] = processedExit{
@@ -299,115 +292,28 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 		}
 	}
 
-	// // Process L1CoordinatorTxs
-	// for i := 0; i < len(l1coordinatortxs); i++ {
-	// 	exitIdx, _, _, createdAccount, err := txProcessor.ProcessL1Tx(exitTree, &l1coordinatortxs[i])
-	// 	if err != nil {
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	if exitIdx != nil {
-	// 		log.Error("Unexpected Exit in L1CoordinatorTx")
-	// 	}
-	// 	if txProcessor.state.Type() == statedb.TypeSynchronizer {
-	// 		if createdAccount != nil {
-	// 			createdAccounts = append(createdAccounts, *createdAccount)
-	// 			l1coordinatortxs[i].EffectiveFromIdx = createdAccount.Idx
-	// 		} else {
-	// 			l1coordinatortxs[i].EffectiveFromIdx = l1coordinatortxs[i].FromIdx
-	// 		}
-	// 	}
-	// if txProcessor.zki != nil {
-	// l1TxData, err := l1coordinatortxs[i].BytesGeneric()
-	// 	if err != nil {
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	txProcessor.zki.Metadata.L1TxsData = append(txProcessor.zki.Metadata.L1TxsData, l1TxData)
-	// 	l1TxDataAvailability, err :=
-	// 		l1coordinatortxs[i].BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
-	// 	if err != nil {
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	txProcessor.zki.Metadata.L1TxsDataAvailability =
-	// 		append(txProcessor.zki.Metadata.L1TxsDataAvailability, l1TxDataAvailability)
-
-	// 	txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
-	// 	txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
-	// 	txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
-	// 	txProcessor.txIndex++
-	// }
-	// }
-
-	// // remove repeated CoordIdxs that are for the same TokenID (use the
-	// // first occurrence)
-	// usedCoordTokenIDs := make(map[common.TokenID]bool)
-	// var filteredCoordIdxs []common.Idx
-	// for i := 0; i < len(coordIdxs); i++ {
-	// 	accCoord, err := txProcessor.state.GetAccount(coordIdxs[i])
-	// 	if err != nil {
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	if !usedCoordTokenIDs[accCoord.TokenID] {
-	// 		usedCoordTokenIDs[accCoord.TokenID] = true
-	// 		filteredCoordIdxs = append(filteredCoordIdxs, coordIdxs[i])
-	// 	}
-	// }
-	// coordIdxs = filteredCoordIdxs
-
-	// txProcessor.AccumulatedFees = make(map[common.Idx]*big.Int)
-	// for _, idx := range coordIdxs {
-	// 	txProcessor.AccumulatedFees[idx] = big.NewInt(0)
-	// }
-
-	// // once L1UserTxs & L1CoordinatorTxs are processed, get TokenIDs of
-	// // coordIdxs. In this way, if a coordIdx uses an Idx that is being
-	// // created in the current batch, at this point the Idx will be created
-	// coordIdxsMap, err := txProcessor.state.GetTokenIDsFromIdxs(coordIdxs)
-	// if err != nil {
-	// 	return nil, common.Wrap(err)
-	// }
-	// // collectedFees will contain the amount of fee collected for each
-	// // TokenID
-	// var collectedFees map[common.TokenID]*big.Int
-	// if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
-	// 	collectedFees = make(map[common.TokenID]*big.Int)
-	// 	for tokenID := range coordIdxsMap {
-	// 		collectedFees[tokenID] = big.NewInt(0)
-	// 	}
-	// }
-
-	// if txProcessor.zki != nil {
-	// 	// get the feePlanTokens
-	// 	feePlanTokens, err := txProcessor.getFeePlanTokens(coordIdxs)
-	// 	if err != nil {
-	// 		log.Error(err)
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	copy(txProcessor.zki.FeePlanTokens, feePlanTokens)
-	// }
-
 	// Process L2Txs
 	for i := 0; i < len(l2txs); i++ {
 		exitIdx, exitAccount, newExit, err := txProcessor.ProcessL2Tx(exitTree, &l2txs[i])
 		if err != nil {
 			return nil, common.Wrap(err)
 		}
-		// if txProcessor.zki != nil {
-		// 	l2TxData, err := l2txs[i].L2Tx().BytesDataAvailability(txProcessor.zki.Metadata.NLevels)
-		// 	if err != nil {
-		// 		return nil, common.Wrap(err)
-		// 	}
-		// 	txProcessor.zki.Metadata.L2TxsData = append(txProcessor.zki.Metadata.L2TxsData, l2TxData)
+		if txProcessor.zki != nil {
+			if err != nil {
+				return nil, common.Wrap(err)
+			}
 
-		// 	// Intermediate States
-		// 	if txProcessor.txIndex < nTx-1 {
-		// 		txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
-		// 		txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
-		// 		txProcessor.zki.ISAccFeeOut[txProcessor.txIndex] = formatAccumulatedFees(collectedFees, txProcessor.zki.FeePlanTokens, coordIdxs)
-		// 		if exitIdx == nil {
-		// 			txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
-		// 		}
-		// 	}
-		// }
+			// Intermediate States
+			if txProcessor.txIndex < nTx-1 {
+				//TODO: Fill out the OutIdx and StateRoot, need to check it's parameters
+
+				// txProcessor.zki.ISOutIdx[txProcessor.txIndex] = txProcessor.state.CurrentIdx().BigInt()
+				// txProcessor.zki.ISStateRoot[txProcessor.txIndex] = txProcessor.state.MT.Root().BigInt()
+				if exitIdx == nil {
+					txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
+				}
+			}
+		}
 		if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
 			if exitIdx != nil && exitTree != nil && exitAccount != nil {
 				exits[txProcessor.txIndex] = processedExit{
@@ -445,56 +351,6 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 	// 	copy(txProcessor.zki.ISFinalAccFee, isFinalAccFee)
 	// 	// before computing the Fees txs, set the ISInitStateRootFee
 	// 	txProcessor.zki.ISInitStateRootFee = txProcessor.state.AccountTree.Root().BigInt()
-	// }
-
-	// // distribute the AccumulatedFees from the processed L2Txs into the
-	// // Coordinator Idxs
-	// indexFee := 0
-	// for _, idx := range coordIdxs {
-	// 	accumulatedFee := txProcessor.AccumulatedFees[idx]
-
-	// 	// send the fee to the Idx of the Coordinator for the TokenID
-	// 	// (even if the AccumulatedFee==0, as is how the zk circuit
-	// 	// works)
-	// 	accCoord, err := txProcessor.state.GetAccount(idx)
-	// 	if err != nil {
-	// 		log.Errorw("Can not distribute accumulated fees to coordinator account: "+
-	// 			"No coord Idx to receive fee", "idx", idx)
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	// if txProcessor.zki != nil {
-	// 	// 	txProcessor.zki.TokenID3[indexFee] = accCoord.TokenID.BigInt()
-	// 	// 	txProcessor.zki.Nonce3[indexFee] = accCoord.Nonce.BigInt()
-	// 	// 	coordBJJSign, coordBJJY := babyjub.UnpackSignY(accCoord.BJJ)
-	// 	// 	if coordBJJSign {
-	// 	// 		txProcessor.zki.Sign3[indexFee] = big.NewInt(1)
-	// 	// 	}
-	// 	// 	txProcessor.zki.Ay3[indexFee] = coordBJJY
-	// 	// 	txProcessor.zki.Balance3[indexFee] = accCoord.Balance
-	// 	// 	txProcessor.zki.EthAddr3[indexFee] = common.EthAddrToBigInt(accCoord.EthAddr)
-	// 	// }
-	// 	accCoord.Balance = new(big.Int).Add(accCoord.Balance, accumulatedFee)
-	// 	pFee, err := txProcessor.updateAccount(idx, accCoord)
-	// 	if err != nil {
-	// 		log.Error(err)
-	// 		return nil, common.Wrap(err)
-	// 	}
-	// 	if txProcessor.zki != nil {
-	// 		txProcessor.zki.Siblings3[indexFee] = siblingsToZKInputFormat(pFee.Siblings)
-	// 		if indexFee < len(txProcessor.zki.ISStateRootFee) {
-	// 			txProcessor.zki.ISStateRootFee[indexFee] = txProcessor.state.AccountTree.Root().BigInt()
-	// 		}
-	// 	}
-	// 	indexFee++
-	// }
-	// if txProcessor.zki != nil {
-	// 	for i := len(txProcessor.AccumulatedFees); i < int(txProcessor.config.MaxFeeTx)-1; i++ {
-	// 		txProcessor.zki.ISStateRootFee[i] = txProcessor.state.AccountTree.Root().BigInt()
-	// 	}
-	// 	// add Coord Idx to ZKInputs.FeeTxsData
-	// 	for i := 0; i < len(coordIdxs); i++ {
-	// 		txProcessor.zki.FeeIdxs[i] = coordIdxs[i].BigInt()
-	// 	}
 	// }
 
 	if txProcessor.state.Type() == statedb.TypeTxSelector {
@@ -540,24 +396,19 @@ func (txProcessor *TxProcessor) ProcessTxs(coordIdxs []common.AccountIdx, l1user
 			ZKInputs:        nil,
 			ExitInfos:       exitInfos,
 			CreatedAccounts: createdAccounts,
-			// CoordinatorIdxsMap: coordIdxsMap,
-			// CollectedFees:      collectedFees,
 			UpdatedAccounts: txProcessor.updatedAccounts,
 		}, nil
 	}
 
 	// // compute last ZKInputs parameters
-	// txProcessor.zki.GlobalChainID = big.NewInt(int64(txProcessor.config.ChainID))
-	// txProcessor.zki.Metadata.NewStateRootRaw = txProcessor.state.AccountTree.Root()
-	// txProcessor.zki.Metadata.NewExitRootRaw = exitTree.Root()
+	valueGlobalChain := uint16(txProcessor.config.ChainID)
+	txProcessor.zki.GlobalChainID = &(valueGlobalChain)
 
 	// return ZKInputs as the BatchBuilder will return it to forge the Batch
 	return &ProcessTxOutput{
 		ZKInputs:        txProcessor.zki,
 		ExitInfos:       nil,
 		CreatedAccounts: nil,
-		// CoordinatorIdxsMap: coordIdxsMap,
-		CollectedFees: nil,
 	}, nil
 }
 
@@ -579,9 +430,14 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 			log.Error(err)
 			return nil, nil, false, nil, common.Wrap(err)
 		}
-		txProcessor.zki.FromIdx[txProcessor.txIndex] = tx.FromIdx.BigInt()
-		txProcessor.zki.ToIdx[txProcessor.txIndex] = tx.ToIdx.BigInt()
-		txProcessor.zki.OnChain[txProcessor.txIndex] = big.NewInt(1)
+		valueFromIdx := uint32(tx.FromIdx)
+		txProcessor.zki.FromIdx[txProcessor.txIndex] = &(valueFromIdx)
+
+		valueToIdx := uint32(tx.ToIdx)
+		txProcessor.zki.ToIdx[txProcessor.txIndex] = &(valueToIdx)
+
+		valueOnChain := true
+		txProcessor.zki.OnChain[txProcessor.txIndex] = &(valueOnChain)
 
 		// L1Txs
 		depositAmountF40, err := common.NewFloat40(tx.DepositAmount)
@@ -596,13 +452,11 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 
 		// Intermediate States, for all the transactions except for the last one
 		if txProcessor.txIndex < len(txProcessor.zki.ISOnChain) { // len(txProcessor.zki.ISOnChain) == nTx
-			txProcessor.zki.ISOnChain[txProcessor.txIndex] = big.NewInt(1)
+			valueIsOnChain := true
+			txProcessor.zki.ISOnChain[txProcessor.txIndex] = &(valueIsOnChain)
 		}
 
-		if tx.Type == common.TxTypeForceTransfer ||
-			tx.Type == common.TxTypeDepositTransfer ||
-			tx.Type == common.TxTypeCreateAccountDepositTransfer ||
-			tx.Type == common.TxTypeForceExit {
+		if tx.Type == common.TxTypeForceExit {
 			// in the cases where at L1Tx there is usage of the
 			// Amount parameter, add it at the ZKInputs.AmountF
 			// slot
@@ -628,7 +482,7 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 		txProcessor.computeEffectiveAmounts(tx)
 
 		// update balance of the MT account
-		err := txProcessor.applyDeposit(tx, false)
+		err := txProcessor.applyDeposit(tx)
 		if err != nil {
 			log.Error(err)
 			return nil, nil, false, nil, common.Wrap(err)
@@ -637,20 +491,19 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 		txProcessor.computeEffectiveAmounts(tx)
 
 		// execute exit flow
-		// coordIdxsMap is 'nil', as at L1Txs there is no L2 fees
-		exitAccount, newExit, err := txProcessor.applyExit(nil, nil, exitTree, tx.Tx(), tx.Amount)
+		exitAccount, newExit, err := txProcessor.applyExit(exitTree, tx.Tx(), tx.Amount)
 		if err != nil {
 			log.Error(err)
 			return nil, nil, false, nil, common.Wrap(err)
 		}
 		return &tx.FromIdx, exitAccount, newExit, nil, nil
+	//TODO: Add case for force explode
 	default:
 	}
 
 	var createdAccount *common.Account
 	if txProcessor.state.Type() == statedb.TypeSynchronizer &&
-		(tx.Type == common.TxTypeCreateAccountDeposit ||
-			tx.Type == common.TxTypeCreateAccountDepositTransfer) {
+		(tx.Type == common.TxTypeCreateAccountDeposit) {
 		var err error
 		createdAccount, err = txProcessor.state.GetAccount(txProcessor.state.CurrentAccountIdx())
 		if err != nil {
@@ -666,6 +519,9 @@ func (txProcessor *TxProcessor) ProcessL1Tx(exitTree *merkletree.MerkleTree, tx 
 // StateDB depending on the transaction Type. It returns the 3 parameters
 // related to the Exit (in case of): Idx, ExitAccount, boolean determining if
 // the Exit created a new Leaf in the ExitTree.
+
+// TODO: Need to check and update L2 txs here, L2 transactions will have vouches hence we'll might need to update FromIdx, ToIdx etc with that of vouches
+// Will update this once confirmed with circuit team
 func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 	tx *common.PoolL2Tx) (*common.AccountIdx, *common.Account, bool, error) {
 	var err error
@@ -696,19 +552,18 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 		if err != nil {
 			return nil, nil, false, common.Wrap(err)
 		}
-		txProcessor.zki.TxCompressedDataV2[txProcessor.txIndex], err = tx.TxCompressedDataV2()
-		if err != nil {
-			return nil, nil, false, common.Wrap(err)
-		}
-		txProcessor.zki.FromIdx[txProcessor.txIndex] = tx.FromIdx.BigInt()
-		txProcessor.zki.ToIdx[txProcessor.txIndex] = tx.ToIdx.BigInt()
+		valueFromIdx := uint32(tx.FromIdx)
+		txProcessor.zki.FromIdx[txProcessor.txIndex] = &(valueFromIdx)
+		valueToIdx := uint32(tx.ToIdx)
+		txProcessor.zki.ToIdx[txProcessor.txIndex] = &(valueToIdx)
 
 		// fill AuxToIdx if needed
 		if tx.ToIdx == 0 {
 			// use toIdx that can have been filled by tx.ToIdx or
 			// if tx.Idx==0 (this case), toIdx is filled by the Idx
 			// from db by ToEthAddr&ToBJJ
-			txProcessor.zki.AuxToIdx[txProcessor.txIndex] = tx.AuxToIdx.BigInt()
+			valueAuxToIdx := uint32(tx.AuxToIdx)
+			txProcessor.zki.AuxToIdx[txProcessor.txIndex] = &(valueAuxToIdx)
 		}
 
 		if tx.ToBJJ != common.EmptyBJJComp {
@@ -716,31 +571,17 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 		}
 		txProcessor.zki.ToEthAddr[txProcessor.txIndex] = common.EthAddrToBigInt(tx.ToEthAddr)
 
-		txProcessor.zki.OnChain[txProcessor.txIndex] = big.NewInt(0)
+		valueOnChain := false
+		txProcessor.zki.OnChain[txProcessor.txIndex] = &(valueOnChain)
 		amountF40, err := common.NewFloat40(tx.Amount)
 		if err != nil {
 			return nil, nil, false, common.Wrap(err)
 		}
 		txProcessor.zki.AmountF[txProcessor.txIndex] = big.NewInt(int64(amountF40))
-		txProcessor.zki.NewAccount[txProcessor.txIndex] = big.NewInt(0)
-		txProcessor.zki.MaxNumBatch[txProcessor.txIndex] = big.NewInt(int64(tx.MaxNumBatch))
-
-		// Rq fields: set zki to link the requested tx
-		if tx.RqOffset != 0 {
-			if tx.RqOffset > 7 { //nolint:gomnd
-				return nil, nil, false, common.New(ErrInvalidRqOffset)
-			}
-			rqOffset := big.NewInt(int64(tx.RqOffset))
-			txProcessor.zki.RqOffset[txProcessor.txIndex] = rqOffset
-			txProcessor.zki.RqTxCompressedDataV2[txProcessor.txIndex], err = tx.RqTxCompressedDataV2()
-			if err != nil {
-				return nil, nil, false, common.Wrap(err)
-			}
-			if tx.RqToBJJ != common.EmptyBJJComp {
-				_, txProcessor.zki.RqToBJJAy[txProcessor.txIndex] = babyjub.UnpackSignY(tx.RqToBJJ)
-			}
-			txProcessor.zki.RqToEthAddr[txProcessor.txIndex] = common.EthAddrToBigInt(tx.RqToEthAddr)
-		}
+		valueNewAccount := false
+		txProcessor.zki.NewAccount[txProcessor.txIndex] = &(valueNewAccount)
+		valueMaxNumBatch := uint32(tx.MaxNumBatch)
+		txProcessor.zki.MaxNumBatch[txProcessor.txIndex] = &(valueMaxNumBatch)
 
 		signature, err := tx.Signature.Decompress()
 		if err != nil {
@@ -764,17 +605,10 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 	}
 
 	switch tx.Type {
-	case common.TxTypeCreateVouch, common.TxTypeDeleteVouch:
-		// go to the MT account of sender and receiver, and update
-		// balance & nonce
-		err = txProcessor.applyTransfer(nil, nil, tx.Tx(), tx.AuxToIdx)
-		if err != nil {
-			log.Error(err)
-			return nil, nil, false, common.Wrap(err)
-		}
+	//TODO: Add transaction types here add vouch, delete vouch etc.
 	case common.TxTypeExit:
 		// execute exit flow
-		exitAccount, newExit, err := txProcessor.applyExit(nil, nil, exitTree,
+		exitAccount, newExit, err := txProcessor.applyExit(exitTree,
 			tx.Tx(), tx.Amount)
 		if err != nil {
 			log.Error(err)
@@ -791,42 +625,40 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 func (txProcessor *TxProcessor) applyCreateAccount(tx *common.L1Tx) error {
 	account := &common.Account{
 		Nonce:   0,
-		Balance: tx.EffectiveDepositAmount,
+		Balance: tx.Amount,
 		BJJ:     tx.FromBJJ,
 		EthAddr: tx.FromEthAddr,
 	}
 
-	_, err := txProcessor.createAccount(common.AccountIdx(txProcessor.state.CurrentAccountIdx()+1), account)
+	p, err := txProcessor.createAccount(common.AccountIdx(txProcessor.state.CurrentAccountIdx()+1), account)
 	if err != nil {
 		return common.Wrap(err)
 	}
-	// if txProcessor.zki != nil {
-	// 	txProcessor.zki.TokenID1[txProcessor.txIndex] = tx.TokenID.BigInt()
-	// 	txProcessor.zki.Nonce1[txProcessor.txIndex] = big.NewInt(0)
-	// 	fromBJJSign, fromBJJY := babyjub.UnpackSignY(tx.FromBJJ)
-	// 	if fromBJJSign {
-	// 		txProcessor.zki.Sign1[txProcessor.txIndex] = big.NewInt(1)
-	// 	}
-	// 	txProcessor.zki.Ay1[txProcessor.txIndex] = fromBJJY
-	// 	txProcessor.zki.Balance1[txProcessor.txIndex] = tx.EffectiveDepositAmount
-	// 	txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(tx.FromEthAddr)
-	// 	txProcessor.zki.Siblings1[txProcessor.txIndex] = siblingsToZKInputFormat(p.Siblings)
-	// 	if p.IsOld0 {
-	// 		txProcessor.zki.IsOld0_1[txProcessor.txIndex] = big.NewInt(1)
-	// 	}
-	// 	txProcessor.zki.OldKey1[txProcessor.txIndex] = p.OldKey.BigInt()
-	// 	txProcessor.zki.OldValue1[txProcessor.txIndex] = p.OldValue.BigInt()
+	if txProcessor.zki != nil {
+		// txProcessor.zki.TokenID1[txProcessor.txIndex] = tx.TokenID.BigInt()
+		txProcessor.zki.Nonce1[txProcessor.txIndex] = big.NewInt(0)
+		fromBJJSign, fromBJJY := babyjub.UnpackSignY(tx.FromBJJ)
 
-	// 	txProcessor.zki.Metadata.NewLastIdxRaw = txProcessor.state.CurrentIdx() + 1
+		valueBJJSign := fromBJJSign
+		txProcessor.zki.Sign1[txProcessor.txIndex] = &(valueBJJSign)
+		txProcessor.zki.Ay1[txProcessor.txIndex] = fromBJJY
+		txProcessor.zki.Balance1[txProcessor.txIndex] = tx.EffectiveDepositAmount
+		txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(tx.FromEthAddr)
+		txProcessor.zki.Siblings1[txProcessor.txIndex] = siblingsToZKInputFormat(p.Siblings)
 
-	// 	txProcessor.zki.AuxFromIdx[txProcessor.txIndex] = common.Idx(txProcessor.state.CurrentIdx() + 1).BigInt()
-	// 	txProcessor.zki.NewAccount[txProcessor.txIndex] = big.NewInt(1)
+		valueIsOld0 := p.IsOld0
+		txProcessor.zki.IsOld0_1[txProcessor.txIndex] = &(valueIsOld0)
+		txProcessor.zki.OldKey1[txProcessor.txIndex] = p.OldKey.BigInt()
+		txProcessor.zki.OldValue1[txProcessor.txIndex] = p.OldValue.BigInt()
 
-	// 	if txProcessor.txIndex < len(txProcessor.zki.ISOnChain) { // len(txProcessor.zki.ISOnChain) == nTx
-	// 		// intermediate states
-	// 		txProcessor.zki.ISOnChain[txProcessor.txIndex] = big.NewInt(1)
-	// 	}
-	// }
+		valueCurrentAccountIdx := uint32(txProcessor.state.CurrentAccountIdx() + 1)
+		txProcessor.zki.AuxFromIdx[txProcessor.txIndex] = &(valueCurrentAccountIdx)
+		newAccountCreated := true
+		txProcessor.zki.NewAccount[txProcessor.txIndex] = &(newAccountCreated)
+
+		valueIsOnChain := txProcessor.txIndex < len(txProcessor.zki.ISOnChain)
+		txProcessor.zki.ISOnChain[txProcessor.txIndex] = &(valueIsOnChain)
+	}
 
 	return txProcessor.state.SetCurrentAccountIdx(txProcessor.state.CurrentAccountIdx() + 1)
 }
@@ -858,23 +690,22 @@ func (txProcessor *TxProcessor) updateAccount(idx common.AccountIdx, account *co
 // applyDeposit updates the balance in the account of the depositer, if
 // andTransfer parameter is set to true, the method will also apply the
 // Transfer of the L1Tx/DepositTransfer
-func (txProcessor *TxProcessor) applyDeposit(tx *common.L1Tx, transfer bool) error {
+func (txProcessor *TxProcessor) applyDeposit(tx *common.L1Tx) error {
 	accSender, err := txProcessor.state.GetAccount(tx.FromIdx)
 	if err != nil {
 		return common.Wrap(err)
 	}
 
-	// if txProcessor.zki != nil {
-	// 	txProcessor.zki.TokenID1[txProcessor.txIndex] = accSender.TokenID.BigInt()
-	// 	txProcessor.zki.Nonce1[txProcessor.txIndex] = accSender.Nonce.BigInt()
-	// 	senderBJJSign, senderBJJY := babyjub.UnpackSignY(accSender.BJJ)
-	// 	if senderBJJSign {
-	// 		txProcessor.zki.Sign1[txProcessor.txIndex] = big.NewInt(1)
-	// 	}
-	// 	txProcessor.zki.Ay1[txProcessor.txIndex] = senderBJJY
-	// 	txProcessor.zki.Balance1[txProcessor.txIndex] = accSender.Balance
-	// 	txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(accSender.EthAddr)
-	// }
+	if txProcessor.zki != nil {
+		// txProcessor.zki.TokenID1[txProcessor.txIndex] = accSender.TokenID.BigInt()
+		txProcessor.zki.Nonce1[txProcessor.txIndex] = accSender.Nonce.BigInt()
+		senderBJJSign, senderBJJY := babyjub.UnpackSignY(accSender.BJJ)
+		valueBJJSign := senderBJJSign
+		txProcessor.zki.Sign1[txProcessor.txIndex] = &(valueBJJSign)
+		txProcessor.zki.Ay1[txProcessor.txIndex] = senderBJJY
+		txProcessor.zki.Balance1[txProcessor.txIndex] = accSender.Balance
+		txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(accSender.EthAddr)
+	}
 
 	// add the deposit to the sender
 	accSender.Balance = new(big.Int).Add(accSender.Balance, tx.EffectiveDepositAmount)
@@ -893,177 +724,12 @@ func (txProcessor *TxProcessor) applyDeposit(tx *common.L1Tx, transfer bool) err
 		txProcessor.zki.Siblings1[txProcessor.txIndex] = siblingsToZKInputFormat(p.Siblings)
 		// IsOld0_1, OldKey1, OldValue1 not needed as this is not an insert
 	}
-
-	// in case that the tx is a L1Tx>DepositTransfer
-	var accReceiver *common.Account
-	if transfer {
-		if tx.ToIdx == tx.FromIdx {
-			accReceiver = accSender
-		} else {
-			accReceiver, err = txProcessor.state.GetAccount(tx.ToIdx)
-			if err != nil {
-				return common.Wrap(err)
-			}
-		}
-
-		// if txProcessor.zki != nil {
-		// 	txProcessor.zki.TokenID2[txProcessor.txIndex] = accReceiver.TokenID.BigInt()
-		// 	txProcessor.zki.Nonce2[txProcessor.txIndex] = accReceiver.Nonce.BigInt()
-		// 	receiverBJJSign, receiverBJJY := babyjub.UnpackSignY(accReceiver.BJJ)
-		// 	if receiverBJJSign {
-		// 		txProcessor.zki.Sign2[txProcessor.txIndex] = big.NewInt(1)
-		// 	}
-		// 	txProcessor.zki.Ay2[txProcessor.txIndex] = receiverBJJY
-		// 	txProcessor.zki.Balance2[txProcessor.txIndex] = accReceiver.Balance
-		// 	txProcessor.zki.EthAddr2[txProcessor.txIndex] = common.EthAddrToBigInt(accReceiver.EthAddr)
-		// }
-
-		// add amount to the receiver
-		accReceiver.Balance = new(big.Int).Add(accReceiver.Balance, tx.EffectiveAmount)
-
-		// update receiver account in localStateDB
-		p, err := txProcessor.updateAccount(tx.ToIdx, accReceiver)
-		if err != nil {
-			return common.Wrap(err)
-		}
-		if txProcessor.zki != nil {
-			txProcessor.zki.Siblings2[txProcessor.txIndex] = siblingsToZKInputFormat(p.Siblings)
-			// IsOld0_2, OldKey2, OldValue2 not needed as this is not an insert
-		}
-	}
-
-	return nil
-}
-
-// applyTransfer updates the balance & nonce in the account of the sender, and
-// the balance in the account of the receiver.
-// Parameter 'toIdx' should be at 0 if the tx already has tx.ToIdx!=0, if
-// tx.ToIdx==0, then toIdx!=0, and will be used the toIdx parameter as Idx of
-// the receiver. This parameter is used when the tx.ToIdx is not specified and
-// the real ToIdx is found trhrough the ToEthAddr or ToBJJ.
-func (txProcessor *TxProcessor) applyTransfer(coordIdxsMap map[common.TokenID]common.AccountIdx,
-	collectedFees map[common.TokenID]*big.Int, tx common.Tx, auxToIdx common.AccountIdx) error {
-	if auxToIdx == common.AccountIdx(0) {
-		auxToIdx = tx.ToIdx
-	}
-	// get sender and receiver accounts from localStateDB
-	accSender, err := txProcessor.state.GetAccount(tx.FromIdx)
-	if err != nil {
-		log.Error(err)
-		return common.Wrap(err)
-	}
-
-	// if txProcessor.zki != nil {
-	// 	// Set the State1 before updating the Sender leaf
-	// 	txProcessor.zki.TokenID1[txProcessor.txIndex] = accSender.TokenID.BigInt()
-	// 	txProcessor.zki.Nonce1[txProcessor.txIndex] = accSender.Nonce.BigInt()
-	// 	senderBJJSign, senderBJJY := babyjub.UnpackSignY(accSender.BJJ)
-	// 	if senderBJJSign {
-	// 		txProcessor.zki.Sign1[txProcessor.txIndex] = big.NewInt(1)
-	// 	}
-	// 	txProcessor.zki.Ay1[txProcessor.txIndex] = senderBJJY
-	// 	txProcessor.zki.Balance1[txProcessor.txIndex] = accSender.Balance
-	// 	txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(accSender.EthAddr)
-	// }
-	if !tx.IsL1 { // L2
-		// increment nonce
-		accSender.Nonce++
-
-		// compute fee and subtract it from the accSender
-		// fee, err := common.CalcFeeAmount(tx.Amount, *tx.Fee)
-		// if err != nil {
-		// 	return common.Wrap(err)
-		// }
-		// feeAndAmount := new(big.Int).Add(tx.Amount, fee)
-		// accSender.Balance = new(big.Int).Sub(accSender.Balance, feeAndAmount)
-		// if accSender.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
-		// 	return newErrorNotEnoughBalance(tx)
-		// }
-
-		// if _, ok := coordIdxsMap[accSender.TokenID]; ok {
-		// 	accCoord, err := txProcessor.state.GetAccount(coordIdxsMap[accSender.TokenID])
-		// 	if err != nil {
-		// 		return common.Wrap(
-		// 			fmt.Errorf("Can not use CoordIdx that does not exist in the tree. TokenID: %d, CoordIdx: %d",
-		// 				accSender.TokenID, coordIdxsMap[accSender.TokenID]))
-		// 	}
-		// 	// accumulate the fee for the Coord account
-		// 	accumulated, ok := txProcessor.AccumulatedFees[accCoord.Idx]
-		// 	if !ok {
-		// 		accumulated = big.NewInt(0)
-		// 		txProcessor.AccumulatedFees[accCoord.Idx] = accumulated
-		// 	}
-		// 	accumulated.Add(accumulated, fee)
-
-		// 	if txProcessor.state.Type() == statedb.TypeSynchronizer ||
-		// 		txProcessor.state.Type() == statedb.TypeBatchBuilder {
-		// 		collected := collectedFees[accCoord.TokenID]
-		// 		collected.Add(collected, fee)
-		// 	}
-		// } else {
-		// 	log.Debugw("No coord Idx to receive fee", "tx", tx)
-		// }
-	} else {
-		accSender.Balance = new(big.Int).Sub(accSender.Balance, tx.Amount)
-		if accSender.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
-			return newErrorNotEnoughBalance(tx)
-		}
-	}
-
-	// update sender account in localStateDB
-	pSender, err := txProcessor.updateAccount(tx.FromIdx, accSender)
-	if err != nil {
-		log.Error(err)
-		return common.Wrap(err)
-	}
-	if txProcessor.zki != nil {
-		txProcessor.zki.Siblings1[txProcessor.txIndex] = siblingsToZKInputFormat(pSender.Siblings)
-	}
-
-	var accReceiver *common.Account
-	if auxToIdx == tx.FromIdx {
-		// if Sender is the Receiver, reuse 'accSender' pointer,
-		// because in the DB the account for 'auxToIdx' won't be
-		// updated yet
-		accReceiver = accSender
-	} else {
-		accReceiver, err = txProcessor.state.GetAccount(auxToIdx)
-		if err != nil {
-			log.Error(err, auxToIdx)
-			return common.Wrap(err)
-		}
-	}
-	if txProcessor.zki != nil {
-		// Set the State2 before updating the Receiver leaf
-		txProcessor.zki.Nonce2[txProcessor.txIndex] = accReceiver.Nonce.BigInt()
-		receiverBJJSign, receiverBJJY := babyjub.UnpackSignY(accReceiver.BJJ)
-		if receiverBJJSign {
-			txProcessor.zki.Sign2[txProcessor.txIndex] = big.NewInt(1)
-		}
-		txProcessor.zki.Ay2[txProcessor.txIndex] = receiverBJJY
-		txProcessor.zki.Balance2[txProcessor.txIndex] = accReceiver.Balance
-		txProcessor.zki.EthAddr2[txProcessor.txIndex] = common.EthAddrToBigInt(accReceiver.EthAddr)
-	}
-
-	// add amount-feeAmount to the receiver
-	// accReceiver.Balance = new(big.Int).Add(accReceiver.Balance, tx.Amount)
-
-	// update receiver account in localStateDB
-	pReceiver, err := txProcessor.updateAccount(auxToIdx, accReceiver)
-	if err != nil {
-		return common.Wrap(err)
-	}
-	if txProcessor.zki != nil {
-		txProcessor.zki.Siblings2[txProcessor.txIndex] = siblingsToZKInputFormat(pReceiver.Siblings)
-	}
-
 	return nil
 }
 
 // It returns the ExitAccount and a boolean determining if the Exit created a
 // new Leaf in the ExitTree.
-func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common.AccountIdx,
-	collectedFees map[common.TokenID]*big.Int, exitTree *merkletree.MerkleTree,
+func (txProcessor *TxProcessor) applyExit(exitTree *merkletree.MerkleTree,
 	tx common.Tx, originalAmount *big.Int) (*common.Account, bool, error) {
 	// 0. subtract tx.Amount from current Account in StateMT
 	// add the tx.Amount into the Account (tx.FromIdx) in the ExitMT
@@ -1071,57 +737,20 @@ func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common
 	if err != nil {
 		return nil, false, common.Wrap(err)
 	}
-	// if txProcessor.zki != nil {
-	// 	txProcessor.zki.TokenID1[txProcessor.txIndex] = acc.TokenID.BigInt()
-	// 	txProcessor.zki.Nonce1[txProcessor.txIndex] = acc.Nonce.BigInt()
-	// 	accBJJSign, accBJJY := babyjub.UnpackSignY(acc.BJJ)
-	// 	if accBJJSign {
-	// 		txProcessor.zki.Sign1[txProcessor.txIndex] = big.NewInt(1)
-	// 	}
-	// 	txProcessor.zki.Ay1[txProcessor.txIndex] = accBJJY
-	// 	txProcessor.zki.Balance1[txProcessor.txIndex] = acc.Balance
-	// 	txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(acc.EthAddr)
-	// }
+	if txProcessor.zki != nil {
+		// txProcessor.zki.TokenID1[txProcessor.txIndex] = acc.TokenID.BigInt()
+		txProcessor.zki.Nonce1[txProcessor.txIndex] = acc.Nonce.BigInt()
+		accBJJSign, accBJJY := babyjub.UnpackSignY(acc.BJJ)
+		valueAccBjjSign := accBJJSign
+		txProcessor.zki.Sign1[txProcessor.txIndex] = &(valueAccBjjSign)
+		txProcessor.zki.Ay1[txProcessor.txIndex] = accBJJY
+		txProcessor.zki.Balance1[txProcessor.txIndex] = acc.Balance
+		txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(acc.EthAddr)
+	}
 
 	if !tx.IsL1 {
 		// increment nonce
 		acc.Nonce++
-
-		// // compute fee and subtract it from the accSender
-		// fee, err := common.CalcFeeAmount(tx.Amount, *tx.Fee)
-		// if err != nil {
-		// 	return nil, false, common.Wrap(err)
-		// }
-		// feeAndAmount := new(big.Int).Add(tx.Amount, fee)
-		// acc.Balance = new(big.Int).Sub(acc.Balance, feeAndAmount)
-		// if acc.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
-		// 	return nil, false, newErrorNotEnoughBalance(tx)
-		// }
-
-		// if _, ok := coordIdxsMap[acc.TokenID]; ok {
-		// 	accCoord, err := txProcessor.state.GetAccount(coordIdxsMap[acc.TokenID])
-		// 	if err != nil {
-		// 		return nil, false, common.Wrap(
-		// 			fmt.Errorf("Can not use CoordIdx that does not exist in the tree. TokenID: %d, CoordIdx: %d",
-		// 				acc.TokenID, coordIdxsMap[acc.TokenID]))
-		// 	}
-
-		// 	// accumulate the fee for the Coord account
-		// 	accumulated, ok := txProcessor.AccumulatedFees[accCoord.Idx]
-		// 	if !ok {
-		// 		accumulated = big.NewInt(0)
-		// 		txProcessor.AccumulatedFees[accCoord.Idx] = accumulated
-		// 	}
-		// 	accumulated.Add(accumulated, fee)
-
-		// 	if txProcessor.state.Type() == statedb.TypeSynchronizer ||
-		// 		txProcessor.state.Type() == statedb.TypeBatchBuilder {
-		// 		collected := collectedFees[accCoord.TokenID]
-		// 		collected.Add(collected, fee)
-		// 	}
-		// } else {
-		// 	log.Debugw("No coord Idx to receive fee", "tx", tx)
-		// }
 	} else {
 		acc.Balance = new(big.Int).Sub(acc.Balance, tx.Amount)
 		if acc.Balance.Cmp(big.NewInt(0)) == -1 { // balance<0
@@ -1169,31 +798,27 @@ func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common
 			BJJ:     acc.BJJ,
 			EthAddr: acc.EthAddr,
 		}
-		// if txProcessor.zki != nil {
-		// 	// Set the State2 before creating the Exit leaf
-		// 	txProcessor.zki.TokenID2[txProcessor.txIndex] = acc.TokenID.BigInt()
-		// 	txProcessor.zki.Nonce2[txProcessor.txIndex] = big.NewInt(0)
-		// 	accBJJSign, accBJJY := babyjub.UnpackSignY(acc.BJJ)
-		// 	if accBJJSign {
-		// 		txProcessor.zki.Sign2[txProcessor.txIndex] = big.NewInt(1)
-		// 	}
-		// 	txProcessor.zki.Ay2[txProcessor.txIndex] = accBJJY
-		// 	// Balance2 contains the ExitLeaf Balance before the
-		// 	// leaf update, which is 0
-		// 	txProcessor.zki.Balance2[txProcessor.txIndex] = big.NewInt(0)
-		// 	txProcessor.zki.EthAddr2[txProcessor.txIndex] = common.EthAddrToBigInt(acc.EthAddr)
-		// 	// as Leaf didn't exist in the ExitTree, set NewExit[i]=1
-		// 	txProcessor.zki.NewExit[txProcessor.txIndex] = big.NewInt(1)
-		// }
+		if txProcessor.zki != nil {
+			// Set the State2 before creating the Exit leaf
+			txProcessor.zki.Nonce2[txProcessor.txIndex] = big.NewInt(0)
+			accBJJSign, accBJJY := babyjub.UnpackSignY(acc.BJJ)
+			valueBjjSign2 := accBJJSign
+			txProcessor.zki.Sign2[txProcessor.txIndex] = &(valueBjjSign2)
+			txProcessor.zki.Ay2[txProcessor.txIndex] = accBJJY
+			// Balance2 contains the ExitLeaf Balance before the
+			// leaf update, which is 0
+			txProcessor.zki.Balance2[txProcessor.txIndex] = big.NewInt(0)
+			txProcessor.zki.EthAddr2[txProcessor.txIndex] = common.EthAddrToBigInt(acc.EthAddr)
+		}
 		p, err = statedb.CreateAccountInTreeDB(exitTree.DB(), exitTree, tx.FromIdx, exitAccount)
 		if err != nil {
 			return nil, false, common.Wrap(err)
 		}
 		if txProcessor.zki != nil {
 			txProcessor.zki.Siblings2[txProcessor.txIndex] = siblingsToZKInputFormat(p.Siblings)
-			if p.IsOld0 {
-				txProcessor.zki.IsOld0_2[txProcessor.txIndex] = big.NewInt(1)
-			}
+			valueIsOld0 := p.IsOld0
+			txProcessor.zki.IsOld0_2[txProcessor.txIndex] = &(valueIsOld0)
+
 			if txProcessor.txIndex < len(txProcessor.zki.ISExitRoot) {
 				txProcessor.zki.ISExitRoot[txProcessor.txIndex] = exitTree.Root().BigInt()
 			}
@@ -1206,21 +831,18 @@ func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common
 	}
 
 	// 1b. if idx already exist in exitTree:
-	// if txProcessor.zki != nil {
-	// 	// Set the State2 before updating the Exit leaf
-	// 	txProcessor.zki.TokenID2[txProcessor.txIndex] = acc.TokenID.BigInt()
-	// 	// increment nonce from existing ExitLeaf
-	// 	txProcessor.zki.Nonce2[txProcessor.txIndex] = exitAccount.Nonce.BigInt()
-	// 	accBJJSign, accBJJY := babyjub.UnpackSignY(acc.BJJ)
-	// 	if accBJJSign {
-	// 		txProcessor.zki.Sign2[txProcessor.txIndex] = big.NewInt(1)
-	// 	}
-	// 	txProcessor.zki.Ay2[txProcessor.txIndex] = accBJJY
-	// 	// Balance2 contains the ExitLeaf Balance before the leaf
-	// 	// update
-	// 	txProcessor.zki.Balance2[txProcessor.txIndex] = exitAccount.Balance
-	// 	txProcessor.zki.EthAddr2[txProcessor.txIndex] = common.EthAddrToBigInt(acc.EthAddr)
-	// }
+	if txProcessor.zki != nil {
+		// increment nonce from existing ExitLeaf
+		txProcessor.zki.Nonce2[txProcessor.txIndex] = exitAccount.Nonce.BigInt()
+		accBJJSign, accBJJY := babyjub.UnpackSignY(acc.BJJ)
+		valueAccBJJSign := accBJJSign
+		txProcessor.zki.Sign2[txProcessor.txIndex] = &(valueAccBJJSign)
+		txProcessor.zki.Ay2[txProcessor.txIndex] = accBJJY
+		// Balance2 contains the ExitLeaf Balance before the leaf
+		// update
+		txProcessor.zki.Balance2[txProcessor.txIndex] = exitAccount.Balance
+		txProcessor.zki.EthAddr2[txProcessor.txIndex] = common.EthAddrToBigInt(acc.EthAddr)
+	}
 
 	// update account, where account.Balance += exitAmount
 	exitAccount.Balance = new(big.Int).Add(exitAccount.Balance, tx.Amount)
@@ -1231,9 +853,8 @@ func (txProcessor *TxProcessor) applyExit(coordIdxsMap map[common.TokenID]common
 
 	if txProcessor.zki != nil {
 		txProcessor.zki.Siblings2[txProcessor.txIndex] = siblingsToZKInputFormat(p.Siblings)
-		if p.IsOld0 {
-			txProcessor.zki.IsOld0_2[txProcessor.txIndex] = big.NewInt(1)
-		}
+		valuePOld0 := p.IsOld0
+		txProcessor.zki.IsOld0_2[txProcessor.txIndex] = &(valuePOld0)
 		txProcessor.zki.OldKey2[txProcessor.txIndex] = p.OldKey.BigInt()
 		txProcessor.zki.OldValue2[txProcessor.txIndex] = p.OldValue.BigInt()
 		if txProcessor.txIndex < len(txProcessor.zki.ISExitRoot) {
@@ -1288,5 +909,4 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 		// if transfer is Exit type, there are no more checks
 		return
 	}
-
 }

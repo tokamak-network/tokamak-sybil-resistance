@@ -20,10 +20,8 @@ func newBatchData(batchNum int) common.BatchData {
 		L1CoordinatorTxs: []common.L1Tx{},
 		L2Txs:            []common.L2Tx{},
 		Batch: common.Batch{
-			BatchNum:           common.BatchNum(batchNum),
-			StateRoot:          big.NewInt(0),
-			ExitRoot:           big.NewInt(0),
-			FeeIdxsCoordinator: make([]common.AccountIdx, 0),
+			BatchNum:  common.BatchNum(batchNum),
+			StateRoot: big.NewInt(0), ExitRoot: big.NewInt(0),
 			// CollectedFees:      make(map[common.TokenID]*big.Int),
 		},
 	}
@@ -192,7 +190,8 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 	var blocks []common.BlockData
 	for _, inst := range tc.instructions {
 		switch inst.Typ {
-		case common.TxTypeCreateAccountDeposit: //, common.TxTypeCreateAccountDepositTransfer:
+		//Removed case for TxTypeCreateAccountDepositTransfer
+		case common.TxTypeCreateAccountDeposit:
 			// tx source: L1UserTx
 			tx := common.L1Tx{
 				FromEthAddr:   tc.Accounts[inst.From].Addr,
@@ -201,9 +200,6 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 				DepositAmount: inst.DepositAmount,
 				Type:          inst.Typ,
 			}
-			// if inst.Typ == common.TxTypeCreateAccountDepositTransfer {
-			// 	tx.Amount = inst.Amount
-			// }
 			testTx := L1Tx{
 				lineNum:     inst.LineNum,
 				fromIdxName: inst.From,
@@ -233,7 +229,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			}
 		case common.TxTypeCreateVouch:
 			tx := common.L2Tx{
-				Amount: big.NewInt(0),
+				// Amount:      inst.Amount,
 				// Fee:         common.FeeSelector(inst.Fee),
 				Type:        common.TxTypeCreateVouch,
 				EthBlockNum: tc.blockNum,
@@ -249,7 +245,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
 		case common.TxTypeDeleteVouch:
 			tx := common.L2Tx{
-				Amount: big.NewInt(0),
+				// Amount:      inst.Amount,
 				// Fee:         common.FeeSelector(inst.Fee),
 				Type:        common.TxTypeDeleteVouch,
 				EthBlockNum: tc.blockNum,
@@ -410,7 +406,6 @@ func (tc *Context) addToL1UserQueue(tx L1Tx) error {
 
 	// When an L1UserTx is generated, all idxs must be available (except when idx == 0 or idx == 1)
 	if tx.L1Tx.Type != common.TxTypeCreateAccountDeposit {
-		// tx.L1Tx.Type != common.TxTypeCreateAccountDepositTransfer {
 		tx.L1Tx.FromIdx = tc.Accounts[tx.fromIdxName].Idx
 	}
 	tx.L1Tx.FromEthAddr = tc.Accounts[tx.fromIdxName].Addr
@@ -470,21 +465,21 @@ func (tc *Context) GeneratePoolL2Txs(set string) ([]common.PoolL2Tx, error) {
 // GeneratePoolL2TxsFromInstructions returns an array of common.PoolL2Tx from a
 // given set made of instructions. It uses the users (keys) of the Context.
 // func (tc *Context) GeneratePoolL2TxsFromInstructions(set []Instruction) ([]common.PoolL2Tx, error) {
-// 	accountNames := []string{}
+// 	userNames := []string{}
 // 	addedNames := make(map[string]bool)
 // 	for _, inst := range set {
 // 		if _, ok := addedNames[inst.From]; !ok {
 // 			// If the name wasn't already added
-// 			accountNames = append(accountNames, inst.From)
+// 			userNames = append(userNames, inst.From)
 // 			addedNames[inst.From] = true
 // 		}
 // 		if _, ok := addedNames[inst.To]; !ok {
 // 			// If the name wasn't already added
-// 			accountNames = append(accountNames, inst.To)
+// 			userNames = append(userNames, inst.To)
 // 			addedNames[inst.To] = true
 // 		}
 // 	}
-// 	tc.accountNames = accountNames
+// 	tc.userNames = userNames
 // 	tc.instructions = set
 
 // 	return tc.generatePoolL2Txs()
@@ -790,7 +785,6 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 			for k := range l1Txs {
 				tx := l1Txs[k]
 				if tx.Type == common.TxTypeCreateAccountDeposit {
-					// tx.Type == common.TxTypeCreateAccountDepositTransfer {
 					user, ok := tc.accountsByIdx[tc.extra.idx]
 					if !ok {
 						return common.Wrap(fmt.Errorf("created account with idx: %v not found", tc.extra.idx))
@@ -879,7 +873,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 					batch.ExitTree = append(batch.ExitTree, common.ExitInfo{
 						BatchNum:   batch.Batch.BatchNum,
 						AccountIdx: tx.FromIdx,
-						Balance:    tx.Amount,
+						// Balance:    tx.Amount,
 					})
 				}
 				// fee, err := common.CalcFeeAmount(tx.Amount, tx.Fee)
@@ -897,23 +891,23 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				// the collectedFees.  Only consider the
 				// coordinator account to receive fee if it was
 				// created in this or a previous batch
-				if acc, ok := tc.l1CreatedAccounts[cfg.CoordUser]; ok &&
-					common.BatchNum(acc.BatchNum) <= batch.Batch.BatchNum {
-					found := false
-					for _, idx := range batch.Batch.FeeIdxsCoordinator {
-						if idx == common.AccountIdx(acc.Idx) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						batch.Batch.FeeIdxsCoordinator = append(batch.Batch.FeeIdxsCoordinator,
-							common.AccountIdx(acc.Idx))
-						// batch.Batch.CollectedFees[fromAcc.TokenID] = big.NewInt(0)
-					}
-					// collected := batch.Batch.CollectedFees[fromAcc.TokenID]
-					// collected.Add(collected, fee)
-				}
+				// if acc, ok := tc.l1CreatedAccounts[cfg.CoordUser]; ok &&
+				// 	common.BatchNum(acc.BatchNum) <= batch.Batch.BatchNum {
+				// 	found := false
+				// 	for _, idx := range batch.Batch.FeeIdxsCoordinator {
+				// 		if idx == common.AccountIdx(acc.Idx) {
+				// 			found = true
+				// 			break
+				// 		}
+				// 	}
+				// 	// if !found {
+				// 	// 	batch.Batch.FeeIdxsCoordinator = append(batch.Batch.FeeIdxsCoordinator,
+				// 	// 		common.AccountIdx(acc.Idx))
+				// 	// 	batch.Batch.CollectedFees[fromAcc.TokenID] = big.NewInt(0)
+				// 	// }
+				// 	// collected := batch.Batch.CollectedFees[fromAcc.TokenID]
+				// 	// collected.Add(collected, fee)
+				// }
 			}
 		}
 	}

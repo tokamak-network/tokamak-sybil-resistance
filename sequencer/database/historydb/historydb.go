@@ -346,8 +346,7 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 		depositAmountFloat, _ := laf.Float64()
 		var effectiveFromIdx *common.AccountIdx
 		if l1txs[i].UserOrigin {
-			if l1txs[i].Type != common.TxTypeCreateAccountDeposit &&
-				l1txs[i].Type != common.TxTypeCreateAccountDepositTransfer {
+			if l1txs[i].Type != common.TxTypeCreateAccountDeposit {
 				effectiveFromIdx = &l1txs[i].FromIdx
 			}
 		} else {
@@ -387,9 +386,6 @@ func (hdb *HistoryDB) AddL2Txs(l2txs []common.L2Tx) error {
 
 // addL2Txs inserts L2 txs to the DB. TokenID, USD and FeeUSD will be set automatically before storing the tx.
 func (hdb *HistoryDB) addL2Txs(d meddler.DB, l2txs []common.L2Tx) error {
-	if len(l2txs) == 0 {
-		return nil
-	}
 	txs := []txWrite{}
 	for i := 0; i < len(l2txs); i++ {
 		f := new(big.Float).SetInt(l2txs[i].Amount)
