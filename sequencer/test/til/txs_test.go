@@ -161,13 +161,7 @@ func TestGeneratePoolL2Txs(t *testing.T) {
 	set := `
 		Type: Blockchain
 		CreateAccountDeposit A: 10
-		CreateAccountDeposit A: 20
-		CreateAccountDeposit B: 5
 		CreateAccountDeposit C: 5
-		CreateAccountDeposit User0: 5
-		CreateAccountDeposit User1: 0
-		CreateAccountDeposit User0: 0
-		CreateAccountDeposit User1: 5
 		CreateAccountDeposit B: 5
 		CreateAccountDeposit D: 0
 		> batchL1
@@ -178,13 +172,21 @@ func TestGeneratePoolL2Txs(t *testing.T) {
 	require.NoError(t, err)
 	set = `
 		Type: PoolL2
+		PoolCreateVouch A-B
+		PoolCreateVouch A-C
+		PoolDeleteVouch A-C
 		PoolExit A: 3
 	`
 	poolL2Txs, err := tc.GeneratePoolL2Txs(set)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(poolL2Txs))
-	assert.Equal(t, common.TxTypeExit, poolL2Txs[0].Type)
-	assert.Equal(t, common.Nonce(1), poolL2Txs[0].Nonce)
+	assert.Equal(t, 4, len(poolL2Txs))
+	assert.Equal(t, common.TxTypeCreateVouch, poolL2Txs[0].Type)
+	assert.Equal(t, common.TxTypeDeleteVouch, poolL2Txs[2].Type)
+	assert.Equal(t, common.TxTypeExit, poolL2Txs[3].Type)
+	assert.Equal(t, common.Nonce(0), poolL2Txs[0].Nonce)
+	assert.Equal(t, common.Nonce(1), poolL2Txs[1].Nonce)
+	assert.Equal(t, common.Nonce(2), poolL2Txs[2].Nonce)
+	assert.Equal(t, common.Nonce(3), poolL2Txs[3].Nonce)
 
 	// load another set in the same Context
 	set = `
@@ -193,7 +195,7 @@ func TestGeneratePoolL2Txs(t *testing.T) {
 	`
 	poolL2Txs, err = tc.GeneratePoolL2Txs(set)
 	require.NoError(t, err)
-	assert.Equal(t, common.Nonce(2), poolL2Txs[0].Nonce)
+	assert.Equal(t, common.Nonce(0), poolL2Txs[0].Nonce)
 }
 
 func TestGenerateErrors(t *testing.T) {
