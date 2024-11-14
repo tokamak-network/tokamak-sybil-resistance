@@ -499,9 +499,7 @@ func (hdb *HistoryDB) addL2Txs(d meddler.DB, l2txs []common.L2Tx) error {
 	}
 	txs := []txWrite{}
 	for i := 0; i < len(l2txs); i++ {
-		f := new(big.Float).SetInt(l2txs[i].Amount)
-		amountFloat, _ := f.Float64()
-		txs = append(txs, txWrite{
+		txwrite := txWrite{
 			// Generic
 			IsL1:             false,
 			TxID:             l2txs[i].TxID,
@@ -510,15 +508,26 @@ func (hdb *HistoryDB) addL2Txs(d meddler.DB, l2txs []common.L2Tx) error {
 			FromIdx:          &l2txs[i].FromIdx,
 			EffectiveFromIdx: &l2txs[i].FromIdx,
 			ToIdx:            l2txs[i].ToIdx,
-			Amount:           l2txs[i].Amount,
-			AmountFloat:      amountFloat,
-			BatchNum:         &l2txs[i].BatchNum,
-			EthBlockNum:      l2txs[i].EthBlockNum,
+			// Amount:           l2txs[i].Amount,
+			// AmountFloat:      amountFloat,
+			BatchNum:    &l2txs[i].BatchNum,
+			EthBlockNum: l2txs[i].EthBlockNum,
 			// L2
 			Nonce: &l2txs[i].Nonce,
-		})
+		}
+		if l2txs[i].Amount == nil {
+			txwrite.Amount = big.NewInt(0)
+			txwrite.AmountFloat = 0
+		} else {
+			f := new(big.Float).SetInt(l2txs[i].Amount)
+			amountFloat, _ := f.Float64()
+			txwrite.Amount = l2txs[i].Amount
+			txwrite.AmountFloat = amountFloat
+		}
+		txs = append(txs, txwrite)
 	}
-	return common.Wrap(hdb.addTxs(d, txs))
+	err := hdb.addTxs(d, txs)
+	return common.Wrap(err)
 }
 
 func (hdb *HistoryDB) addTxs(d meddler.DB, txs []txWrite) error {
