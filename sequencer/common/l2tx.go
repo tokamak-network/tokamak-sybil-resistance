@@ -17,7 +17,7 @@ type L2Tx struct {
 	ToIdx    AccountIdx `meddler:"to_idx"`
 	Nonce    Nonce      `meddler:"nonce"`
 	Type     TxType     `meddler:"type"`
-	// TODO: Amount should be removed from L2Tx struct
+	// TODO: Amount should be remoged from L2Tx struct
 	Amount *big.Int `meddler:"amount,bigint"`
 	// EthBlockNum in which this L2Tx was added to the queue
 	EthBlockNum int64 `meddler:"eth_block_num"`

@@ -233,7 +233,11 @@ func TestGenerateErrors(t *testing.T) {
 	tc = NewContext(0, common.RollupConstMaxL1UserTx)
 	_, err = tc.GenerateBlocks(set)
 	require.NoError(t, err)
+<<<<<<< HEAD
 	assert.Equal(t, common.Nonce(2), tc.Accounts["A"].Nonce)
+=======
+	assert.Equal(t, common.Nonce(1), tc.Accounts["A"].Nonce)
+>>>>>>> develop
 	assert.Equal(t, common.AccountIdx(256), tc.Accounts["A"].Idx)
 
 	// check vouching syntax errors on L1
