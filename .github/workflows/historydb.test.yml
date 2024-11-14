@@ -4,23 +4,14 @@ on:
   push:
     branches-ignore:
       - "main"
+      - "develop"
     paths:
-<<<<<<< HEAD
-<<<<<<< HEAD
       - "sequencer/database/historydb/**"
       - "sequencer/database/utils.go"
-=======
-      - "go_sequencer/database/historydb/**"
-      - "go_sequencer/database/utils.go"
->>>>>>> f1c185b (merge feature/go-sequencer)
-=======
-      - "sequencer/database/historydb/**"
-      - "sequencer/database/utils.go"
->>>>>>> abf1465 (implement sequencer all tests workflow)
   workflow_dispatch:
 
 jobs:
-  core-build:
+  syb-historydb-test:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -69,4 +60,4 @@ jobs:
           PGUSER: "postgres"
           PGPASSWORD: "postgres"
           PGDATABASE: "statedb"
-
+          CI: true
