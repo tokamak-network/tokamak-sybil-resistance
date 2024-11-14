@@ -263,8 +263,8 @@ func TestTxs(t *testing.T) {
 	set := `
 	Type: Blockchain
 	
-	CreateAccountDeposit A: 1 	// L1Tx 1
-	CreateAccountDeposit B: 2	// L1Tx 2
+	CreateAccountDeposit A: 10 	// L1Tx 1
+	CreateAccountDeposit B: 20	// L1Tx 2
 	> batchL1					// batch 1
 	> batchL1					// batch 2
 
@@ -434,8 +434,8 @@ func TestTxs(t *testing.T) {
 	assert.Equal(t, true, dbL1Txs[5].UserOrigin)
 
 	// Deposit Amount
-	assert.Equal(t, big.NewInt(1), dbL1Txs[0].DepositAmount)
-	assert.Equal(t, big.NewInt(2), dbL1Txs[1].DepositAmount)
+	assert.Equal(t, big.NewInt(10), dbL1Txs[0].DepositAmount)
+	assert.Equal(t, big.NewInt(20), dbL1Txs[1].DepositAmount)
 	assert.Equal(t, big.NewInt(10), dbL1Txs[2].DepositAmount)
 	assert.Equal(t, big.NewInt(0), dbL1Txs[3].DepositAmount)
 	assert.Equal(t, big.NewInt(10), dbL1Txs[4].DepositAmount)
