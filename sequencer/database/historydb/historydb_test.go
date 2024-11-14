@@ -700,6 +700,111 @@ func TestSetExtraInfoForgedL1UserTxs(t *testing.T) {
 	}
 }
 
+func TestUpdateExitTree(t *testing.T) {
+	test.WipeDB(historyDB.DB())
+
+	set := `
+		Type: Blockchain
+
+		CreateAccountDeposit C: 2000 // Idx=256+2=258
+		CreateAccountDeposit D: 500  // Idx=256+3=259
+
+		// CreateAccountCoordinator A // Idx=256+0=256
+		// CreateAccountCoordinator B // Idx=256+1=257
+
+		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{5}
+		> batchL1 // forge defined L1UserTxs{5}, freeze L1UserTxs{nil}
+		> block // blockNum=2
+
+		// ForceExit A: 100
+		// ForceExit B: 80
+
+		Exit C: 50
+		Exit D: 30
+
+		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{3}
+		> batchL1 // forge L1UserTxs{3}, freeze defined L1UserTxs{nil}
+		> block // blockNum=3
+
+		> block // blockNum=4 (empty block)
+		> block // blockNum=5 (empty block)
+	`
+
+	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	tilCfgExtra := til.ConfigExtra{
+		BootCoordAddr: ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"),
+		CoordUser:     "A",
+	}
+	blocks, err := tc.GenerateBlocks(set)
+	require.NoError(t, err)
+	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
+	require.NoError(t, err)
+
+	// Add all blocks except for the last two
+	for i := range blocks[:len(blocks)-2] {
+		err = historyDB.AddBlockSCData(&blocks[i])
+		require.NoError(t, err)
+	}
+
+	// Add withdraws to the second-to-last block, and insert block into the DB
+	block := &blocks[len(blocks)-2]
+	require.Equal(t, int64(4), block.Block.Num)
+	tokenAddr := blocks[0].Rollup.AddedTokens[0].EthAddr
+	// block.WDelayer.Deposits = append(block.WDelayer.Deposits,
+	// 	common.WDelayerTransfer{Owner: tc.UsersByIdx[257].Addr, Token: tokenAddr, Amount: big.NewInt(80)}, // 257
+	// 	common.WDelayerTransfer{Owner: tc.UsersByIdx[259].Addr, Token: tokenAddr, Amount: big.NewInt(15)}, // 259
+	// )
+	block.Rollup.Withdrawals = append(block.Rollup.Withdrawals,
+		common.WithdrawInfo{Idx: 256, NumExitRoot: 4, InstantWithdraw: true},
+		common.WithdrawInfo{Idx: 257, NumExitRoot: 4, InstantWithdraw: false,
+			Owner: tc.AccountsByIdx[257].Addr, Token: tokenAddr},
+		common.WithdrawInfo{Idx: 258, NumExitRoot: 3, InstantWithdraw: true},
+		common.WithdrawInfo{Idx: 259, NumExitRoot: 3, InstantWithdraw: false,
+			Owner: tc.AccountsByIdx[259].Addr, Token: tokenAddr},
+	)
+	err = historyDB.addBlock(historyDB.dbWrite, &block.Block)
+	require.NoError(t, err)
+
+	err = historyDB.updateExitTree(historyDB.dbWrite, block.Block.Num,
+		block.Rollup.Withdrawals)
+	require.NoError(t, err)
+
+	// Check that exits in DB match with the expected values
+	dbExits, err := historyDB.GetAllExits()
+	require.NoError(t, err)
+	assert.Equal(t, 4, len(dbExits))
+	dbExitsByIdx := make(map[common.AccountIdx]common.ExitInfo)
+	for _, dbExit := range dbExits {
+		dbExitsByIdx[dbExit.AccountIdx] = dbExit
+	}
+	for _, withdraw := range block.Rollup.Withdrawals {
+		assert.Equal(t, withdraw.NumExitRoot, dbExitsByIdx[withdraw.Idx].BatchNum)
+		if withdraw.InstantWithdraw {
+			assert.Equal(t, &block.Block.Num, dbExitsByIdx[withdraw.Idx].InstantWithdrawn)
+		} else {
+			assert.Equal(t, &block.Block.Num, dbExitsByIdx[withdraw.Idx].DelayedWithdrawRequest)
+		}
+	}
+
+	// Add delayed withdraw to the last block, and insert block into the DB
+	block = &blocks[len(blocks)-1]
+	require.Equal(t, int64(5), block.Block.Num)
+	err = historyDB.addBlock(historyDB.dbWrite, &block.Block)
+	require.NoError(t, err)
+
+	err = historyDB.updateExitTree(historyDB.dbWrite, block.Block.Num,
+		block.Rollup.Withdrawals)
+	require.NoError(t, err)
+
+	// Check that delayed withdrawn has been set
+	dbExits, err = historyDB.GetAllExits()
+	require.NoError(t, err)
+	for _, dbExit := range dbExits {
+		dbExitsByIdx[dbExit.AccountIdx] = dbExit
+	}
+	require.Equal(t, &block.Block.Num, dbExitsByIdx[257].DelayedWithdrawn)
+}
+
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
 	assert.Equal(t, expected.Num, actual.Num)
 	assert.Equal(t, expected.Hash, actual.Hash)

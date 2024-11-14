@@ -51,7 +51,7 @@ type Context struct {
 	instructions          []Instruction
 	accountNames          []string
 	Accounts              map[string]*Account // Name -> *Account
-	accountsByIdx         map[int]*Account
+	AccountsByIdx         map[int]*Account
 	LastRegisteredTokenID common.TokenID
 	l1CreatedAccounts     map[string]*Account // (Name, TokenID) -> *Account
 
@@ -82,7 +82,7 @@ func NewContext(chainID uint16, rollupConstMaxL1UserTx int) *Context {
 	return &Context{
 		Accounts:              make(map[string]*Account),
 		l1CreatedAccounts:     make(map[string]*Account),
-		accountsByIdx:         make(map[int]*Account),
+		AccountsByIdx:         make(map[int]*Account),
 		LastRegisteredTokenID: 0,
 
 		rollupConstMaxL1UserTx: rollupConstMaxL1UserTx,
@@ -295,7 +295,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 		case TypeNewBatch:
 			for _, tx := range tc.currBatchTest.l1CoordinatorTxs {
 				tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
-				tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
+				tc.AccountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
 				tc.idx++
 			}
 			if err := tc.setIdxs(); err != nil {
@@ -306,12 +306,12 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			// for each L1UserTx of the Queues[ToForgeNum], accumulate Txs into map
 			for _, tx := range tc.Queues[tc.ToForgeNum] {
 				tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
-				tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
+				tc.AccountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
 				tc.idx++
 			}
 			// for _, tx := range tc.currBatchTest.l1CoordinatorTxs {
 			// 	tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
-			// 	tc.accountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
+			// 	tc.AccountsByIdx[tc.idx] = tc.Accounts[tx.fromIdxName]
 			// 	tc.idx++
 			// }
 			tc.currBatch.L1Batch = true
@@ -785,7 +785,8 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 			for k := range l1Txs {
 				tx := l1Txs[k]
 				if tx.Type == common.TxTypeCreateAccountDeposit {
-					user, ok := tc.accountsByIdx[tc.extra.idx]
+					// tx.Type == common.TxTypeCreateAccountDepositTransfer {
+					user, ok := tc.AccountsByIdx[tc.extra.idx]
 					if !ok {
 						return common.Wrap(fmt.Errorf("created account with idx: %v not found", tc.extra.idx))
 					}
@@ -834,7 +835,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				tx.Position = position
 				position++
 				tx.Nonce = tc.extra.nonces[tx.FromIdx]
-				// tx.TokenID = tc.accountsByIdx[int(tx.FromIdx)].TokenID
+				// tx.TokenID = tc.AccountsByIdx[int(tx.FromIdx)].TokenID
 				tc.extra.nonces[tx.FromIdx]++
 				if err := tx.SetID(); err != nil {
 					return common.Wrap(err)
@@ -881,7 +882,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				// 	return common.Wrap(err)
 				// }
 
-				// fromAcc, ok := tc.accountsByIdx[int(tx.FromIdx)]
+				// fromAcc, ok := tc.AccountsByIdx[int(tx.FromIdx)]
 				// if !ok {
 				// 	return common.Wrap(fmt.Errorf("L2tx.FromIdx idx: %v not found", tx.FromIdx))
 				// }
