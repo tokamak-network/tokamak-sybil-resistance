@@ -49,12 +49,12 @@ func (r *RollupBlock) addTransaction(tx *types.Transaction) *types.Transaction {
 	return tx
 }
 
-var (
-	errBidClosed   = fmt.Errorf("Bid has already been closed")
-	errBidNotOpen  = fmt.Errorf("Bid has not been opened yet")
-	errBidBelowMin = fmt.Errorf("Bid below minimum")
-	errCoordNotReg = fmt.Errorf("Coordinator not registered")
-)
+// var (
+// 	errBidClosed   = fmt.Errorf("bid has already been closed")
+// 	errBidNotOpen  = fmt.Errorf("bid has not been opened yet")
+// 	errBidBelowMin = fmt.Errorf("bid below minimum")
+// 	errCoordNotReg = fmt.Errorf("coordinator not registered")
+// )
 
 // EthereumBlock stores all the generic data related to the an ethereum block
 type EthereumBlock struct {
@@ -509,6 +509,9 @@ var errTODO = fmt.Errorf("TODO: Not implemented yet")
 // 	if int64(l1Tx.FromIdx) > r.State.CurrentIdx {
 // 		panic("l1Tx.FromIdx > r.State.CurrentIdx")
 // 	}
+// 	if int(l1Tx.TokenID)+1 > len(r.State.TokenList) {
+// 		panic("l1Tx.TokenID + 1 > len(r.State.TokenList)")
+// 	}
 // 	queue.L1TxQueue = append(queue.L1TxQueue, *l1Tx)
 // 	r.Events.L1UserTx = append(r.Events.L1UserTx, eth.RollupEventL1UserTx{
 // 		L1Tx:            *l1Tx,
@@ -583,7 +586,7 @@ func (c *Client) RollupL1UserTxERC20ETH(
 
 // RollupL1UserTxERC777 is the interface to call the smart contract function
 // func (c *Client) RollupL1UserTxERC777(fromBJJ *babyjub.PublicKey, fromIdx int64,
-// 	depositAmount *big.Int, amount *big.Int,
+// 	depositAmount *big.Int, amount *big.Int, tokenID uint32,
 //	toIdx int64) (*types.Transaction, error) {
 // 	log.Error("TODO")
 // 	return nil, errTODO
@@ -796,7 +799,7 @@ func (c *Client) RollupEventsByBlock(blockNum int64,
 		return nil, common.Wrap(fmt.Errorf("Block %v doesn't exist", blockNum))
 	}
 	if blockHash != nil && *blockHash != block.Eth.Hash {
-		return nil, common.Wrap(fmt.Errorf("Hash mismatch, requested %v got %v",
+		return nil, common.Wrap(fmt.Errorf("hash mismatch, requested %v got %v",
 			blockHash, block.Eth.Hash))
 	}
 	return &block.Rollup.Events, nil
@@ -850,7 +853,6 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 				L1CoordinatorTxs:      batch.L1CoordinatorTxs,
 				L1CoordinatorTxsAuths: auths,
 				L2TxsData:             batch.L2Txs,
-				FeeIdxCoordinator:     batch.Batch.FeeIdxsCoordinator,
 				// Circuit selector
 				VerifierIdx: 0, // Intentionally empty
 				L1Batch:     batch.L1Batch,
