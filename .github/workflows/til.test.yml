@@ -4,6 +4,7 @@ on:
   push:
     branches-ignore:
       - "main"
+      - "develop"
     paths:
       - "sequencer/test/til/**"
       - "!sequencer/test/til/README.md"
