@@ -3,7 +3,7 @@ name: "SYB all tests"
 on:
   pull_request:
     branches:
-      - "main"
+      - "develop"
     paths:
       - "sequencer/**"
 

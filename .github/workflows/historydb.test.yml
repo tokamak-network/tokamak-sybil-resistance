@@ -4,6 +4,7 @@ on:
   push:
     branches-ignore:
       - "main"
+      - "develop"
     paths:
       - "sequencer/database/historydb/**"
       - "sequencer/database/utils.go"
