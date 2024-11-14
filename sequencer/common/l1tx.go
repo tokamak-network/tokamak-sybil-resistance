@@ -171,8 +171,8 @@ func (tx L1Tx) Tx() Tx {
 // [ 1 bits  ] empty (toBJJSign) // 1 byte
 // [ 8 bits  ] empty (userFee) // 1 byte
 // [ 40 bits ] empty (nonce) // 5 bytes
-// [ 32 bits ] toIdx // 4 bytes
-// [ 32 bits ] fromIdx // 4 bytes
+// [ 24 bits ] toIdx // 3 bytes
+// [ 24 bits ] fromIdx // 3 bytes
 // [ 16 bits ] chainId // 2 bytes
 // [ 32 bits ] empty (signatureConstant) // 4 bytes
 // Total bits compressed data:  225 bits // 29 bytes in *big.Int representation
@@ -213,7 +213,7 @@ func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	pkCompB := b[20:52]
 	pkCompL := SwapEndianness(pkCompB)
 	copy(tx.FromBJJ[:], pkCompL)
-	fromIdx, err := AccountIdxFromBytes(b[52:56])
+	fromIdx, err := AccountIdxFromBytes(b[52:55])
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -226,7 +226,7 @@ func L1UserTxFromBytes(b []byte) (*L1Tx, error) {
 	if err != nil {
 		return nil, Wrap(err)
 	}
-	tx.ToIdx, err = AccountIdxFromBytes(b[72:76])
+	tx.ToIdx, err = AccountIdxFromBytes(b[72:75])
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -243,12 +243,12 @@ func L1TxFromDataAvailability(b []byte, nLevels uint32) (*L1Tx, error) {
 	amountBytes := b[idxLen*2 : idxLen*2+Float40BytesLength]
 
 	l1tx := L1Tx{}
-	fromIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(fromIdxBytes, 4))
+	fromIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(fromIdxBytes, 3))
 	if err != nil {
 		return nil, Wrap(err)
 	}
 	l1tx.FromIdx = fromIdx
-	toIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(toIdxBytes, 4))
+	toIdx, err := AccountIdxFromBytes(ethCommon.LeftPadBytes(toIdxBytes, 3))
 	if err != nil {
 		return nil, Wrap(err)
 	}
@@ -257,6 +257,7 @@ func L1TxFromDataAvailability(b []byte, nLevels uint32) (*L1Tx, error) {
 	return &l1tx, Wrap(err)
 }
 
+// TODO: Remove this, In the PR to initialize the coordinator setup, pipeline creation and helper function addition
 // L1CoordinatorTxFromBytes decodes a L1Tx from []byte
 func L1CoordinatorTxFromBytes(b []byte, chainID *big.Int, tokamakAddress ethCommon.Address) (*L1Tx,
 	error) {
@@ -326,7 +327,7 @@ func (tx *L1Tx) BytesGeneric() ([]byte, error) {
 	if err != nil {
 		return nil, Wrap(err)
 	}
-	copy(b[52:56], fromIdxBytes[:])
+	copy(b[52:55], fromIdxBytes[:])
 
 	depositAmountFloat40, err := NewFloat40(tx.DepositAmount)
 	if err != nil {
@@ -355,39 +356,39 @@ func (tx *L1Tx) BytesGeneric() ([]byte, error) {
 	if err != nil {
 		return nil, Wrap(err)
 	}
-	copy(b[72:76], toIdxBytes[:])
+	copy(b[72:75], toIdxBytes[:])
 	return b[:], nil
 }
 
-// BytesDataAvailability encodes a L1Tx into []byte for the Data Availability
-// [ fromIdx | toIdx | amountFloat40 | Fee ]
-func (tx *L1Tx) BytesDataAvailability(nLevels uint32) ([]byte, error) {
-	idxLen := nLevels / 8 //nolint:gomnd
+// // BytesDataAvailability encodes a L1Tx into []byte for the Data Availability
+// // [ fromIdx | toIdx | amountFloat40 | Fee ]
+// func (tx *L1Tx) BytesDataAvailability(nLevels uint32) ([]byte, error) {
+// 	idxLen := nLevels / 8 //nolint:gomnd
 
-	b := make([]byte, ((nLevels*2)+40+8)/8) //nolint:gomnd
+// 	b := make([]byte, ((nLevels*2)+40+8)/8) //nolint:gomnd
 
-	fromIdxBytes, err := tx.FromIdx.Bytes()
-	if err != nil {
-		return nil, Wrap(err)
-	}
-	copy(b[0:idxLen], fromIdxBytes[6-idxLen:])
-	toIdxBytes, err := tx.ToIdx.Bytes()
-	if err != nil {
-		return nil, Wrap(err)
-	}
-	copy(b[idxLen:idxLen*2], toIdxBytes[6-idxLen:])
+// 	fromIdxBytes, err := tx.FromIdx.Bytes()
+// 	if err != nil {
+// 		return nil, Wrap(err)
+// 	}
+// 	copy(b[0:idxLen], fromIdxBytes[6-idxLen:])
+// 	toIdxBytes, err := tx.ToIdx.Bytes()
+// 	if err != nil {
+// 		return nil, Wrap(err)
+// 	}
+// 	copy(b[idxLen:idxLen*2], toIdxBytes[6-idxLen:])
 
-	if tx.EffectiveAmount != nil {
-		amountFloat40, err := NewFloat40(tx.EffectiveAmount)
-		if err != nil {
-			return nil, Wrap(err)
-		}
-		amountFloat40Bytes, err := amountFloat40.Bytes()
-		if err != nil {
-			return nil, Wrap(err)
-		}
-		copy(b[idxLen*2:idxLen*2+Float40BytesLength], amountFloat40Bytes)
-	}
-	// fee = 0 (as is L1Tx)
-	return b[:], nil
-}
+// 	if tx.EffectiveAmount != nil {
+// 		amountFloat40, err := NewFloat40(tx.EffectiveAmount)
+// 		if err != nil {
+// 			return nil, Wrap(err)
+// 		}
+// 		amountFloat40Bytes, err := amountFloat40.Bytes()
+// 		if err != nil {
+// 			return nil, Wrap(err)
+// 		}
+// 		copy(b[idxLen*2:idxLen*2+Float40BytesLength], amountFloat40Bytes)
+// 	}
+// 	// fee = 0 (as is L1Tx)
+// 	return b[:], nil
+// }
