@@ -762,6 +762,9 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				tx.BatchNum = &batchNum
 				tx.EthBlockNum = batch.Batch.EthBlockNum
 			}
+
+			// TODO: default value is nil but the db column type is not nullable
+			batch.Batch.GasPrice = big.NewInt(0)
 		}
 	}
 
