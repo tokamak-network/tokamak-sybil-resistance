@@ -278,7 +278,7 @@ func (hdb *HistoryDB) updateExitTree(d sqlx.Ext, blockNum int64,
 		DelayedWithdrawRequest *int64             `db:"delayed_withdraw_request"`
 		DelayedWithdrawn       *int64             `db:"delayed_withdrawn"`
 		Owner                  *ethCommon.Address `db:"owner"`
-		Token                  *ethCommon.Address `db:"token"`
+		// Token                  *ethCommon.Address `db:"token"`
 	}
 	withdrawals := make([]withdrawal, len(rollupWithdrawals)) //+len(wDelayerWithdrawals))
 	for i := range rollupWithdrawals {
@@ -292,7 +292,7 @@ func (hdb *HistoryDB) updateExitTree(d sqlx.Ext, blockNum int64,
 		} else {
 			withdrawals[i].DelayedWithdrawRequest = &blockNum
 			withdrawals[i].Owner = &info.Owner
-			withdrawals[i].Token = &info.Token
+			// withdrawals[i].Token = &info.Token
 		}
 	}
 	// for i := range wDelayerWithdrawals {
@@ -313,9 +313,9 @@ func (hdb *HistoryDB) updateExitTree(d sqlx.Ext, blockNum int64,
 				ELSE d.delayed_withdraw_request
 			END,
 			delayed_withdrawn = d.delayed_withdrawn,
-			owner = d.owner,
+			owner = d.owner
 		FROM (VALUES
-			(NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BYTEA, NULL::::BYTEA),
+			(NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BYTEA),
 			(:batch_num,
 			 :account_idx,
 			 :instant_withdrawn,
