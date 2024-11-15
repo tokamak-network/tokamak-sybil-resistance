@@ -54,6 +54,9 @@ func TestMain(m *testing.M) {
 	apiConnCon := database.NewAPIConnectionController(1, time.Second)
 	historyDBWithACC = NewHistoryDB(db, db, apiConnCon)
 
+	// Reset DB
+	WipeDB(historyDB.DB())
+
 	// Run tests
 	result := m.Run()
 	// Close DB
@@ -68,7 +71,6 @@ func TestBlocks(t *testing.T) {
 	fromBlock = 0
 	toBlock = 7
 	// Reset DB
-	WipeDB(historyDB.DB())
 	// Generate blocks using til
 	set1 := `
 		Type: Blockchain
@@ -119,11 +121,11 @@ func TestBlocks(t *testing.T) {
 	lastBlock, err := historyDB.GetLastBlock()
 	assert.NoError(t, err)
 	assertEqualBlock(t, &blocks[len(blocks)-1].Block, lastBlock)
+
+	WipeDB(historyDB.DB())
 }
 
 func TestBatches(t *testing.T) {
-	// Reset DB
-	WipeDB(historyDB.DB())
 	// Generate batches using til (and blocks for foreign key)
 	set := `
 		Type: Blockchain
@@ -201,6 +203,9 @@ func TestBatches(t *testing.T) {
 	assert.Equal(t, &batches[0], fetchedBatch)
 	_, err = historyDB.GetBatch(common.BatchNum(len(batches) + 1))
 	assert.Equal(t, sql.ErrNoRows, common.Unwrap(err))
+
+	// Reset DB
+	WipeDB(historyDB.DB())
 }
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
