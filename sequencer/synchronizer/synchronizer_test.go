@@ -360,6 +360,8 @@ func TestSyncGeneral(t *testing.T) {
 		ForceExit B: 80
 
 		CreateVouch C-A
+		CreateVouch C-B
+		CreateVouch C-D
 		Exit C: 50
 		Exit D: 30
 
@@ -393,7 +395,7 @@ func TestSyncGeneral(t *testing.T) {
 	require.Equal(t, 3, int(blocks[i].Block.Num))
 	require.Equal(t, 2, len(blocks[i].Rollup.L1UserTxs))
 	require.Equal(t, 2, len(blocks[i].Rollup.Batches))
-	require.Equal(t, 3, len(blocks[i].Rollup.Batches[0].L2Txs))
+	require.Equal(t, 5, len(blocks[i].Rollup.Batches[0].L2Txs))
 	// Set StateRoots for batches manually (til doesn't set it)
 	blocks[i].Rollup.Batches[0].Batch.StateRoot =
 		newBigInt("13535760140937349829640752733057594576151546047374619177689224612061148090678")
