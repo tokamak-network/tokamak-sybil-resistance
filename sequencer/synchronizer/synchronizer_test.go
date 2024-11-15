@@ -347,10 +347,10 @@ func TestSyncGeneral(t *testing.T) {
 	set1 := `
 		Type: Blockchain
 
-		CreateAccountDeposit C: 2000 // Idx=256+0=256
-		CreateAccountDeposit A: 2000 // Idx=256+1=257
-		CreateAccountDeposit D: 500  // Idx=256+2=258
-		CreateAccountDeposit B: 500  // Idx=256+3=259
+		CreateAccountDeposit A: 2000 // Idx=256+0=256
+		CreateAccountDeposit B: 500  // Idx=256+1=257
+		CreateAccountDeposit C: 2000 // Idx=256+2=258
+		CreateAccountDeposit D: 500  // Idx=256+3=259
 
 		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{4}
 		> batchL1 // forge defined L1UserTxs{4}, freeze L1UserTxs{nil}
@@ -459,10 +459,10 @@ func TestSyncGeneral(t *testing.T) {
 
 	// Block 4
 	// Generate 2 withdraws manually
-	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["A"].BJJ.Public().Compress(), 4, 257,
+	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["A"].BJJ.Public().Compress(), 4, 256,
 		big.NewInt(100), []*big.Int{}, true)
 	require.NoError(t, err)
-	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["C"].BJJ.Public().Compress(), 3, 256,
+	_, err = client.RollupWithdrawMerkleProof(tc.Accounts["C"].BJJ.Public().Compress(), 3, 258,
 		big.NewInt(50), []*big.Int{}, false)
 	require.NoError(t, err)
 	client.CtlMineBlock()
@@ -485,10 +485,10 @@ func TestSyncGeneral(t *testing.T) {
 	foundA1, foundC1 := false, false
 
 	for _, exit := range dbExits {
-		if exit.AccountIdx == 257 && exit.BatchNum == 4 {
+		if exit.AccountIdx == 256 && exit.BatchNum == 4 {
 			foundA1 = true
 		}
-		if exit.AccountIdx == 256 && exit.BatchNum == 3 {
+		if exit.AccountIdx == 258 && exit.BatchNum == 3 {
 			foundC1 = true
 		}
 	}
