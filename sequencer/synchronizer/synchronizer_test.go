@@ -240,8 +240,6 @@ var chainID uint16 = 0
 var deleteme = []string{}
 
 func TestMain(m *testing.M) {
-	// TODO: implement WipeDB
-
 	exitVal := m.Run()
 	for _, dir := range deleteme {
 		if err := os.RemoveAll(dir); err != nil {
@@ -265,8 +263,6 @@ func newTestModules(t *testing.T) (*statedb.StateDB, *historydb.HistoryDB, *l2db
 	db, err := dbUtils.InitTestSQLDB()
 	require.NoError(t, err)
 	historyDB := historydb.NewHistoryDB(db, db, nil)
-	// Clear DB
-	test.WipeDB(historyDB.DB())
 
 	// Init L2 DB
 	l2DB := l2db.NewL2DB(db, db, 10, 100, 0.0, 1000.0, 24*time.Hour, nil)

@@ -16,3 +16,15 @@ func WipeDB(db *sqlx.DB) {
 		panic(err)
 	}
 }
+
+func MigrationsDownTest(db *sqlx.DB) {
+	if err := dbUtils.MigrationsDown(db.DB, 0); err != nil {
+		panic(err)
+	}
+}
+
+func MigrationsUpTest(db *sqlx.DB) {
+	if err := dbUtils.MigrationsUp(db.DB); err != nil {
+		panic(err)
+	}
+}
