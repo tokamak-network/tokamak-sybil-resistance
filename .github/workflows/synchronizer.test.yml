@@ -1,4 +1,4 @@
-name: "SYB historydb test"
+name: "SYB synchronizer test"
 
 on:
   push:
@@ -6,13 +6,16 @@ on:
       - "main"
       - "develop"
     paths:
+      - "sequencer/synchronizer/**"
       - "sequencer/database/historydb/**"
+      - "sequencer/database/l2db/**"
+      - "sequencer/database/statedb/**"
+      - "sequencer/txprocessor/**"
       - "sequencer/test/til/**"
-      - "sequencer/database/utils.go"
   workflow_dispatch:
 
 jobs:
-  syb-historydb-test:
+  syb-synchronizer-test:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -51,10 +54,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run historydb tests
+      - name: Run synchronizer tests
         run: |
           cd ./sequencer
-          task test-historydb
+          task test-synchronizer
         env:
           PGHOST: "localhost"
           PGPORT: "5432"
