@@ -229,7 +229,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			}
 		case common.TxTypeCreateVouch:
 			tx := common.L2Tx{
-				// Amount:      inst.Amount,
+				Amount: big.NewInt(0),
 				// Fee:         common.FeeSelector(inst.Fee),
 				Type:        common.TxTypeCreateVouch,
 				EthBlockNum: tc.blockNum,
@@ -245,7 +245,7 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
 		case common.TxTypeDeleteVouch:
 			tx := common.L2Tx{
-				// Amount:      inst.Amount,
+				Amount: big.NewInt(0),
 				// Fee:         common.FeeSelector(inst.Fee),
 				Type:        common.TxTypeDeleteVouch,
 				EthBlockNum: tc.blockNum,
@@ -870,7 +870,7 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 					batch.ExitTree = append(batch.ExitTree, common.ExitInfo{
 						BatchNum:   batch.Batch.BatchNum,
 						AccountIdx: tx.FromIdx,
-						// Balance:    tx.Amount,
+						Balance:    tx.Amount,
 					})
 				}
 				// fee, err := common.CalcFeeAmount(tx.Amount, tx.Fee)

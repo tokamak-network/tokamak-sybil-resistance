@@ -606,6 +606,14 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 
 	switch tx.Type {
 	//TODO: Add transaction types here add vouch, delete vouch etc.
+	case common.TxTypeCreateVouch, common.TxTypeDeleteVouch:
+		// go to the MT account of sender and receiver, and update nonce
+		// TODO: update score
+		err = txProcessor.applyVouch(tx.Tx(), tx.AuxToIdx)
+		if err != nil {
+			log.Error(err)
+			return nil, nil, false, common.Wrap(err)
+		}
 	case common.TxTypeExit:
 		// execute exit flow
 		exitAccount, newExit, err := txProcessor.applyExit(exitTree,
@@ -625,7 +633,7 @@ func (txProcessor *TxProcessor) ProcessL2Tx(exitTree *merkletree.MerkleTree,
 func (txProcessor *TxProcessor) applyCreateAccount(tx *common.L1Tx) error {
 	account := &common.Account{
 		Nonce:   0,
-		Balance: tx.Amount,
+		Balance: tx.DepositAmount,
 		BJJ:     tx.FromBJJ,
 		EthAddr: tx.FromEthAddr,
 	}
@@ -890,6 +898,7 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 	}
 	cmp := bal.Cmp(tx.Amount)
 	if cmp == -1 {
+		panic(accSender.Idx)
 		log.Debugf("EffectiveAmount = 0: Not enough funds (%s<%s)", bal.String(), tx.Amount.String())
 		tx.EffectiveAmount = big.NewInt(0)
 		return
@@ -909,4 +918,89 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 		// if transfer is Exit type, there are no more checks
 		return
 	}
+}
+
+// applyVouch updates the link, score and nonce for the account of the sender, and
+// the link, score for the account of the receiver.
+// Parameter 'toIdx' should be at 0 if the tx already has tx.ToIdx!=0, if
+// tx.ToIdx==0, then toIdx!=0, and will be used the toIdx parameter as Idx of
+// the receiver. This parameter is used when the tx.ToIdx is not specified and
+// the real ToIdx is found trhrough the ToEthAddr or ToBJJ.
+func (txProcessor *TxProcessor) applyVouch(tx common.Tx, auxToIdx common.AccountIdx) error {
+	if auxToIdx == common.AccountIdx(0) {
+		auxToIdx = tx.ToIdx
+	}
+	// get sender and receiver accounts from localStateDB
+	accSender, err := txProcessor.state.GetAccount(tx.FromIdx)
+	if err != nil {
+		log.Error(err)
+		return common.Wrap(err)
+	}
+
+	// if txProcessor.zki != nil {
+	// 	// Set the State1 before updating the Sender leaf
+	// 	txProcessor.zki.TokenID1[txProcessor.txIndex] = accSender.TokenID.BigInt()
+	// 	txProcessor.zki.Nonce1[txProcessor.txIndex] = accSender.Nonce.BigInt()
+	// 	senderBJJSign, senderBJJY := babyjub.UnpackSignY(accSender.BJJ)
+	// 	if senderBJJSign {
+	// 		txProcessor.zki.Sign1[txProcessor.txIndex] = big.NewInt(1)
+	// 	}
+	// 	txProcessor.zki.Ay1[txProcessor.txIndex] = senderBJJY
+	// 	txProcessor.zki.Balance1[txProcessor.txIndex] = accSender.Balance
+	// 	txProcessor.zki.EthAddr1[txProcessor.txIndex] = common.EthAddrToBigInt(accSender.EthAddr)
+	// }
+
+	// increment nonce
+	accSender.Nonce++
+
+	//TODO: update score and link for the accSender based on TxType
+
+	// update sender account in localStateDB
+	pSender, err := txProcessor.updateAccount(tx.FromIdx, accSender)
+	if err != nil {
+		log.Error(err)
+		return common.Wrap(err)
+	}
+	if txProcessor.zki != nil {
+		txProcessor.zki.Siblings1[txProcessor.txIndex] = siblingsToZKInputFormat(pSender.Siblings)
+	}
+
+	var accReceiver *common.Account
+	if auxToIdx == tx.FromIdx {
+		// if Sender is the Receiver, reuse 'accSender' pointer,
+		// because in the DB the account for 'auxToIdx' won't be
+		// updated yet
+		accReceiver = accSender
+	} else {
+		accReceiver, err = txProcessor.state.GetAccount(auxToIdx)
+		if err != nil {
+			log.Error(err, auxToIdx)
+			return common.Wrap(err)
+		}
+	}
+	// if txProcessor.zki != nil {
+	// 	// Set the State2 before updating the Receiver leaf
+	// 	txProcessor.zki.TokenID2[txProcessor.txIndex] = accReceiver.TokenID.BigInt()
+	// 	txProcessor.zki.Nonce2[txProcessor.txIndex] = accReceiver.Nonce.BigInt()
+	// 	receiverBJJSign, receiverBJJY := babyjub.UnpackSignY(accReceiver.BJJ)
+	// 	if receiverBJJSign {
+	// 		txProcessor.zki.Sign2[txProcessor.txIndex] = big.NewInt(1)
+	// 	}
+	// 	txProcessor.zki.Ay2[txProcessor.txIndex] = receiverBJJY
+	// 	txProcessor.zki.Balance2[txProcessor.txIndex] = accReceiver.Balance
+	// 	txProcessor.zki.EthAddr2[txProcessor.txIndex] = common.EthAddrToBigInt(accReceiver.EthAddr)
+	// }
+
+	//TODO: update score and link for the accReceiver based on TxType
+
+	// update receiver account in localStateDB
+	pReceiver, err := txProcessor.updateAccount(auxToIdx, accReceiver)
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if txProcessor.zki != nil {
+		txProcessor.zki.Siblings2[txProcessor.txIndex] = siblingsToZKInputFormat(pReceiver.Siblings)
+	}
+
+	return nil
 }
