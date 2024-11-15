@@ -490,9 +490,6 @@ func TestTxs(t *testing.T) {
 }
 
 func TestExitTree(t *testing.T) {
-	// Reset DB
-	test.WipeDB(historyDB.DB())
-
 	nBatches := 17
 
 	blocks := setTestBlocks(1, 10)
@@ -507,12 +504,12 @@ func TestExitTree(t *testing.T) {
 	exitTree := test.GenExitTree(nBatches, batches, accs, blocks)
 	err = historyDB.AddExitTree(exitTree)
 	assert.NoError(t, err)
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestGetUnforgedL1UserTxs(t *testing.T) {
-	// Reset DB
-	test.WipeDB(historyDB.DB())
-
 	set := `
 		Type: Blockchain
 
@@ -572,6 +569,9 @@ func TestGetUnforgedL1UserTxs(t *testing.T) {
 	l1UserTxs, err = historyDB.GetUnforgedL1UserTxs(3)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(l1UserTxs))
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func exampleInitSCVars() *common.RollupVariables { // *common.AuctionVariables,
@@ -613,9 +613,6 @@ func exampleInitSCVars() *common.RollupVariables { // *common.AuctionVariables,
 }
 
 func TestSetInitialSCVars(t *testing.T) {
-	// Reset DB
-	test.WipeDB(historyDB.DB())
-
 	_, err := historyDB.GetSCVars()
 	assert.Equal(t, sql.ErrNoRows, err)
 	rollup := exampleInitSCVars()
@@ -624,11 +621,12 @@ func TestSetInitialSCVars(t *testing.T) {
 	dbRollup, err := historyDB.GetSCVars()
 	require.NoError(t, err)
 	require.Equal(t, rollup, dbRollup)
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestSetExtraInfoForgedL1UserTxs(t *testing.T) {
-	test.WipeDB(historyDB.DB())
-
 	set := `
 		Type: Blockchain
 
@@ -699,11 +697,12 @@ func TestSetExtraInfoForgedL1UserTxs(t *testing.T) {
 			assert.Equal(t, big.NewInt(0), tx.EffectiveAmount)
 		}
 	}
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestUpdateExitTree(t *testing.T) {
-	test.WipeDB(historyDB.DB())
-
 	set := `
 		Type: Blockchain
 
@@ -802,10 +801,12 @@ func TestUpdateExitTree(t *testing.T) {
 	// 	dbExitsByIdx[dbExit.AccountIdx] = dbExit
 	// }
 	// require.Equal(t, block.Block.Num, dbExitsByIdx[257].DelayedWithdrawn)
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestAddBucketUpdates(t *testing.T) {
-	test.WipeDB(historyDB.DB())
 	const fromBlock int64 = 1
 	const toBlock int64 = 5 + 1
 	setTestBlocks(fromBlock, toBlock)
@@ -829,23 +830,28 @@ func TestAddBucketUpdates(t *testing.T) {
 	dbBucketUpdates, err := historyDB.GetAllBucketUpdates()
 	require.NoError(t, err)
 	assert.Equal(t, bucketUpdates, dbBucketUpdates)
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestGetLastL1TxsNum(t *testing.T) {
-	test.WipeDB(historyDB.DB())
 	_, err := historyDB.GetLastL1TxsNum()
 	assert.NoError(t, err)
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestGetLastTxsPosition(t *testing.T) {
-	test.WipeDB(historyDB.DB())
 	_, err := historyDB.GetLastTxsPosition(0)
 	assert.Equal(t, sql.ErrNoRows.Error(), err.Error())
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestGetFirstBatchBlockNumBySlot(t *testing.T) {
-	test.WipeDB(historyDB.DB())
-
 	set := `
 		Type: Blockchain
 
@@ -905,11 +911,12 @@ func TestGetFirstBatchBlockNumBySlot(t *testing.T) {
 	bn2, err := historyDB.GetFirstBatchBlockNumBySlot(2)
 	require.NoError(t, err)
 	assert.Equal(t, int64(10), bn2)
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func TestTxItemID(t *testing.T) {
-	test.WipeDB(historyDB.DB())
-
 	testUsersLen := 10
 	var set []til.Instruction
 	for user := 0; user < testUsersLen; user++ {
@@ -983,6 +990,9 @@ func TestTxItemID(t *testing.T) {
 		assert.Equal(t, position, tx.Position)
 		position++
 	}
+
+	// Reset DB
+	test.WipeDB(historyDB.DB())
 }
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
