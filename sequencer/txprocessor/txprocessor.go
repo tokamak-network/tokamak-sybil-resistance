@@ -898,7 +898,6 @@ func (txProcessor *TxProcessor) computeEffectiveAmounts(tx *common.L1Tx) {
 	}
 	cmp := bal.Cmp(tx.Amount)
 	if cmp == -1 {
-		panic(accSender.Idx)
 		log.Debugf("EffectiveAmount = 0: Not enough funds (%s<%s)", bal.String(), tx.Amount.String())
 		tx.EffectiveAmount = big.NewInt(0)
 		return
