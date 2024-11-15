@@ -240,6 +240,8 @@ var chainID uint16 = 0
 var deleteme = []string{}
 
 func TestMain(m *testing.M) {
+	// TODO: implement WipeDB
+
 	exitVal := m.Run()
 	for _, dir := range deleteme {
 		if err := os.RemoveAll(dir); err != nil {
@@ -524,4 +526,6 @@ func TestSyncGeneral(t *testing.T) {
 	// Set EthBlockNum for Vars to the blockNum in which they were updated (should be 5)
 	rollupVars.EthBlockNum = syncBlock.Block.Num
 	assert.Equal(t, rollupVars, dbRollupVars)
+
+	// TODO: implement WipeDB
 }
