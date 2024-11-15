@@ -126,7 +126,7 @@ func (hdb *HistoryDB) GetLastBatch() (*common.Batch, error) {
 	var batch common.Batch
 	err := meddler.QueryRow(
 		hdb.dbRead, &batch, `SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr,
-		batch.fees_collected, batch.fee_idxs_coordinator, batch.state_root,
+		batch.state_root,
 		batch.num_accounts, batch.last_idx, batch.exit_root, batch.forge_l1_txs_num,
 		batch.slot_num, batch.total_fees_usd, batch.gas_price, batch.gas_used, batch.ether_price_usd
 		FROM batch ORDER BY batch_num DESC LIMIT 1;`,
@@ -189,8 +189,8 @@ func (hdb *HistoryDB) GetAllBatches() ([]common.Batch, error) {
 	var batches []*common.Batch
 	err := meddler.QueryAll(
 		hdb.dbRead, &batches,
-		`SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr, batch.fees_collected,
-		 batch.fee_idxs_coordinator, batch.state_root, batch.num_accounts, batch.last_idx, batch.exit_root,
+		`SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr,
+		batch.state_root, batch.num_accounts, batch.last_idx, batch.exit_root,
 		 batch.forge_l1_txs_num, batch.slot_num, batch.total_fees_usd, batch.eth_tx_hash FROM batch
 		 ORDER BY item_id;`,
 	)
@@ -202,7 +202,7 @@ func (hdb *HistoryDB) GetBatches(from, to common.BatchNum) ([]common.Batch, erro
 	var batches []*common.Batch
 	err := meddler.QueryAll(
 		hdb.dbRead, &batches,
-		`SELECT batch_num, eth_block_num, forger_addr, fees_collected, fee_idxs_coordinator, 
+		`SELECT batch_num, eth_block_num, forger_addr,
 		state_root, num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, gas_price, gas_used, ether_price_usd 
 		FROM batch WHERE $1 <= batch_num AND batch_num < $2 ORDER BY batch_num;`,
 		from, to,
@@ -222,7 +222,7 @@ func (hdb *HistoryDB) GetBatch(batchNum common.BatchNum) (*common.Batch, error) 
 	var batch common.Batch
 	err := meddler.QueryRow(
 		hdb.dbRead, &batch, `SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr,
-		batch.fees_collected, batch.fee_idxs_coordinator, batch.state_root,
+		batch.state_root,
 		batch.num_accounts, batch.last_idx, batch.exit_root, batch.forge_l1_txs_num,
 		batch.slot_num, batch.total_fees_usd, batch.gas_price, batch.gas_used, batch.ether_price_usd
 		FROM batch WHERE batch_num = $1;`,
@@ -346,8 +346,7 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 		depositAmountFloat, _ := laf.Float64()
 		var effectiveFromIdx *common.AccountIdx
 		if l1txs[i].UserOrigin {
-			if l1txs[i].Type != common.TxTypeCreateAccountDeposit &&
-				l1txs[i].Type != common.TxTypeCreateAccountDepositTransfer {
+			if l1txs[i].Type != common.TxTypeCreateAccountDeposit {
 				effectiveFromIdx = &l1txs[i].FromIdx
 			}
 		} else {

@@ -3,14 +3,14 @@ name: "SYB all tests"
 on:
   pull_request:
     branches:
-      - "main"
+      - "develop"
     paths:
       - "sequencer/**"
 
   workflow_dispatch:
 
 jobs:
-  core-build:
+  syb-sequencer-tests:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -59,4 +59,5 @@ jobs:
           PGUSER: "postgres"
           PGPASSWORD: "postgres"
           PGDATABASE: "statedb"
+          CI: true
 

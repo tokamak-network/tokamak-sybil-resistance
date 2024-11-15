@@ -23,8 +23,6 @@ func (m migrationTest0003) InsertData(db *sqlx.DB) error {
 		batch_num, 
 		eth_block_num, 
 		forger_addr, 
-		fees_collected, 
-		fee_idxs_coordinator, 
 		state_root, 
 		num_accounts, 
 		last_idx, 
@@ -36,8 +34,6 @@ func (m migrationTest0003) InsertData(db *sqlx.DB) error {
 		6758, 
 		4417296, 
 		decode('459264CC7D2BF350AFDDA828C273E81367729C1F', 'hex'),
-		decode('7B2230223A34383337383531313632323134343030307D0A', 'hex'),
-		decode('5B3236335D0A', 'hex'),
 		12898140512818699175738765060248919016800434587665040485377676113605873428098, 
 		256, 
 		1044, 
@@ -56,8 +52,6 @@ func (m migrationTest0003) RunAssertsAfterMigrationUp(t *testing.T, db *sqlx.DB)
 		batch_num = 6758 AND
 		eth_block_num = 4417296 AND
 		forger_addr = decode('459264CC7D2BF350AFDDA828C273E81367729C1F', 'hex') AND
-		fees_collected = decode('7B2230223A34383337383531313632323134343030307D0A', 'hex') AND
-		fee_idxs_coordinator = decode('5B3236335D0A', 'hex') AND
 		state_root = 12898140512818699175738765060248919016800434587665040485377676113605873428098 AND
 		num_accounts = 256 AND
 		last_idx = 1044 AND
@@ -79,8 +73,6 @@ func (m migrationTest0003) RunAssertsAfterMigrationDown(t *testing.T, db *sqlx.D
 		batch_num = 6758 AND
 		eth_block_num = 4417296 AND
 		forger_addr = decode('459264CC7D2BF350AFDDA828C273E81367729C1F', 'hex') AND
-		fees_collected = decode('7B2230223A34383337383531313632323134343030307D0A', 'hex') AND
-		fee_idxs_coordinator = decode('5B3236335D0A', 'hex') AND
 		state_root = 12898140512818699175738765060248919016800434587665040485377676113605873428098 AND
 		num_accounts = 256 AND
 		last_idx = 1044 AND

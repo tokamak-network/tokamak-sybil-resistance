@@ -26,8 +26,8 @@ CREATE TABLE batch (
     batch_num BIGINT UNIQUE NOT NULL,
     eth_block_num BIGINT NOT NULL REFERENCES block (eth_block_num) ON DELETE CASCADE,
     forger_addr BYTEA NOT NULL, -- fake foreign key for coordinator
-    fees_collected BYTEA NOT NULL,
-    fee_idxs_coordinator BYTEA NOT NULL,
+    -- fees_collected BYTEA NOT NULL,
+    -- fee_idxs_coordinator BYTEA NOT NULL,
     state_root DECIMAL(78,0) NOT NULL,
     num_accounts BIGINT NOT NULL,
     last_idx BIGINT NOT NULL,

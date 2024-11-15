@@ -32,8 +32,10 @@ const (
 var (
 	// KeyCurrentBatch is used as key in the db to store the current BatchNum
 	KeyCurrentBatch = []byte("k:currentbatch")
-	// keyCurrentIdx is used as key in the db to store the CurrentIdx
-	keyCurrentIdx = []byte("k:idx")
+	// keyCurrentAccountIdx is used as key in the db to store the CurrentIdx
+	keyCurrentAccountIdx = []byte("k:idxAccount")
+	// keyCurrentVouchIdx is used as key in the db to store the CurrentIdx
+	keyCurrentVouchIdx = []byte("k:idxVouch")
 	// ErrNoLast is returned when the KVDB has been configured to not have
 	// a Last checkpoint but a Last method is used
 	ErrNoLast = fmt.Errorf("no last checkpoint")
@@ -45,6 +47,7 @@ type KVDB struct {
 	db  *pebble.Storage
 	// CurrentIdx holds the current Idx that the BatchBuilder is using
 	CurrentAccountIdx common.AccountIdx
+	CurrentVouchIdx   common.VouchIdx
 	CurrentBatch      common.BatchNum
 	mutexCheckpoint   sync.Mutex
 	mutexDelOld       sync.Mutex
@@ -219,6 +222,8 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 		}
 		k.db = sto
 		k.CurrentAccountIdx = common.RollupConstReservedIDx // 255
+		//TODO: Need to check and update this for VouchIDx, For reseting the same
+		k.CurrentVouchIdx = common.RollupConstReservedIDx
 		k.CurrentBatch = 0
 		if k.last != nil {
 			if err := k.last.setNew(); err != nil {
@@ -257,14 +262,19 @@ func (k *KVDB) reset(batchNum common.BatchNum, closeCurrent bool) error {
 	if err != nil {
 		return common.Wrap(err)
 	}
+	// idx is obtained from the statedb reset
+	k.CurrentVouchIdx, err = k.GetCurrentVouchIdx()
+	if err != nil {
+		return common.Wrap(err)
+	}
 
 	return nil
 }
 
-// GetCurrentIdx returns the stored Idx from the KVDB, which is the last Idx
+// GetCurrentAccountIdx returns the stored Idx from the KVDB, which is the last Idx
 // used for an Account in the k.
 func (k *KVDB) GetCurrentAccountIdx() (common.AccountIdx, error) {
-	idxBytes, err := k.db.Get(keyCurrentIdx)
+	idxBytes, err := k.db.Get(keyCurrentAccountIdx)
 	if common.Unwrap(err) == db.ErrNotFound {
 		return common.RollupConstReservedIDx, nil // 255, nil
 	}
@@ -272,6 +282,20 @@ func (k *KVDB) GetCurrentAccountIdx() (common.AccountIdx, error) {
 		return 0, common.Wrap(err)
 	}
 	return common.AccountIdxFromBytes(idxBytes[:])
+}
+
+// GetCurrentVouchIdx returns the stored Idx from the KVDB, which is the last Idx
+// used for an Vouch in the k.
+func (k *KVDB) GetCurrentVouchIdx() (common.VouchIdx, error) {
+	idxBytes, err := k.db.Get(keyCurrentVouchIdx)
+	if common.Unwrap(err) == db.ErrNotFound {
+		//TODO: Need to check and update this for VouchIDx
+		return common.RollupConstReservedIDx, nil // 255, nil
+	}
+	if err != nil {
+		return 0, common.Wrap(err)
+	}
+	return common.VouchIdxFromBytes(idxBytes[:])
 }
 
 // GetCurrentBatch returns the current BatchNum stored in the KVDB
@@ -302,7 +326,7 @@ func (k *KVDB) setCurrentBatch() error {
 	return nil
 }
 
-// SetCurrentIdx stores Idx in the KVDB
+// SetCurrentIdx stores Idx in the KVDB - Account
 func (k *KVDB) SetCurrentAccountIdx(idx common.AccountIdx) error {
 	k.CurrentAccountIdx = idx
 
@@ -314,7 +338,29 @@ func (k *KVDB) SetCurrentAccountIdx(idx common.AccountIdx) error {
 	if err != nil {
 		return common.Wrap(err)
 	}
-	err = tx.Put(keyCurrentIdx, idxBytes[:])
+	err = tx.Put(keyCurrentAccountIdx, idxBytes[:])
+	if err != nil {
+		return common.Wrap(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
+}
+
+// SetCurrentIdx stores Idx in the KVDB - Vouch
+func (k *KVDB) SetCurrentVouchIdx(idx common.VouchIdx) error {
+	k.CurrentVouchIdx = idx
+
+	tx, err := k.db.NewTx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	idxBytes, err := idx.Bytes()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	err = tx.Put(keyCurrentVouchIdx, idxBytes[:])
 	if err != nil {
 		return common.Wrap(err)
 	}

@@ -707,8 +707,8 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 		tp := txprocessor.NewTxProcessor(s.stateDB, tpc)
 
 		// ProcessTxs updates poolL2Txs adding: Nonce (and also TokenID, but we don't use it).
-		processTxsOut, err := tp.ProcessTxs(forgeBatchArgs.FeeIdxCoordinator,
-			l1UserTxs, batchData.L1CoordinatorTxs, poolL2Txs)
+		processTxsOut, err := tp.ProcessTxs(
+			l1UserTxs, poolL2Txs)
 		if err != nil {
 			return nil, common.Wrap(err)
 		}
@@ -779,16 +779,14 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 
 		// Get Batch information
 		batch := common.Batch{
-			BatchNum:           batchNum,
-			EthTxHash:          ethTxHash,
-			EthBlockNum:        blockNum,
-			ForgerAddr:         *sender,
-			CollectedFees:      processTxsOut.CollectedFees,
-			FeeIdxsCoordinator: forgeBatchArgs.FeeIdxCoordinator,
-			StateRoot:          forgeBatchArgs.NewStRoot,
-			NumAccounts:        len(batchData.CreatedAccounts),
-			LastIdx:            forgeBatchArgs.NewLastIdx,
-			ExitRoot:           forgeBatchArgs.NewExitRoot,
+			BatchNum:    batchNum,
+			EthTxHash:   ethTxHash,
+			EthBlockNum: blockNum,
+			ForgerAddr:  *sender,
+			StateRoot:   forgeBatchArgs.NewStRoot,
+			NumAccounts: len(batchData.CreatedAccounts),
+			LastIdx:     forgeBatchArgs.NewLastIdx,
+			ExitRoot:    forgeBatchArgs.NewExitRoot,
 			// SlotNum:            slotNum,
 			GasUsed:  gasUsed,
 			GasPrice: gasPrice,
