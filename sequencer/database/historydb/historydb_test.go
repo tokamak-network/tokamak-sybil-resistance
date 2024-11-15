@@ -2,6 +2,7 @@ package historydb
 
 import (
 	"database/sql"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -801,6 +802,187 @@ func TestUpdateExitTree(t *testing.T) {
 	// 	dbExitsByIdx[dbExit.AccountIdx] = dbExit
 	// }
 	// require.Equal(t, block.Block.Num, dbExitsByIdx[257].DelayedWithdrawn)
+}
+
+func TestAddBucketUpdates(t *testing.T) {
+	test.WipeDB(historyDB.DB())
+	const fromBlock int64 = 1
+	const toBlock int64 = 5 + 1
+	setTestBlocks(fromBlock, toBlock)
+
+	bucketUpdates := []common.BucketUpdate{
+		{
+			EthBlockNum: 4,
+			NumBucket:   0,
+			BlockStamp:  4,
+			Withdrawals: big.NewInt(123),
+		},
+		{
+			EthBlockNum: 5,
+			NumBucket:   2,
+			BlockStamp:  5,
+			Withdrawals: big.NewInt(42),
+		},
+	}
+	err := historyDB.addBucketUpdates(historyDB.dbWrite, bucketUpdates)
+	require.NoError(t, err)
+	dbBucketUpdates, err := historyDB.GetAllBucketUpdates()
+	require.NoError(t, err)
+	assert.Equal(t, bucketUpdates, dbBucketUpdates)
+}
+
+func TestGetLastL1TxsNum(t *testing.T) {
+	test.WipeDB(historyDB.DB())
+	_, err := historyDB.GetLastL1TxsNum()
+	assert.NoError(t, err)
+}
+
+func TestGetLastTxsPosition(t *testing.T) {
+	test.WipeDB(historyDB.DB())
+	_, err := historyDB.GetLastTxsPosition(0)
+	assert.Equal(t, sql.ErrNoRows.Error(), err.Error())
+}
+
+func TestGetFirstBatchBlockNumBySlot(t *testing.T) {
+	test.WipeDB(historyDB.DB())
+
+	set := `
+		Type: Blockchain
+
+		// Slot = 0
+
+		> block // 2
+		> block // 3
+		> block // 4
+		> block // 5
+
+		// Slot = 1
+
+		> block // 6
+		> block // 7
+		> batch
+		> block // 8
+		> block // 9
+
+		// Slot = 2
+
+		> batch
+		> block // 10
+		> block // 11
+		> block // 12
+		> block // 13
+
+	`
+	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	blocks, err := tc.GenerateBlocks(set)
+	assert.NoError(t, err)
+
+	tilCfgExtra := til.ConfigExtra{
+		CoordUser: "A",
+	}
+	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
+	require.NoError(t, err)
+
+	for i := range blocks {
+		for j := range blocks[i].Rollup.Batches {
+			blocks[i].Rollup.Batches[j].Batch.SlotNum = int64(i) / 4
+		}
+	}
+
+	// Add all blocks
+	for i := range blocks {
+		err = historyDB.AddBlockSCData(&blocks[i])
+		require.NoError(t, err)
+	}
+
+	_, err = historyDB.GetFirstBatchBlockNumBySlot(0)
+	require.Equal(t, sql.ErrNoRows, common.Unwrap(err))
+
+	bn1, err := historyDB.GetFirstBatchBlockNumBySlot(1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(8), bn1)
+
+	bn2, err := historyDB.GetFirstBatchBlockNumBySlot(2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(10), bn2)
+}
+
+func TestTxItemID(t *testing.T) {
+	test.WipeDB(historyDB.DB())
+
+	testUsersLen := 10
+	var set []til.Instruction
+	for user := 0; user < testUsersLen; user++ {
+		set = append(set, til.Instruction{
+			Typ: common.TxTypeCreateAccountDeposit,
+			// TokenID:       common.TokenID(0),
+			DepositAmount: big.NewInt(1000000),
+			Amount:        big.NewInt(0),
+			From:          fmt.Sprintf("User%02d", user),
+		})
+		set = append(set, til.Instruction{Typ: til.TypeNewBlock})
+	}
+	set = append(set, til.Instruction{Typ: til.TypeNewBatchL1})
+	set = append(set, til.Instruction{Typ: til.TypeNewBatchL1})
+	set = append(set, til.Instruction{Typ: til.TypeNewBlock}) // block 11
+
+	for user := 0; user < testUsersLen; user++ {
+		set = append(set, til.Instruction{
+			Typ: common.TxTypeDeposit,
+			// TokenID:       common.TokenID(0),
+			DepositAmount: big.NewInt(100000),
+			Amount:        big.NewInt(0),
+			From:          fmt.Sprintf("User%02d", user),
+		})
+		set = append(set, til.Instruction{Typ: til.TypeNewBlock})
+	}
+	set = append(set, til.Instruction{Typ: til.TypeNewBatchL1})
+	set = append(set, til.Instruction{Typ: til.TypeNewBatchL1})
+	set = append(set, til.Instruction{Typ: til.TypeNewBlock}) // block 22
+
+	for user := 0; user < testUsersLen; user++ {
+		set = append(set, til.Instruction{
+			Typ: common.TxTypeForceExit,
+			// TokenID:       common.TokenID(0),
+			Amount:        big.NewInt(10 * int64(user+1)),
+			DepositAmount: big.NewInt(0),
+			From:          fmt.Sprintf("User%02d", user),
+		})
+		set = append(set, til.Instruction{Typ: til.TypeNewBlock})
+	}
+	set = append(set, til.Instruction{Typ: til.TypeNewBatchL1})
+	set = append(set, til.Instruction{Typ: til.TypeNewBatchL1})
+	set = append(set, til.Instruction{Typ: til.TypeNewBlock}) // block 33
+
+	var chainID uint16 = 0
+	tc := til.NewContext(chainID, common.RollupConstMaxL1UserTx)
+	blocks, err := tc.GenerateBlocksFromInstructions(set)
+	fmt.Println("Block len ", len(blocks))
+	assert.NoError(t, err)
+
+	tilCfgExtra := til.ConfigExtra{
+		// CoordUser: "A",
+	}
+	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
+	require.NoError(t, err)
+
+	// Add all blocks
+	for i := range blocks {
+		fmt.Println("Adding block", i)
+		err = historyDB.AddBlockSCData(&blocks[i])
+		require.NoError(t, err)
+	}
+
+	txs, err := historyDB.GetAllL1UserTxs()
+	require.NoError(t, err)
+	position := 0
+	for _, tx := range txs {
+		if tx.Position == 0 {
+			position = 0
+		}
+		assert.Equal(t, position, tx.Position)
+		position++
+	}
 }
 
 func assertEqualBlock(t *testing.T, expected *common.Block, actual *common.Block) {
