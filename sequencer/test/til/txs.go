@@ -166,7 +166,9 @@ func (tc *Context) GenerateBlocksFromInstructions(set []Instruction) ([]common.B
 	accountNames := []string{}
 	addedNames := make(map[string]bool)
 	for _, inst := range set {
-		if _, ok := addedNames[inst.From]; !ok {
+		// TODO: hermez doesn't have `inst.From != ""` condition but without it
+		// empty string gets added to the accountNames
+		if _, ok := addedNames[inst.From]; !ok && inst.From != "" {
 			// If the name wasn't already added
 			accountNames = append(accountNames, inst.From)
 			addedNames[inst.From] = true

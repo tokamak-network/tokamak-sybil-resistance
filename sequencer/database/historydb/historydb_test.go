@@ -964,7 +964,6 @@ func TestTxItemID(t *testing.T) {
 	var chainID uint16 = 0
 	tc := til.NewContext(chainID, common.RollupConstMaxL1UserTx)
 	blocks, err := tc.GenerateBlocksFromInstructions(set)
-	fmt.Println("Block len ", len(blocks))
 	assert.NoError(t, err)
 
 	tilCfgExtra := til.ConfigExtra{
@@ -975,7 +974,6 @@ func TestTxItemID(t *testing.T) {
 
 	// Add all blocks
 	for i := range blocks {
-		fmt.Println("Adding block", i)
 		err = historyDB.AddBlockSCData(&blocks[i])
 		require.NoError(t, err)
 	}
