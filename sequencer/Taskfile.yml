@@ -10,8 +10,14 @@ tasks:
     dotenv: [".env"]
     cmds:
       - go test ./test/til -v
+
+  test-synchronizer:
+    dotenv: [".env"]
+    cmds:
+      - go test ./synchronizer -v
   
   test-sequencer:
     deps:
       - test-historydb
       - test-til
+      - test-synchronizer
