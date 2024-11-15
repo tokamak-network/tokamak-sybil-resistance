@@ -227,6 +227,17 @@ func (hdb *HistoryDB) GetBatches(from, to common.BatchNum) ([]common.Batch, erro
 	return database.SlicePtrsToSlice(batches).([]common.Batch), common.Wrap(err)
 }
 
+// GetFirstBatchBlockNumBySlot returns the ethereum block number of the first
+// batch within a slot
+func (hdb *HistoryDB) GetFirstBatchBlockNumBySlot(slotNum int64) (int64, error) {
+	row := hdb.dbRead.QueryRow(
+		`SELECT eth_block_num FROM batch
+		WHERE slot_num = $1 ORDER BY batch_num ASC LIMIT 1;`, slotNum,
+	)
+	var blockNum int64
+	return blockNum, common.Wrap(row.Scan(&blockNum))
+}
+
 // GetLastBatchNum returns the BatchNum of the latest forged batch
 func (hdb *HistoryDB) GetLastBatchNum() (common.BatchNum, error) {
 	row := hdb.dbRead.QueryRow("SELECT batch_num FROM batch ORDER BY batch_num DESC LIMIT 1;")
@@ -665,6 +676,16 @@ func (hdb *HistoryDB) GetUnforgedL1UserTxsCount() (int, error) {
 	return count, row.Scan(&count)
 }
 
+// GetLastTxsPosition for a given to_forge_l1_txs_num
+func (hdb *HistoryDB) GetLastTxsPosition(toForgeL1TxsNum int64) (int, error) {
+	row := hdb.dbRead.QueryRow(
+		"SELECT position FROM tx WHERE to_forge_l1_txs_num = $1 ORDER BY position DESC;",
+		toForgeL1TxsNum,
+	)
+	var lastL1TxsPosition int
+	return lastL1TxsPosition, common.Wrap(row.Scan(&lastL1TxsPosition))
+}
+
 // GetSCVars returns the rollup, auction and wdelayer smart contracts variables at their last update.
 func (hdb *HistoryDB) GetSCVars() (*common.RollupVariables, error) {
 	var rollup common.RollupVariables
@@ -673,6 +694,39 @@ func (hdb *HistoryDB) GetSCVars() (*common.RollupVariables, error) {
 		return nil, err
 	}
 	return &rollup, nil
+}
+
+func (hdb *HistoryDB) addBucketUpdates(d meddler.DB, bucketUpdates []common.BucketUpdate) error {
+	if len(bucketUpdates) == 0 {
+		return nil
+	}
+	return common.Wrap(database.BulkInsert(
+		d,
+		`INSERT INTO bucket_update (
+		 	eth_block_num,
+		 	num_bucket,
+		 	block_stamp,
+		 	withdrawals
+		) VALUES %s;`,
+		bucketUpdates,
+	))
+}
+
+// AddBucketUpdatesTest allows call to unexported method
+// only for internal testing purposes
+func (hdb *HistoryDB) AddBucketUpdatesTest(d meddler.DB, bucketUpdates []common.BucketUpdate) error {
+	return hdb.addBucketUpdates(d, bucketUpdates)
+}
+
+// GetAllBucketUpdates retrieves all the bucket updates
+func (hdb *HistoryDB) GetAllBucketUpdates() ([]common.BucketUpdate, error) {
+	var bucketUpdates []*common.BucketUpdate
+	err := meddler.QueryAll(
+		hdb.dbRead, &bucketUpdates,
+		`SELECT eth_block_num, num_bucket, block_stamp, withdrawals  
+		FROM bucket_update ORDER BY item_id;`,
+	)
+	return database.SlicePtrsToSlice(bucketUpdates).([]common.BucketUpdate), common.Wrap(err)
 }
 
 // setExtraInfoForgedL1UserTxs sets the EffectiveAmount, EffectiveDepositAmount
