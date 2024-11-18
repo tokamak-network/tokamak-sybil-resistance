@@ -63,10 +63,10 @@ func GenAccounts(totalAccounts, userAccounts int,
 // consistent with the protocol.
 func GenBatches(nBatches int, blocks []common.Block) []common.Batch {
 	batches := []common.Batch{}
-	collectedFees := make(map[common.TokenID]*big.Int)
-	for i := 0; i < 64; i++ {
-		collectedFees[common.TokenID(i)] = big.NewInt(int64(i))
-	}
+	// collectedFees := make(map[common.TokenID]*big.Int)
+	// for i := 0; i < 64; i++ {
+	// 	collectedFees[common.TokenID(i)] = big.NewInt(int64(i))
+	// }
 	for i := 0; i < nBatches; i++ {
 		batch := common.Batch{
 			BatchNum:    common.BatchNum(i + 1),

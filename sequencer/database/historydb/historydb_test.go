@@ -744,7 +744,7 @@ func TestUpdateExitTree(t *testing.T) {
 	// )
 	block.Rollup.Withdrawals = append(block.Rollup.Withdrawals,
 		common.WithdrawInfo{Idx: 256, NumExitRoot: 3, InstantWithdraw: true},
-		common.WithdrawInfo{Idx: 257, NumExitRoot: 3, InstantWithdraw: false, Owner: tc.AccountsByIdx[257].Addr}, //, Token: tokenAddr},
+		common.WithdrawInfo{Idx: 257, NumExitRoot: 3, InstantWithdraw: true, Owner: tc.AccountsByIdx[257].Addr}, //, Token: tokenAddr},
 		// common.WithdrawInfo{Idx: 258, NumExitRoot: 3, InstantWithdraw: true},
 		// common.WithdrawInfo{Idx: 259, NumExitRoot: 3, InstantWithdraw: false, Owner: tc.AccountsByIdx[259].Addr}, //, Token: tokenAddr},
 	)
@@ -765,11 +765,7 @@ func TestUpdateExitTree(t *testing.T) {
 	}
 	for _, withdraw := range block.Rollup.Withdrawals {
 		assert.Equal(t, withdraw.NumExitRoot, dbExitsByIdx[withdraw.Idx].BatchNum)
-		if withdraw.InstantWithdraw {
-			assert.Equal(t, &block.Block.Num, dbExitsByIdx[withdraw.Idx].InstantWithdrawn)
-		} else {
-			assert.Equal(t, &block.Block.Num, dbExitsByIdx[withdraw.Idx].DelayedWithdrawRequest)
-		}
+		assert.Equal(t, &block.Block.Num, dbExitsByIdx[withdraw.Idx].InstantWithdrawn)
 	}
 
 	// Add delayed withdraw to the last block, and insert block into the DB

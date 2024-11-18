@@ -283,25 +283,25 @@ func (hdb *HistoryDB) updateExitTree(d sqlx.Ext, blockNum int64,
 		return nil
 	}
 	type withdrawal struct {
-		BatchNum               int64              `db:"batch_num"`
-		AccountIdx             int64              `db:"account_idx"`
-		InstantWithdrawn       *int64             `db:"instant_withdrawn"`
-		DelayedWithdrawRequest *int64             `db:"delayed_withdraw_request"`
-		DelayedWithdrawn       *int64             `db:"delayed_withdrawn"`
-		Owner                  *ethCommon.Address `db:"owner"`
+		BatchNum         int32  `db:"batch_num"`
+		AccountIdx       int32  `db:"account_idx"`
+		InstantWithdrawn *int64 `db:"instant_withdrawn"`
+		// DelayedWithdrawRequest *int64             `db:"delayed_withdraw_request"`
+		// DelayedWithdrawn       *int64             `db:"delayed_withdrawn"`
+		Owner *ethCommon.Address `db:"owner"`
 		// Token                  *ethCommon.Address `db:"token"`
 	}
 	withdrawals := make([]withdrawal, len(rollupWithdrawals)) //+len(wDelayerWithdrawals))
 	for i := range rollupWithdrawals {
 		info := &rollupWithdrawals[i]
 		withdrawals[i] = withdrawal{
-			BatchNum:   int64(info.NumExitRoot),
-			AccountIdx: int64(info.Idx),
+			BatchNum:   int32(info.NumExitRoot),
+			AccountIdx: int32(info.Idx),
 		}
 		if info.InstantWithdraw {
 			withdrawals[i].InstantWithdrawn = &blockNum
 		} else {
-			withdrawals[i].DelayedWithdrawRequest = &blockNum
+			// withdrawals[i].DelayedWithdrawRequest = &blockNum
 			withdrawals[i].Owner = &info.Owner
 			// withdrawals[i].Token = &info.Token
 		}
@@ -319,24 +319,16 @@ func (hdb *HistoryDB) updateExitTree(d sqlx.Ext, blockNum int64,
 	const query string = `
 		UPDATE exit_tree e SET
 			instant_withdrawn = d.instant_withdrawn,
-			delayed_withdraw_request = CASE
-				WHEN e.delayed_withdraw_request IS NOT NULL THEN e.delayed_withdraw_request
-				ELSE d.delayed_withdraw_request
-			END,
-			delayed_withdrawn = d.delayed_withdrawn,
 			owner = d.owner
 		FROM (VALUES
-			(NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BYTEA),
+			(NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BYTEA),
 			(:batch_num,
 			 :account_idx,
 			 :instant_withdrawn,
-			 :delayed_withdraw_request,
-			 :delayed_withdrawn,
 			 :owner)
-		) as d (batch_num, account_idx, instant_withdrawn, delayed_withdraw_request, delayed_withdrawn, owner)
+		) as d (batch_num, account_idx, instant_withdrawn, owner)
 		WHERE
-			(d.batch_num IS NOT NULL AND e.batch_num = d.batch_num AND e.account_idx = d.account_idx) OR
-			(d.delayed_withdrawn IS NOT NULL AND e.delayed_withdrawn IS NULL AND e.owner = d.owner);
+			(d.batch_num IS NOT NULL AND e.batch_num = d.batch_num AND e.account_idx = d.account_idx);
 		`
 	if len(withdrawals) > 0 {
 		if _, err := sqlx.NamedExec(d, query, withdrawals); err != nil {
