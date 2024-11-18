@@ -1,0 +1,64 @@
+name: "SYB statedb test"
+
+on:
+  push:
+    branches-ignore:
+      - "main"
+      - "develop"
+    paths:
+      - "sequencer/database/statedb/**"
+      - "sequencer/test/til/**"
+      - "sequencer/database/utils.go"
+  workflow_dispatch:
+
+jobs:
+  syb-statedb-test:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: statedb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.5"
+          check-latest: true
+          cache-dependency-path: |
+            ./sequencer/go.sum
+
+      - name: Install dependencies
+        run: |
+          cd ./sequencer
+          go mod tidy
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run statedb tests
+        run: |
+          cd ./sequencer
+          task test-statedb
+        env:
+          PGHOST: "localhost"
+          PGPORT: "5432"
+          PGUSER: "postgres"
+          PGPASSWORD: "postgres"
+          PGDATABASE: "statedb"
+          CI: true

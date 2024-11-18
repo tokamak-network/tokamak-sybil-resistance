@@ -2,10 +2,12 @@ package statedb
 
 import (
 	"encoding/hex"
+	"io/ioutil"
 	"math/big"
 	"math/rand"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"tokamak-sybil-resistance/common"
@@ -116,7 +118,7 @@ func TestAccountInStateDB(t *testing.T) {
 	_, err = sdb.MTGetAccountProof(common.AccountIdx(256))
 	require.NoError(t, err)
 
-	// update accounts
+	// update accountsCreateAccount
 	for i := 0; i < len(accounts); i++ {
 		accounts[i].Nonce = accounts[i].Nonce + 1
 		existingAccount = accounts[i].Idx
@@ -454,3 +456,296 @@ func TestCheckAccountsTreeTestVectors(t *testing.T) {
 // 	defer stateDB.Close()
 // 	printExamples(stateDB)
 // }
+
+func TestNewStateDBIntermediateState(t *testing.T) {
+	dir, err := ioutil.TempDir("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	sdb, err := NewStateDB(Config{Path: dir, Keep: 128, Type: TypeTxSelector, NLevels: 0})
+	require.NoError(t, err)
+
+	// test values
+	k0 := []byte("testkey0")
+	k1 := []byte("testkey1")
+	v0 := []byte("testvalue0")
+	v1 := []byte("testvalue1")
+
+	// store some data
+	tx, err := sdb.db.DB().NewTx()
+	require.NoError(t, err)
+	err = tx.Put(k0, v0)
+	require.NoError(t, err)
+	err = tx.Commit()
+	require.NoError(t, err)
+	v, err := sdb.db.DB().Get(k0)
+	require.NoError(t, err)
+	assert.Equal(t, v0, v)
+
+	// k0 not yet in last
+	err = sdb.LastRead(func(sdb *Last) error {
+		_, err := sdb.DB().Get(k0)
+		assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
+		return nil
+	})
+	require.NoError(t, err)
+
+	// Close PebbleDB before creating a new StateDB
+	sdb.Close()
+
+	// call NewStateDB which should get the db at the last checkpoint state
+	// executing a Reset (discarding the last 'testkey0'&'testvalue0' data)
+	sdb, err = NewStateDB(Config{Path: dir, Keep: 128, Type: TypeTxSelector, NLevels: 0})
+	require.NoError(t, err)
+	v, err = sdb.db.DB().Get(k0)
+	assert.NotNil(t, err)
+	assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
+	assert.Nil(t, v)
+
+	// k0 not in last
+	err = sdb.LastRead(func(sdb *Last) error {
+		_, err := sdb.DB().Get(k0)
+		assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
+		return nil
+	})
+	require.NoError(t, err)
+
+	// store the same data from the beginning that has ben lost since last NewStateDB
+	tx, err = sdb.db.DB().NewTx()
+	require.NoError(t, err)
+	err = tx.Put(k0, v0)
+	require.NoError(t, err)
+	err = tx.Commit()
+	require.NoError(t, err)
+	v, err = sdb.db.DB().Get(k0)
+	require.NoError(t, err)
+	assert.Equal(t, v0, v)
+
+	// k0 yet not in last
+	err = sdb.LastRead(func(sdb *Last) error {
+		_, err := sdb.DB().Get(k0)
+		assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
+		return nil
+	})
+	require.NoError(t, err)
+
+	// make checkpoints with the current state
+	bn, err := sdb.getCurrentBatch()
+	require.NoError(t, err)
+	assert.Equal(t, common.BatchNum(0), bn)
+	err = sdb.MakeCheckpoint()
+	require.NoError(t, err)
+	bn, err = sdb.getCurrentBatch()
+	require.NoError(t, err)
+	assert.Equal(t, common.BatchNum(1), bn)
+
+	// k0 in last
+	err = sdb.LastRead(func(sdb *Last) error {
+		v, err := sdb.DB().Get(k0)
+		require.NoError(t, err)
+		assert.Equal(t, v0, v)
+		return nil
+	})
+	require.NoError(t, err)
+
+	// write more data
+	tx, err = sdb.db.DB().NewTx()
+	require.NoError(t, err)
+	err = tx.Put(k1, v1)
+	require.NoError(t, err)
+	err = tx.Put(k0, v1) // overwrite k0 with v1
+	require.NoError(t, err)
+	err = tx.Commit()
+	require.NoError(t, err)
+
+	v, err = sdb.db.DB().Get(k1)
+	require.NoError(t, err)
+	assert.Equal(t, v1, v)
+
+	err = sdb.LastRead(func(sdb *Last) error {
+		v, err := sdb.DB().Get(k0)
+		require.NoError(t, err)
+		assert.Equal(t, v0, v)
+		return nil
+	})
+	require.NoError(t, err)
+
+	// Close PebbleDB before creating a new StateDB
+	sdb.Close()
+
+	// call NewStateDB which should get the db at the last checkpoint state
+	// executing a Reset (discarding the last 'testkey1'&'testvalue1' data)
+	sdb, err = NewStateDB(Config{Path: dir, Keep: 128, Type: TypeTxSelector, NLevels: 0})
+	require.NoError(t, err)
+
+	bn, err = sdb.getCurrentBatch()
+	require.NoError(t, err)
+	assert.Equal(t, common.BatchNum(1), bn)
+
+	// we closed the db without doing a checkpoint after overwriting k0, so
+	// it's back to v0
+	v, err = sdb.db.DB().Get(k0)
+	require.NoError(t, err)
+	assert.Equal(t, v0, v)
+
+	v, err = sdb.db.DB().Get(k1)
+	assert.NotNil(t, err)
+	assert.Equal(t, db.ErrNotFound, common.Unwrap(err))
+	assert.Nil(t, v)
+
+	sdb.Close()
+}
+
+func TestStateDBGetAccounts(t *testing.T) {
+	dir, err := ioutil.TempDir("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	sdb, err := NewStateDB(Config{Path: dir, Keep: 128, Type: TypeTxSelector, NLevels: 0})
+	require.NoError(t, err)
+
+	// create test accounts
+	var accounts []common.Account
+	for i := 0; i < 16; i++ {
+		account := newAccount(t, i)
+		accounts = append(accounts, *account)
+	}
+
+	// add test accounts
+	for i := range accounts {
+		_, err = sdb.CreateAccount(accounts[i].Idx, &accounts[i])
+		require.NoError(t, err)
+	}
+
+	dbAccounts, err := sdb.TestGetAccounts()
+	require.NoError(t, err)
+	assert.Equal(t, accounts, dbAccounts)
+
+	sdb.Close()
+}
+
+// TestListCheckpoints performs almost the same test than kvdb/kvdb_test.go
+// TestListCheckpoints, but over the StateDB
+func TestListCheckpoints(t *testing.T) {
+	dir, err := ioutil.TempDir("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	sdb, err := NewStateDB(Config{Path: dir, Keep: 128, Type: TypeSynchronizer, NLevels: 32})
+	require.NoError(t, err)
+
+	numCheckpoints := 16
+	// do checkpoints
+	for i := 0; i < numCheckpoints; i++ {
+		err = sdb.MakeCheckpoint()
+		require.NoError(t, err)
+	}
+	list, err := sdb.db.ListCheckpoints()
+	require.NoError(t, err)
+	assert.Equal(t, numCheckpoints, len(list))
+	assert.Equal(t, 1, list[0])
+	assert.Equal(t, numCheckpoints, list[len(list)-1])
+
+	numReset := 10
+	err = sdb.Reset(common.BatchNum(numReset))
+	require.NoError(t, err)
+	list, err = sdb.db.ListCheckpoints()
+	require.NoError(t, err)
+	assert.Equal(t, numReset, len(list))
+	assert.Equal(t, 1, list[0])
+	assert.Equal(t, numReset, list[len(list)-1])
+
+	sdb.Close()
+}
+
+// TestDeleteOldCheckpoints performs almost the same test than
+// kvdb/kvdb_test.go TestDeleteOldCheckpoints, but over the StateDB
+func TestDeleteOldCheckpoints(t *testing.T) {
+	dir, err := ioutil.TempDir("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	keep := 16
+	sdb, err := NewStateDB(Config{Path: dir, Keep: keep, Type: TypeSynchronizer, NLevels: 32})
+	require.NoError(t, err)
+
+	numCheckpoints := 32
+	// do checkpoints and check that we never have more than `keep`
+	// checkpoints
+	for i := 0; i < numCheckpoints; i++ {
+		err = sdb.MakeCheckpoint()
+		require.NoError(t, err)
+		err := sdb.DeleteOldCheckpoints()
+		require.NoError(t, err)
+		checkpoints, err := sdb.db.ListCheckpoints()
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(checkpoints), keep)
+	}
+
+	sdb.Close()
+}
+
+// TestConcurrentDeleteOldCheckpoints performs almost the same test than
+// kvdb/kvdb_test.go TestConcurrentDeleteOldCheckpoints, but over the StateDB
+func TestConcurrentDeleteOldCheckpoints(t *testing.T) {
+	dir, err := ioutil.TempDir("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	keep := 16
+	sdb, err := NewStateDB(Config{Path: dir, Keep: keep, Type: TypeSynchronizer, NLevels: 32})
+	require.NoError(t, err)
+
+	numCheckpoints := 32
+	// do checkpoints and check that we never have more than `keep`
+	// checkpoints
+	for i := 0; i < numCheckpoints; i++ {
+		err = sdb.MakeCheckpoint()
+		require.NoError(t, err)
+		wg := sync.WaitGroup{}
+		n := 10
+		wg.Add(n)
+		for j := 0; j < n; j++ {
+			go func() {
+				err := sdb.DeleteOldCheckpoints()
+				require.NoError(t, err)
+				checkpoints, err := sdb.db.ListCheckpoints()
+				require.NoError(t, err)
+				assert.LessOrEqual(t, len(checkpoints), keep)
+				wg.Done()
+			}()
+			_, err := sdb.db.ListCheckpoints()
+			// only checking here for absence of errors, not the count of checkpoints
+			require.NoError(t, err)
+		}
+		wg.Wait()
+		checkpoints, err := sdb.db.ListCheckpoints()
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(checkpoints), keep)
+	}
+
+	sdb.Close()
+}
+
+func TestResetFromBadCheckpoint(t *testing.T) {
+	dir, err := ioutil.TempDir("", "tmpdb")
+	require.NoError(t, err)
+	deleteme = append(deleteme, dir)
+
+	keep := 16
+	sdb, err := NewStateDB(Config{Path: dir, Keep: keep, Type: TypeSynchronizer, NLevels: 32})
+	require.NoError(t, err)
+
+	err = sdb.MakeCheckpoint()
+	require.NoError(t, err)
+	err = sdb.MakeCheckpoint()
+	require.NoError(t, err)
+	err = sdb.MakeCheckpoint()
+	require.NoError(t, err)
+
+	// reset from a checkpoint that doesn't exist
+	err = sdb.Reset(10)
+	require.Error(t, err)
+
+	sdb.Close()
+}
