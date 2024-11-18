@@ -79,7 +79,7 @@ func GenBatches(nBatches int, blocks []common.Block) []common.Batch {
 			NumAccounts: 30,
 			ExitRoot:    big.NewInt(int64(i+1) * 16), //nolint:gomnd
 			SlotNum:     int64(i),
-			GasPrice:    big.NewInt(int64(i + 1)),
+			GasPrice:    big.NewInt(0),
 		}
 		if i%2 == 0 {
 			toForge := new(int64)
