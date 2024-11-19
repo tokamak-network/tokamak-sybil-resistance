@@ -39,6 +39,23 @@ func (hdb *HistoryDB) addBlock(d meddler.DB, block *common.Block) error {
 	return common.Wrap(meddler.Insert(d, "block", block))
 }
 
+// AddBlocks inserts blocks into the DB
+func (hdb *HistoryDB) AddBlocks(blocks []common.Block) error {
+	return common.Wrap(hdb.addBlocks(hdb.dbWrite, blocks))
+}
+
+func (hdb *HistoryDB) addBlocks(d meddler.DB, blocks []common.Block) error {
+	return common.Wrap(database.BulkInsert(
+		d,
+		`INSERT INTO block (
+			eth_block_num,
+			timestamp,
+			hash
+		) VALUES %s;`,
+		blocks,
+	))
+}
+
 // GetBlock retrieve a block from the DB, given a block number
 func (hdb *HistoryDB) GetBlock(blockNum int64) (*common.Block, error) {
 	block := &common.Block{}
@@ -210,6 +227,17 @@ func (hdb *HistoryDB) GetBatches(from, to common.BatchNum) ([]common.Batch, erro
 	return database.SlicePtrsToSlice(batches).([]common.Batch), common.Wrap(err)
 }
 
+// GetFirstBatchBlockNumBySlot returns the ethereum block number of the first
+// batch within a slot
+func (hdb *HistoryDB) GetFirstBatchBlockNumBySlot(slotNum int64) (int64, error) {
+	row := hdb.dbRead.QueryRow(
+		`SELECT eth_block_num FROM batch
+		WHERE slot_num = $1 ORDER BY batch_num ASC LIMIT 1;`, slotNum,
+	)
+	var blockNum int64
+	return blockNum, common.Wrap(row.Scan(&blockNum))
+}
+
 // GetLastBatchNum returns the BatchNum of the latest forged batch
 func (hdb *HistoryDB) GetLastBatchNum() (common.BatchNum, error) {
 	row := hdb.dbRead.QueryRow("SELECT batch_num FROM batch ORDER BY batch_num DESC LIMIT 1;")
@@ -245,6 +273,70 @@ func (hdb *HistoryDB) addExitTree(d meddler.DB, exitTree []common.ExitInfo) erro
 			"instant_withdrawn, delayed_withdraw_request, delayed_withdrawn) VALUES %s;",
 		exitTree,
 	))
+}
+
+func (hdb *HistoryDB) updateExitTree(d sqlx.Ext, blockNum int64,
+	rollupWithdrawals []common.WithdrawInfo) error {
+	// , wDelayerWithdrawals []common.WDelayerTransfer) error {
+	if len(rollupWithdrawals) == 0 {
+		// && len(wDelayerWithdrawals) == 0 {
+		return nil
+	}
+	type withdrawal struct {
+		BatchNum         int32  `db:"batch_num"`
+		AccountIdx       int32  `db:"account_idx"`
+		InstantWithdrawn *int64 `db:"instant_withdrawn"`
+		// DelayedWithdrawRequest *int64             `db:"delayed_withdraw_request"`
+		// DelayedWithdrawn       *int64             `db:"delayed_withdrawn"`
+		Owner *ethCommon.Address `db:"owner"`
+		// Token                  *ethCommon.Address `db:"token"`
+	}
+	withdrawals := make([]withdrawal, len(rollupWithdrawals)) //+len(wDelayerWithdrawals))
+	for i := range rollupWithdrawals {
+		info := &rollupWithdrawals[i]
+		withdrawals[i] = withdrawal{
+			BatchNum:   int32(info.NumExitRoot),
+			AccountIdx: int32(info.Idx),
+		}
+		if info.InstantWithdraw {
+			withdrawals[i].InstantWithdrawn = &blockNum
+		} else {
+			// withdrawals[i].DelayedWithdrawRequest = &blockNum
+			withdrawals[i].Owner = &info.Owner
+			// withdrawals[i].Token = &info.Token
+		}
+	}
+	// for i := range wDelayerWithdrawals {
+	// 	info := &wDelayerWithdrawals[i]
+	// 	withdrawals[len(rollupWithdrawals)+i] = withdrawal{
+	// 		DelayedWithdrawn: &blockNum,
+	// 		Owner:            &info.Owner,
+	// 		Token:            &info.Token,
+	// 	}
+	// }
+	// In VALUES we set an initial row of NULLs to set the types of each
+	// variable passed as argument
+	const query string = `
+		UPDATE exit_tree e SET
+			instant_withdrawn = d.instant_withdrawn,
+			owner = d.owner
+		FROM (VALUES
+			(NULL::::BIGINT, NULL::::BIGINT, NULL::::BIGINT, NULL::::BYTEA),
+			(:batch_num,
+			 :account_idx,
+			 :instant_withdrawn,
+			 :owner)
+		) as d (batch_num, account_idx, instant_withdrawn, owner)
+		WHERE
+			(d.batch_num IS NOT NULL AND e.batch_num = d.batch_num AND e.account_idx = d.account_idx);
+		`
+	if len(withdrawals) > 0 {
+		if _, err := sqlx.NamedExec(d, query, withdrawals); err != nil {
+			return common.Wrap(err)
+		}
+	}
+
+	return nil
 }
 
 // AddAccounts insert accounts into the DB
@@ -322,6 +414,16 @@ func (hdb *HistoryDB) addAccountUpdates(d meddler.DB, accUpdates []common.Accoun
 	))
 }
 
+// GetAllAccountUpdates returns all the AccountUpdate from the DB
+func (hdb *HistoryDB) GetAllAccountUpdates() ([]common.AccountUpdate, error) {
+	var accUpdates []*common.AccountUpdate
+	err := meddler.QueryAll(
+		hdb.dbRead, &accUpdates,
+		"SELECT eth_block_num, batch_num, idx, nonce, balance FROM account_update ORDER BY idx;",
+	)
+	return database.SlicePtrsToSlice(accUpdates).([]common.AccountUpdate), common.Wrap(err)
+}
+
 // AddL1Txs inserts L1 txs to the DB. USD and DepositAmountUSD will be set automatically before storing the tx.
 // If the tx is originated by a coordinator, BatchNum must be provided. If it's originated by a user,
 // BatchNum should be null, and the value will be setted by a trigger when a batch forges the tx.
@@ -340,7 +442,15 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 	}
 	txs := []txWrite{}
 	for i := 0; i < len(l1txs); i++ {
-		af := new(big.Float).SetInt(l1txs[i].Amount)
+		var af *big.Float
+		if l1txs[i].Amount != nil {
+			af = new(big.Float).SetInt(l1txs[i].Amount)
+		} else {
+			// TODO: lang.go >> func parseLine() >> lines 394-399 leave amount as nil
+			// if tx type is deposit, which causes a panic here. Need to discuss how to handle this.
+			af = new(big.Float).SetInt(big.NewInt(0))
+			l1txs[i].Amount = big.NewInt(0)
+		}
 		amountFloat, _ := af.Float64()
 		laf := new(big.Float).SetInt(l1txs[i].DepositAmount)
 		depositAmountFloat, _ := laf.Float64()
@@ -352,6 +462,7 @@ func (hdb *HistoryDB) addL1Txs(d meddler.DB, l1txs []common.L1Tx) error {
 		} else {
 			effectiveFromIdx = &l1txs[i].EffectiveFromIdx
 		}
+
 		txs = append(txs, txWrite{
 			// Generic
 			IsL1:             true,
@@ -391,9 +502,7 @@ func (hdb *HistoryDB) addL2Txs(d meddler.DB, l2txs []common.L2Tx) error {
 	}
 	txs := []txWrite{}
 	for i := 0; i < len(l2txs); i++ {
-		f := new(big.Float).SetInt(l2txs[i].Amount)
-		amountFloat, _ := f.Float64()
-		txs = append(txs, txWrite{
+		txwrite := txWrite{
 			// Generic
 			IsL1:             false,
 			TxID:             l2txs[i].TxID,
@@ -402,15 +511,26 @@ func (hdb *HistoryDB) addL2Txs(d meddler.DB, l2txs []common.L2Tx) error {
 			FromIdx:          &l2txs[i].FromIdx,
 			EffectiveFromIdx: &l2txs[i].FromIdx,
 			ToIdx:            l2txs[i].ToIdx,
-			Amount:           l2txs[i].Amount,
-			AmountFloat:      amountFloat,
-			BatchNum:         &l2txs[i].BatchNum,
-			EthBlockNum:      l2txs[i].EthBlockNum,
+			// Amount:           l2txs[i].Amount,
+			// AmountFloat:      amountFloat,
+			BatchNum:    &l2txs[i].BatchNum,
+			EthBlockNum: l2txs[i].EthBlockNum,
 			// L2
 			Nonce: &l2txs[i].Nonce,
-		})
+		}
+		if l2txs[i].Amount == nil {
+			txwrite.Amount = big.NewInt(0)
+			txwrite.AmountFloat = 0
+		} else {
+			f := new(big.Float).SetInt(l2txs[i].Amount)
+			amountFloat, _ := f.Float64()
+			txwrite.Amount = l2txs[i].Amount
+			txwrite.AmountFloat = amountFloat
+		}
+		txs = append(txs, txwrite)
 	}
-	return common.Wrap(hdb.addTxs(d, txs))
+	err := hdb.addTxs(d, txs)
+	return common.Wrap(err)
 }
 
 func (hdb *HistoryDB) addTxs(d meddler.DB, txs []txWrite) error {
@@ -520,14 +640,85 @@ func (hdb *HistoryDB) GetUnforgedL1UserTxs(toForgeL1TxsNum int64) ([]common.L1Tx
 	return database.SlicePtrsToSlice(txs).([]common.L1Tx), common.Wrap(err)
 }
 
+// GetUnforgedL1UserFutureTxs gets L1 User Txs to be forged after the L1Batch
+// with toForgeL1TxsNum (in one of the future batches, not in the next one).
+func (hdb *HistoryDB) GetUnforgedL1UserFutureTxs(toForgeL1TxsNum int64) ([]common.L1Tx, error) {
+	var txs []*common.L1Tx
+	err := meddler.QueryAll(
+		hdb.dbRead, &txs, // only L1 user txs can have batch_num set to null
+		`SELECT tx.id, tx.to_forge_l1_txs_num, tx.position, tx.user_origin,
+		tx.from_idx, tx.from_eth_addr, tx.from_bjj, tx.to_idx,
+		tx.amount, NULL AS effective_amount,
+		tx.deposit_amount, NULL AS effective_deposit_amount,
+		tx.eth_block_num, tx.type, tx.batch_num
+		FROM tx WHERE batch_num IS NULL AND to_forge_l1_txs_num > $1
+		ORDER BY position;`,
+		toForgeL1TxsNum,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.L1Tx), err
+}
+
+// GetUnforgedL1UserTxsCount returns the count of unforged L1Txs (either in
+// open or frozen queues that are not yet forged)
+func (hdb *HistoryDB) GetUnforgedL1UserTxsCount() (int, error) {
+	row := hdb.dbRead.QueryRow(
+		`SELECT COUNT(*) FROM tx WHERE batch_num IS NULL;`,
+	)
+	var count int
+	return count, row.Scan(&count)
+}
+
+// GetLastTxsPosition for a given to_forge_l1_txs_num
+func (hdb *HistoryDB) GetLastTxsPosition(toForgeL1TxsNum int64) (int, error) {
+	row := hdb.dbRead.QueryRow(
+		"SELECT position FROM tx WHERE to_forge_l1_txs_num = $1 ORDER BY position DESC;",
+		toForgeL1TxsNum,
+	)
+	var lastL1TxsPosition int
+	return lastL1TxsPosition, common.Wrap(row.Scan(&lastL1TxsPosition))
+}
+
 // GetSCVars returns the rollup, auction and wdelayer smart contracts variables at their last update.
 func (hdb *HistoryDB) GetSCVars() (*common.RollupVariables, error) {
 	var rollup common.RollupVariables
 	if err := meddler.QueryRow(hdb.dbRead, &rollup,
 		"SELECT * FROM rollup_vars ORDER BY eth_block_num DESC LIMIT 1;"); err != nil {
-		return nil, common.Wrap(err)
+		return nil, err
 	}
 	return &rollup, nil
+}
+
+func (hdb *HistoryDB) addBucketUpdates(d meddler.DB, bucketUpdates []common.BucketUpdate) error {
+	if len(bucketUpdates) == 0 {
+		return nil
+	}
+	return common.Wrap(database.BulkInsert(
+		d,
+		`INSERT INTO bucket_update (
+		 	eth_block_num,
+		 	num_bucket,
+		 	block_stamp,
+		 	withdrawals
+		) VALUES %s;`,
+		bucketUpdates,
+	))
+}
+
+// AddBucketUpdatesTest allows call to unexported method
+// only for internal testing purposes
+func (hdb *HistoryDB) AddBucketUpdatesTest(d meddler.DB, bucketUpdates []common.BucketUpdate) error {
+	return hdb.addBucketUpdates(d, bucketUpdates)
+}
+
+// GetAllBucketUpdates retrieves all the bucket updates
+func (hdb *HistoryDB) GetAllBucketUpdates() ([]common.BucketUpdate, error) {
+	var bucketUpdates []*common.BucketUpdate
+	err := meddler.QueryAll(
+		hdb.dbRead, &bucketUpdates,
+		`SELECT eth_block_num, num_bucket, block_stamp, withdrawals  
+		FROM bucket_update ORDER BY item_id;`,
+	)
+	return database.SlicePtrsToSlice(bucketUpdates).([]common.BucketUpdate), common.Wrap(err)
 }
 
 // setExtraInfoForgedL1UserTxs sets the EffectiveAmount, EffectiveDepositAmount

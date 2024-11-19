@@ -4,17 +4,17 @@ tasks:
   test-historydb:
     dotenv: [".env"]
     cmds:
-      - go test ./database/historydb -v
+      - go test ./database/historydb -v -count=1
   
   test-til:
     dotenv: [".env"]
     cmds:
-      - go test ./test/til -v
+      - go test ./test/til -v -count=1
 
   test-synchronizer:
     dotenv: [".env"]
     cmds:
-      - go test ./synchronizer -v
+      - go test ./synchronizer -v -count=1
   
   test-statedb:
     dotenv: [".env"]
@@ -22,8 +22,8 @@ tasks:
       - go test ./database/statedb -v
   
   test-sequencer:
-    deps:
-      - test-historydb
-      - test-til
-      - test-synchronizer
-      - test-statedb
+    cmds:
+      - task: test-synchronizer
+      - task: test-historydb
+      - task: test-til
+      - task: test-statedb
