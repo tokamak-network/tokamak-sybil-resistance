@@ -267,12 +267,13 @@ func newTestModules(t *testing.T) (*statedb.StateDB, *historydb.HistoryDB, *l2db
 	// Init L2 DB
 	l2DB := l2db.NewL2DB(db, db, 10, 100, 0.0, 1000.0, 24*time.Hour, nil)
 
-	return stateDB, historyDB, l2DB
-}
+	t.Cleanup(func() {
+		test.MigrationsDownTest(historyDB.DB())
+		stateDB.Close()
+		l2DB.DB().Close()
+	})
 
-func closeTestModules(_ *testing.T, statedb *statedb.StateDB, historydb *historydb.HistoryDB, l2db *l2db.L2DB) {
-	statedb.Close()
-	_ = l2db.DB().Close()
+	return stateDB, historyDB, l2DB
 }
 
 func newBigInt(s string) *big.Int {
@@ -284,10 +285,6 @@ func newBigInt(s string) *big.Int {
 }
 
 func TestSyncGeneral(t *testing.T) {
-	//
-	// Setup
-	//
-
 	stateDB, historyDB, l2DB := newTestModules(t)
 
 	// Init eth client
@@ -522,6 +519,4 @@ func TestSyncGeneral(t *testing.T) {
 	// Set EthBlockNum for Vars to the blockNum in which they were updated (should be 5)
 	rollupVars.EthBlockNum = syncBlock.Block.Num
 	assert.Equal(t, rollupVars, dbRollupVars)
-
-	// TODO: implement WipeDB
 }
