@@ -160,6 +160,15 @@ func NewKVDB(cfg Config) (*KVDB, error) {
 	return kvdb, nil
 }
 
+func (k *KVDB) LastRead(fn func(db *pebble.Storage) error) error {
+	if k.last == nil {
+		return common.Wrap(ErrNoLast)
+	}
+	k.last.rw.RLock()
+	defer k.last.rw.RUnlock()
+	return fn(k.last.db)
+}
+
 // DB returns the *pebble.Storage from the KVDB
 func (k *KVDB) DB() *pebble.Storage {
 	return k.db

@@ -16,8 +16,14 @@ tasks:
     cmds:
       - go test ./synchronizer -v -count=1
   
+  test-statedb:
+    dotenv: [".env"]
+    cmds:
+      - go test ./database/statedb -v
+  
   test-sequencer:
     cmds:
       - task: test-synchronizer
       - task: test-historydb
       - task: test-til
+      - task: test-statedb

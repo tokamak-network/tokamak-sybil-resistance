@@ -7,6 +7,8 @@ import (
 	"tokamak-sybil-resistance/log"
 
 	"github.com/iden3/go-merkletree"
+	"github.com/iden3/go-merkletree/db"
+	"github.com/iden3/go-merkletree/db/pebble"
 )
 
 const (
@@ -78,6 +80,10 @@ type StateDB struct {
 	ScoreTree   *merkletree.MerkleTree
 }
 
+type Last struct {
+	db db.Storage
+}
+
 // LocalStateDB represents the local StateDB which allows to make copies from
 // the synchronizer StateDB, and is used by the tx-selector and the
 // batch-builder. LocalStateDB is an in-memory storage.
@@ -94,6 +100,15 @@ type LocalStateDB struct {
 // 	}
 // 	return db, nil
 // }
+
+func (s *Last) GetAccount(idx common.AccountIdx) (*common.Account, error) {
+	return GetAccountInTreeDB(s.db, idx)
+}
+
+// DB returns the underlying storage of Last
+func (s *Last) DB() db.Storage {
+	return s.db
+}
 
 // NewStateDB initializes a new StateDB.
 func NewStateDB(cfg Config) (*StateDB, error) {
@@ -121,6 +136,32 @@ func NewStateDB(cfg Config) (*StateDB, error) {
 // Type returns the StateDB configured Type
 func (s *StateDB) Type() TypeStateDB {
 	return s.cfg.Type
+}
+
+// LastRead is a thread-safe method to query the last checkpoint of the StateDB
+// via the Last type methods
+func (s *StateDB) LastRead(fn func(sdbLast *Last) error) error {
+	return s.db.LastRead(
+		func(db *pebble.Storage) error {
+			return fn(&Last{
+				db: db,
+			})
+		},
+	)
+}
+
+// LastGetAccount is a thread-safe method to query an account in the last
+// checkpoint of the StateDB.
+func (s *StateDB) LastGetAccount(idx common.AccountIdx) (*common.Account, error) {
+	var account *common.Account
+	if err := s.LastRead(func(sdb *Last) error {
+		var err error
+		account, err = sdb.GetAccount(idx)
+		return err
+	}); err != nil {
+		return nil, common.Wrap(err)
+	}
+	return account, nil
 }
 
 // Close closes the StateDB.
@@ -191,4 +232,15 @@ func (s *StateDB) MakeCheckpoint() error {
 // CurrentBatch returns the current in-memory CurrentBatch of the StateDB.db
 func (s *StateDB) CurrentBatch() common.BatchNum {
 	return s.db.CurrentBatch
+}
+
+// getCurrentBatch returns the current BatchNum stored in the StateDB.db
+func (s *StateDB) getCurrentBatch() (common.BatchNum, error) {
+	return s.db.GetCurrentBatch()
+}
+
+// DeleteOldCheckpoints deletes old checkpoints when there are more than
+// `cfg.keep` checkpoints
+func (s *StateDB) DeleteOldCheckpoints() error {
+	return s.db.DeleteOldCheckpoints()
 }
