@@ -51,10 +51,6 @@ type Stats struct {
 		// l1Batch was forged
 		LastL1BatchBlock  int64
 		LastForgeL1TxsNum int64
-		Auction           struct {
-			CurrentSlot common.Slot
-			NextSlot    common.Slot
-		}
 	}
 }
 
@@ -603,8 +599,6 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			return nil, common.Wrap(fmt.Errorf("RollupForgeBatchArgs: %w", err))
 		}
 		ethTxHash := evtForgeBatch.EthTxHash
-		gasUsed := evtForgeBatch.GasUsed
-		gasPrice := evtForgeBatch.GasPrice
 		batchNum := common.BatchNum(evtForgeBatch.BatchNum)
 		var l1UserTxs []common.L1Tx
 		// Check if this is a L1Batch to get L1 Tx from it
@@ -634,8 +628,8 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			position = len(l1UserTxs)
 		}
 
-		l1TxsAuth := make([]common.AccountCreationAuth,
-			0, len(forgeBatchArgs.L1CoordinatorTxsAuths))
+		// l1TxsAuth := make([]common.AccountCreationAuth,
+		// 	0, len(forgeBatchArgs.L1CoordinatorTxsAuths))
 		// batchData.L1CoordinatorTxs = make([]common.L1Tx, 0, len(forgeBatchArgs.L1CoordinatorTxs))
 		// // Get L1 Coordinator Txs
 		// for i := range forgeBatchArgs.L1CoordinatorTxs {
@@ -670,12 +664,12 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 
 		// Insert the slice of account creation auth
 		// only if the node run as a coordinator
-		if s.l2DB != nil && len(l1TxsAuth) > 0 {
-			err = s.l2DB.AddManyAccountCreationAuth(l1TxsAuth)
-			if err != nil {
-				return nil, common.Wrap(err)
-			}
-		}
+		// if s.l2DB != nil && len(l1TxsAuth) > 0 {
+		// 	err = s.l2DB.AddManyAccountCreationAuth(l1TxsAuth)
+		// 	if err != nil {
+		// 		return nil, common.Wrap(err)
+		// 	}
+		// }
 
 		// Insert all the txs forged in this batch (l1UserTxs,
 		// L1CoordinatorTxs, PoolL2Txs) into stateDB so that they are
@@ -788,8 +782,6 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			LastIdx:     forgeBatchArgs.NewLastIdx,
 			ExitRoot:    forgeBatchArgs.NewExitRoot,
 			// SlotNum:            slotNum,
-			GasUsed:  gasUsed,
-			GasPrice: gasPrice,
 		}
 		nextForgeL1TxsNumCpy := nextForgeL1TxsNum
 		if forgeBatchArgs.L1Batch {

@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -168,14 +169,11 @@ func NewRollupEvents() RollupEvents {
 
 // RollupForgeBatchArgs are the arguments to the ForgeBatch function in the Rollup Smart Contract
 type RollupForgeBatchArgs struct {
-	NewLastIdx            int64
-	NewStRoot             *big.Int
-	NewExitRoot           *big.Int
-	L1UserTxs             []common.L1Tx
-	L1CoordinatorTxs      []common.L1Tx
-	L1CoordinatorTxsAuths [][]byte // Authorization for accountCreations for each L1CoordinatorTx
-	L2TxsData             []common.L2Tx
-	FeeIdxCoordinator     []common.AccountIdx
+	NewLastIdx  int64
+	NewStRoot   *big.Int
+	NewExitRoot *big.Int
+	L1UserTxs   []common.L1Tx
+	L2TxsData   []common.L2Tx
 	// Circuit selector
 	VerifierIdx uint8
 	L1Batch     bool
@@ -186,12 +184,10 @@ type RollupForgeBatchArgs struct {
 
 // RollupForgeBatchArgsAux are the arguments to the ForgeBatch function in the Rollup Smart Contract
 type rollupForgeBatchArgsAux struct {
-	NewLastIdx             *big.Int
-	NewStRoot              *big.Int
-	NewExitRoot            *big.Int
-	EncodedL1CoordinatorTx []byte
-	L1L2TxsData            []byte
-	FeeIdxCoordinator      []byte
+	NewLastIdx  *big.Int
+	NewStRoot   *big.Int
+	NewExitRoot *big.Int
+	L1L2TxsData []byte
 	// Circuit selector
 	VerifierIdx uint8
 	L1Batch     bool
@@ -209,7 +205,7 @@ type RollupInterface interface {
 
 	// Public Functions
 
-	// RollupForgeBatch(*RollupForgeBatchArgs, *bind.TransactOpts) (*types.Transaction, error)
+	RollupForgeBatch(*RollupForgeBatchArgs, *bind.TransactOpts) (*types.Transaction, error)
 
 	// RollupWithdrawMerkleProof(babyPubKey babyjub.PublicKeyComp, tokenID uint32, numExitRoot,
 	// 	idx int64, amount *big.Int, siblings []*big.Int, instantWithdraw bool) (*types.Transaction,
@@ -579,25 +575,22 @@ func (c *RollupClient) RollupForgeBatchArgs(ethTxHash ethCommon.Hash,
 		return nil, nil, common.Wrap(err)
 	}
 	rollupForgeBatchArgs := RollupForgeBatchArgs{
-		L1Batch:               aux.L1Batch,
-		NewExitRoot:           aux.NewExitRoot,
-		NewLastIdx:            aux.NewLastIdx.Int64(),
-		NewStRoot:             aux.NewStRoot,
-		ProofA:                aux.ProofA,
-		ProofB:                aux.ProofB,
-		ProofC:                aux.ProofC,
-		VerifierIdx:           aux.VerifierIdx,
-		L1CoordinatorTxs:      []common.L1Tx{},
-		L1CoordinatorTxsAuths: [][]byte{},
-		L2TxsData:             []common.L2Tx{},
-		FeeIdxCoordinator:     []common.AccountIdx{},
+		L1Batch:     aux.L1Batch,
+		NewExitRoot: aux.NewExitRoot,
+		NewLastIdx:  aux.NewLastIdx.Int64(),
+		NewStRoot:   aux.NewStRoot,
+		ProofA:      aux.ProofA,
+		ProofB:      aux.ProofB,
+		ProofC:      aux.ProofC,
+		VerifierIdx: aux.VerifierIdx,
+		L2TxsData:   []common.L2Tx{},
 	}
 	nLevels := c.consts.Verifiers[rollupForgeBatchArgs.VerifierIdx].NLevels
 	lenL1L2TxsBytes := int((nLevels/8)*2 + common.Float40BytesLength + 1) //nolint:gomnd
 	numBytesL1TxUser := int(l1UserTxsLen) * lenL1L2TxsBytes
-	numTxsL1Coord := len(aux.EncodedL1CoordinatorTx) / common.RollupConstL1CoordinatorTotalBytes
-	numBytesL1TxCoord := numTxsL1Coord * lenL1L2TxsBytes
-	numBeginL2Tx := numBytesL1TxCoord + numBytesL1TxUser
+	// numTxsL1Coord := len(aux.EncodedL1CoordinatorTx) / common.RollupConstL1CoordinatorTotalBytes
+	// numBytesL1TxCoord := numTxsL1Coord * lenL1L2TxsBytes
+	numBeginL2Tx := numBytesL1TxUser
 	l1UserTxsData := []byte{}
 	if l1UserTxsLen > 0 {
 		l1UserTxsData = aux.L1L2TxsData[:numBytesL1TxUser]
@@ -625,43 +618,84 @@ func (c *RollupClient) RollupForgeBatchArgs(ethTxHash ethCommon.Hash,
 		}
 		rollupForgeBatchArgs.L2TxsData = append(rollupForgeBatchArgs.L2TxsData, *l2Tx)
 	}
-	for i := 0; i < numTxsL1Coord; i++ {
-		bytesL1Coordinator :=
-			aux.EncodedL1CoordinatorTx[i*common.RollupConstL1CoordinatorTotalBytes : (i+1)*common.RollupConstL1CoordinatorTotalBytes] //nolint:lll
-		var signature []byte
-		v := bytesL1Coordinator[0]
-		s := bytesL1Coordinator[1:33]
-		r := bytesL1Coordinator[33:65]
-		signature = append(signature, r[:]...)
-		signature = append(signature, s[:]...)
-		signature = append(signature, v)
-		l1Tx, err := common.L1CoordinatorTxFromBytes(bytesL1Coordinator, c.chainID, c.address)
-		if err != nil {
-			return nil, nil, common.Wrap(err)
-		}
-		rollupForgeBatchArgs.L1CoordinatorTxs = append(rollupForgeBatchArgs.L1CoordinatorTxs, *l1Tx)
-		rollupForgeBatchArgs.L1CoordinatorTxsAuths =
-			append(rollupForgeBatchArgs.L1CoordinatorTxsAuths, signature)
-	}
-	lenFeeIdxCoordinatorBytes := int(nLevels / 8) //nolint:gomnd
-	numFeeIdxCoordinator := len(aux.FeeIdxCoordinator) / lenFeeIdxCoordinatorBytes
-	for i := 0; i < numFeeIdxCoordinator; i++ {
-		var paddedFeeIdx [6]byte
-		if lenFeeIdxCoordinatorBytes < common.AccountIdxBytesLen {
-			copy(paddedFeeIdx[6-lenFeeIdxCoordinatorBytes:],
-				aux.FeeIdxCoordinator[i*lenFeeIdxCoordinatorBytes:(i+1)*lenFeeIdxCoordinatorBytes])
-		} else {
-			copy(paddedFeeIdx[:],
-				aux.FeeIdxCoordinator[i*lenFeeIdxCoordinatorBytes:(i+1)*lenFeeIdxCoordinatorBytes])
-		}
-		feeIdxCoordinator, err := common.AccountIdxFromBytes(paddedFeeIdx[:])
-		if err != nil {
-			return nil, nil, common.Wrap(err)
-		}
-		if feeIdxCoordinator != common.AccountIdx(0) {
-			rollupForgeBatchArgs.FeeIdxCoordinator =
-				append(rollupForgeBatchArgs.FeeIdxCoordinator, feeIdxCoordinator)
-		}
-	}
+	// for i := 0; i < numTxsL1Coord; i++ {
+	// 	bytesL1Coordinator :=
+	// 		aux.EncodedL1CoordinatorTx[i*common.RollupConstL1CoordinatorTotalBytes : (i+1)*common.RollupConstL1CoordinatorTotalBytes] //nolint:lll
+	// 	var signature []byte
+	// 	v := bytesL1Coordinator[0]
+	// 	s := bytesL1Coordinator[1:33]
+	// 	r := bytesL1Coordinator[33:65]
+	// 	signature = append(signature, r[:]...)
+	// 	signature = append(signature, s[:]...)
+	// 	signature = append(signature, v)
+	// 	l1Tx, err := common.L1CoordinatorTxFromBytes(bytesL1Coordinator, c.chainID, c.address)
+	// 	if err != nil {
+	// 		return nil, nil, common.Wrap(err)
+	// 	}
+	// 	rollupForgeBatchArgs.L1CoordinatorTxs = append(rollupForgeBatchArgs.L1CoordinatorTxs, *l1Tx)
+	// 	rollupForgeBatchArgs.L1CoordinatorTxsAuths =
+	// 		append(rollupForgeBatchArgs.L1CoordinatorTxsAuths, signature)
+	// }
+	// lenFeeIdxCoordinatorBytes := int(nLevels / 8) //nolint:gomnd
+	// numFeeIdxCoordinator := len(aux.FeeIdxCoordinator) / lenFeeIdxCoordinatorBytes
+	// for i := 0; i < numFeeIdxCoordinator; i++ {
+	// 	var paddedFeeIdx [6]byte
+	// 	if lenFeeIdxCoordinatorBytes < common.AccountIdxBytesLen {
+	// 		copy(paddedFeeIdx[6-lenFeeIdxCoordinatorBytes:],
+	// 			aux.FeeIdxCoordinator[i*lenFeeIdxCoordinatorBytes:(i+1)*lenFeeIdxCoordinatorBytes])
+	// 	} else {
+	// 		copy(paddedFeeIdx[:],
+	// 			aux.FeeIdxCoordinator[i*lenFeeIdxCoordinatorBytes:(i+1)*lenFeeIdxCoordinatorBytes])
+	// 	}
+	// 	feeIdxCoordinator, err := common.AccountIdxFromBytes(paddedFeeIdx[:])
+	// 	if err != nil {
+	// 		return nil, nil, common.Wrap(err)
+	// 	}
+	// 	if feeIdxCoordinator != common.AccountIdx(0) {
+	// 		rollupForgeBatchArgs.FeeIdxCoordinator =
+	// 			append(rollupForgeBatchArgs.FeeIdxCoordinator, feeIdxCoordinator)
+	// 	}
+	// }
 	return &rollupForgeBatchArgs, &sender, nil
+}
+
+// RollupForgeBatch is the interface to call the smart contract function
+func (c *RollupClient) RollupForgeBatch(args *RollupForgeBatchArgs, auth *bind.TransactOpts) (tx *types.Transaction, err error) {
+	//TODO: Check and update this
+	if auth == nil {
+		auth, err = c.client.NewAuth()
+		if err != nil {
+			return nil, common.Wrap(err)
+		}
+		auth.GasLimit = 1000000
+	}
+
+	nLevels := c.consts.Verifiers[args.VerifierIdx].NLevels
+	newLastIdx := big.NewInt(int64(args.NewLastIdx))
+
+	// L1L2TxData
+	var l1l2TxData []byte
+	for i := 0; i < len(args.L1UserTxs); i++ {
+		l1User := args.L1UserTxs[i]
+		bytesl1User, err := l1User.BytesDataAvailability(uint32(nLevels))
+		if err != nil {
+			return nil, common.Wrap(err)
+		}
+		l1l2TxData = append(l1l2TxData, bytesl1User[:]...)
+	}
+	for i := 0; i < len(args.L2TxsData); i++ {
+		l2 := args.L2TxsData[i]
+		bytesl2, err := l2.BytesDataAvailability(uint32(nLevels))
+		if err != nil {
+			return nil, common.Wrap(err)
+		}
+		l1l2TxData = append(l1l2TxData, bytesl2[:]...)
+	}
+	tx, err = c.tokamak.ForgeBatch(auth, newLastIdx, args.NewStRoot, args.NewExitRoot,
+		l1l2TxData, args.VerifierIdx, args.L1Batch,
+		args.ProofA, args.ProofB, args.ProofC)
+	if err != nil {
+		return nil, common.Wrap(fmt.Errorf("Tokamak.ForgeBatch: %w", err))
+	}
+	return tx, nil
 }

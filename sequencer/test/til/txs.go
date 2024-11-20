@@ -21,7 +21,8 @@ func newBatchData(batchNum int) common.BatchData {
 		L2Txs:            []common.L2Tx{},
 		Batch: common.Batch{
 			BatchNum:  common.BatchNum(batchNum),
-			StateRoot: big.NewInt(0), ExitRoot: big.NewInt(0),
+			StateRoot: big.NewInt(0),
+			ExitRoot:  big.NewInt(0),
 			// CollectedFees:      make(map[common.TokenID]*big.Int),
 		},
 	}
@@ -888,23 +889,6 @@ func (tc *Context) FillBlocksExtra(blocks []common.BlockData, cfg *ConfigExtra) 
 				// the collectedFees.  Only consider the
 				// coordinator account to receive fee if it was
 				// created in this or a previous batch
-				// if acc, ok := tc.l1CreatedAccounts[cfg.CoordUser]; ok &&
-				// 	common.BatchNum(acc.BatchNum) <= batch.Batch.BatchNum {
-				// 	found := false
-				// 	for _, idx := range batch.Batch.FeeIdxsCoordinator {
-				// 		if idx == common.AccountIdx(acc.Idx) {
-				// 			found = true
-				// 			break
-				// 		}
-				// 	}
-				// 	// if !found {
-				// 	// 	batch.Batch.FeeIdxsCoordinator = append(batch.Batch.FeeIdxsCoordinator,
-				// 	// 		common.AccountIdx(acc.Idx))
-				// 	// 	batch.Batch.CollectedFees[fromAcc.TokenID] = big.NewInt(0)
-				// 	// }
-				// 	// collected := batch.Batch.CollectedFees[fromAcc.TokenID]
-				// 	// collected.Add(collected, fee)
-				// }
 			}
 		}
 	}

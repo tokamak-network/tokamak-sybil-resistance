@@ -108,15 +108,11 @@ func checkSyncBlock(t *testing.T, s *Synchronizer, blockNum int, block,
 			if batch.Batch.BatchNum == _dbBatch.BatchNum {
 				dbBatch = new(common.Batch)
 				*dbBatch = _dbBatch
-				dbBatch.GasPrice = batch.Batch.GasPrice
 				break
 			}
 		}
 		syncBatch := syncBlock.Rollup.Batches[i]
 
-		// We don't care about TotalFeesUSD.  Use the syncBatch that
-		// has a TotalFeesUSD inserted by the HistoryDB
-		batch.Batch.TotalFeesUSD = syncBatch.Batch.TotalFeesUSD
 		assert.Equal(t, batch.CreatedAccounts, syncBatch.CreatedAccounts)
 		batch.Batch.NumAccounts = len(batch.CreatedAccounts)
 
@@ -430,8 +426,6 @@ func TestSyncGeneral(t *testing.T) {
 	// Set ethereum transaction hash (til doesn't set it)
 	blocks[0].Rollup.Batches[0].Batch.EthTxHash = syncBlock.Rollup.Batches[0].Batch.EthTxHash
 	blocks[0].Rollup.Batches[1].Batch.EthTxHash = syncBlock.Rollup.Batches[1].Batch.EthTxHash
-	blocks[0].Rollup.Batches[0].Batch.GasPrice = syncBlock.Rollup.Batches[0].Batch.GasPrice
-	blocks[0].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
 
 	checkSyncBlock(t, s, 2, &blocks[0], syncBlock)
 
@@ -450,8 +444,6 @@ func TestSyncGeneral(t *testing.T) {
 	// Set ethereum transaction hash (til doesn't set it)
 	blocks[1].Rollup.Batches[0].Batch.EthTxHash = syncBlock.Rollup.Batches[0].Batch.EthTxHash
 	blocks[1].Rollup.Batches[1].Batch.EthTxHash = syncBlock.Rollup.Batches[1].Batch.EthTxHash
-	blocks[1].Rollup.Batches[0].Batch.GasPrice = syncBlock.Rollup.Batches[0].Batch.GasPrice
-	blocks[1].Rollup.Batches[1].Batch.GasPrice = syncBlock.Rollup.Batches[1].Batch.GasPrice
 
 	checkSyncBlock(t, s, 3, &blocks[1], syncBlock)
 

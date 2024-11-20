@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // TODO: Update this
@@ -121,4 +122,10 @@ func bindTokamak(address common.Address, caller bind.ContractCaller, transactor 
 		return nil, err
 	}
 	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
+}
+
+// TODO: Need to check this, with sm team
+// Solidity: function forgeBatch(uint48 newLastIdx, uint256 newStRoot, uint256 newExitRoot, bytes encodedL1CoordinatorTx, bytes l1L2TxsData, bytes feeIdxCoordinator, uint8 verifierIdx, bool l1Batch, uint256[2] proofA, uint256[2][2] proofB, uint256[2] proofC) returns()
+func (_Tokamak *TokamakTransactor) ForgeBatch(opts *bind.TransactOpts, newLastIdx *big.Int, newStRoot *big.Int, newExitRoot *big.Int, l1L2TxsData []byte, verifierIdx uint8, l1Batch bool, proofA [2]*big.Int, proofB [2][2]*big.Int, proofC [2]*big.Int) (*types.Transaction, error) {
+	return _Tokamak.contract.Transact(opts, "forgeBatch", newLastIdx, newStRoot, newExitRoot, l1L2TxsData, verifierIdx, l1Batch, proofA, proofB, proofC)
 }

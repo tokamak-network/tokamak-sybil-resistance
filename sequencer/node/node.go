@@ -568,10 +568,10 @@ func (n *Node) Start() {
 	// if n.nodeAPI != nil {
 	// 	n.StartNodeAPI()
 	// }
-	// if n.mode == ModeCoordinator {
-	// 	log.Info("Starting Coordinator...")
-	// 	n.coord.Start()
-	// }
+	if n.mode == ModeCoordinator {
+		log.Info("Starting Coordinator...")
+		n.coord.Start()
+	}
 	// n.StartSynchronizer()
 }
 

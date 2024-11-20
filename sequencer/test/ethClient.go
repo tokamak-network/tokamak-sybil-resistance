@@ -847,12 +847,10 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 				auths[i] = make([]byte, 65)
 			}
 			if _, err := c.RollupForgeBatch(&eth.RollupForgeBatchArgs{
-				NewLastIdx:            batch.Batch.LastIdx,
-				NewStRoot:             batch.Batch.StateRoot,
-				NewExitRoot:           batch.Batch.ExitRoot,
-				L1CoordinatorTxs:      batch.L1CoordinatorTxs,
-				L1CoordinatorTxsAuths: auths,
-				L2TxsData:             batch.L2Txs,
+				NewLastIdx:  batch.Batch.LastIdx,
+				NewStRoot:   batch.Batch.StateRoot,
+				NewExitRoot: batch.Batch.ExitRoot,
+				L2TxsData:   batch.L2Txs,
 				// Circuit selector
 				VerifierIdx: 0, // Intentionally empty
 				L1Batch:     batch.L1Batch,
