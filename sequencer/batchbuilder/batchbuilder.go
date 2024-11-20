@@ -65,7 +65,7 @@ func (bb *BatchBuilder) BuildBatch(configBatch *ConfigBatch, l1usertxs []common.
 	tp := txprocessor.NewTxProcessor(bbStateDB, configBatch.TxProcessorConfig)
 
 	//TODO: Need to update this once PR which has updates regarding tx processor is merged
-	ptOut, err := tp.ProcessTxs(nil, l1usertxs, nil, pooll2txs)
+	ptOut, err := tp.ProcessTxs(l1usertxs, pooll2txs)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}

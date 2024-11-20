@@ -104,9 +104,6 @@ type TxProcessor struct {
 	zki   *common.ZKInputs
 	// txIndex is the current transaction index in the ZKInputs generation (zki)
 	txIndex int
-	// AccumulatedFees contains the accumulated fees for each token (Coord
-	// Idx) in the processed batch
-	AccumulatedFees map[common.AccountIdx]*big.Int
 	// updatedAccounts stores the last version of the account when it has
 	// been created/updated by any of the processed transactions.
 	updatedAccounts map[common.AccountIdx]*common.Account
@@ -163,6 +160,16 @@ func NewTxProcessor(state *statedb.StateDB, config Config) *TxProcessor {
 		txIndex: 0,
 		config:  config,
 	}
+}
+
+// StateDB returns a pointer to the StateDB of the TxProcessor
+func (txProcessor *TxProcessor) StateDB() *statedb.StateDB {
+	return txProcessor.state
+}
+
+func (txProcessor *TxProcessor) resetZKInputs() {
+	txProcessor.zki = nil
+	txProcessor.txIndex = 0 // initialize current transaction index in the ZKInputs generation
 }
 
 // ProcessTxs process the given L1Txs & L2Txs applying the needed updates to

@@ -18,9 +18,12 @@ In some cases, some of the structs defined in this file also include custom Mars
 package l2db
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"time"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database"
@@ -259,6 +262,42 @@ func (l2db *L2DB) GetTx(txID common.TxID) (*common.PoolL2Tx, error) {
 	))
 }
 
+// GetPendingUniqueFromIdxs returns from all the pending transactions, the set
+// of unique FromIdx
+func (l2db *L2DB) GetPendingUniqueFromIdxs() ([]common.VouchIdx, error) {
+	var idxs []common.VouchIdx
+	rows, err := l2db.dbRead.Query(`SELECT DISTINCT from_idx FROM tx_pool
+		WHERE state = $1;`, common.PoolL2TxStatePending)
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+	defer database.RowsClose(rows)
+	var idx common.VouchIdx
+	for rows.Next() {
+		err = rows.Scan(&idx)
+		if err != nil {
+			return nil, common.Wrap(err)
+		}
+		idxs = append(idxs, idx)
+	}
+	return idxs, nil
+}
+
+// Reorg updates the state of txs that were updated in a batch that has been discarted due to a blockchain reorg.
+// The state of the affected txs can change form Forged -> Pending or from Invalid -> Pending
+func (l2db *L2DB) Reorg(lastValidBatch common.BatchNum) error {
+	_, err := l2db.dbWrite.Exec(
+		`UPDATE tx_pool SET batch_num = NULL, state = $1, info = NULL
+		WHERE (state = $2 OR state = $3 OR state = $4) AND batch_num > $5`,
+		common.PoolL2TxStatePending,
+		common.PoolL2TxStateForging,
+		common.PoolL2TxStateForged,
+		common.PoolL2TxStateInvalid,
+		lastValidBatch,
+	)
+	return common.Wrap(err)
+}
+
 // Update PoolL2Tx transaction in the pool
 func (l2db *L2DB) updateTx(tx common.PoolL2Tx) error {
 	const queryUpdate = `UPDATE tx_pool SET to_idx = ?, to_eth_addr = ?, to_bjj = ?, max_num_batch = ?, 
@@ -278,4 +317,143 @@ func (l2db *L2DB) updateTx(tx common.PoolL2Tx) error {
 	query = l2db.dbWrite.Rebind(query)
 	_, err = l2db.dbWrite.Exec(query, args...)
 	return common.Wrap(err)
+}
+
+// Purge deletes transactions that have been forged or marked as invalid for longer than the safety period
+// it also deletes pending txs that have been in the L2DB for longer than the ttl if maxTxs has been exceeded
+func (l2db *L2DB) Purge(currentBatchNum common.BatchNum) (err error) {
+	now := time.Now().UTC().Unix()
+	_, err = l2db.dbWrite.Exec(
+		`DELETE FROM tx_pool WHERE (
+			batch_num < $1 AND (state = $2 OR state = $3)
+		) OR (
+			state = $4 AND timestamp < $5
+		) OR (
+			max_num_batch < $1
+		);`,
+		currentBatchNum-l2db.safetyPeriod,
+		common.PoolL2TxStateForged,
+		common.PoolL2TxStateInvalid,
+		common.PoolL2TxStatePending,
+		time.Unix(now-int64(l2db.ttl.Seconds()), 0),
+	)
+	return common.Wrap(err)
+}
+
+// StartForging updates the state of the transactions that will begin the forging process.
+// The state of the txs referenced by txIDs will be changed from Pending -> Forging
+func (l2db *L2DB) StartForging(txIDs []common.TxID, batchNum common.BatchNum) error {
+	if len(txIDs) == 0 {
+		return nil
+	}
+	query, args, err := sqlx.In(
+		`UPDATE tx_pool
+		SET state = ?, batch_num = ?
+		WHERE state = ? AND tx_id IN (?);`,
+		common.PoolL2TxStateForging,
+		batchNum,
+		common.PoolL2TxStatePending,
+		txIDs,
+	)
+	if err != nil {
+		return common.Wrap(err)
+	}
+	query = l2db.dbWrite.Rebind(query)
+	_, err = l2db.dbWrite.Exec(query, args...)
+	return common.Wrap(err)
+}
+
+// UpdateTxsInfo updates the parameter Info of the pool transactions
+func (l2db *L2DB) UpdateTxsInfo(txs []common.PoolL2Tx, batchNum common.BatchNum) error {
+	if len(txs) == 0 {
+		return nil
+	}
+
+	const query string = `
+		UPDATE tx_pool SET
+			info = $2,
+			error_code = $3,
+			error_type = $4
+		WHERE tx_pool.tx_id = $1;
+	`
+
+	batchN := strconv.FormatInt(int64(batchNum), 10)
+
+	tx, err := l2db.dbWrite.BeginTx(context.Background(), &sql.TxOptions{})
+	if err != nil {
+		return common.Wrap(err)
+	}
+
+	for i := range txs {
+		info := "BatchNum: " + batchN + ". " + txs[i].Info
+
+		if _, err := tx.Exec(query, txs[i].TxID, info, txs[i].ErrorCode, txs[i].ErrorType); err != nil {
+			errRb := tx.Rollback()
+			if errRb != nil {
+				return common.Wrap(fmt.Errorf("failed to rollback tx update: %v. error triggering rollback: %v", err, errRb))
+			}
+			return common.Wrap(err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return common.Wrap(err)
+	}
+
+	return nil
+}
+
+const invalidateOldNoncesInfo = `Nonce is smaller than account nonce`
+
+var invalidateOldNoncesQuery = fmt.Sprintf(`
+		UPDATE tx_pool SET
+			state = '%s',
+			info = '%s',
+			batch_num = %%d
+		FROM (VALUES
+			(NULL::::BIGINT, NULL::::BIGINT),
+			(:idx, :nonce)
+		) as updated_acc (idx, nonce)
+		WHERE tx_pool.state = '%s' AND
+			tx_pool.from_idx = updated_acc.idx AND
+			tx_pool.nonce < updated_acc.nonce;
+	`, common.PoolL2TxStateInvalid, invalidateOldNoncesInfo, common.PoolL2TxStatePending)
+
+// InvalidateOldNonces invalidate txs with nonces that are smaller or equal than their
+// respective accounts nonces.  The state of the affected txs will be changed
+// from Pending to Invalid
+func (l2db *L2DB) InvalidateOldNonces(updatedAccounts []common.IdxAccountNonce, batchNum common.BatchNum) (err error) {
+	if len(updatedAccounts) == 0 {
+		return nil
+	}
+	// Fill the batch_num in the query with Sprintf because we are using a
+	// named query which works with slices, and doesn't handle an extra
+	// individual argument.
+	query := fmt.Sprintf(invalidateOldNoncesQuery, batchNum)
+	if _, err := sqlx.NamedExec(l2db.dbWrite, query, updatedAccounts); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
+}
+
+// PurgeByExternalDelete deletes all pending transactions marked with true in
+// the `external_delete` column.  An external process can set this column to
+// true to instruct the coordinator to delete the tx when possible.
+func (l2db *L2DB) PurgeByExternalDelete() error {
+	_, err := l2db.dbWrite.Exec(
+		`DELETE from tx_pool WHERE (external_delete = true AND state = $1);`,
+		common.PoolL2TxStatePending,
+	)
+	return common.Wrap(err)
+}
+
+// GetPendingTxs return all the pending txs of the L2DB, that have a non NULL AbsoluteFee
+func (l2db *L2DB) GetPendingTxs() ([]common.PoolL2Tx, error) {
+	var txs []*common.PoolL2Tx
+	err := meddler.QueryAll(
+		l2db.dbRead, &txs,
+		selectPoolTxCommon+"WHERE state = $1 AND NOT external_delete ORDER BY tx_pool.item_id ASC;",
+		common.PoolL2TxStatePending,
+	)
+	return database.SlicePtrsToSlice(txs).([]common.PoolL2Tx), common.Wrap(err)
 }

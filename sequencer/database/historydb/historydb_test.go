@@ -2,7 +2,6 @@ package historydb
 
 import (
 	"database/sql"
-	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -160,7 +159,6 @@ func TestBatches(t *testing.T) {
 		assert.NoError(t, historyDB.AddBlock(&block.Block))
 		// Combine all generated batches into single array
 		for _, batch := range block.Rollup.Batches {
-			batch.Batch.GasPrice = big.NewInt(0)
 			batches = append(batches, batch.Batch)
 			forgeTxsNum := batch.Batch.ForgeL1TxsNum
 			if forgeTxsNum != nil && (lastL1TxsNum == nil || *lastL1TxsNum < *forgeTxsNum) {

@@ -408,7 +408,7 @@ func (k *KVDB) DeleteCheckpoint(batchNum common.BatchNum) error {
 	checkpointPath := path.Join(k.cfg.Path, fmt.Sprintf("%s%d", PathBatchNum, batchNum))
 
 	if _, err := os.Stat(checkpointPath); os.IsNotExist(err) {
-		return common.Wrap(fmt.Errorf("Checkpoint with batchNum %d does not exist in DB", batchNum))
+		return common.Wrap(fmt.Errorf("checkpoint with batchNum %d does not exist in DB", batchNum))
 	} else if err != nil {
 		return common.Wrap(err)
 	}
@@ -423,7 +423,7 @@ func (k *KVDB) MakeCheckpointFromTo(fromBatchNum common.BatchNum, dest string) e
 	source := path.Join(k.cfg.Path, fmt.Sprintf("%s%d", PathBatchNum, fromBatchNum))
 	if _, err := os.Stat(source); os.IsNotExist(err) {
 		// if kvdb does not have checkpoint at batchNum, return err
-		return common.Wrap(fmt.Errorf("Checkpoint \"%v\" does not exist", source))
+		return common.Wrap(fmt.Errorf("checkpoint \"%v\" does not exist", source))
 	} else if err != nil {
 		return common.Wrap(err)
 	}
@@ -530,6 +530,17 @@ func (k *KVDB) DeleteOldCheckpoints() error {
 	return nil
 }
 
+// CheckpointExists returns true if the checkpoint exists
+func (k *KVDB) CheckpointExists(batchNum common.BatchNum) (bool, error) {
+	source := path.Join(k.cfg.Path, fmt.Sprintf("%s%d", PathBatchNum, batchNum))
+	if _, err := os.Stat(source); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, common.Wrap(err)
+	}
+	return true, nil
+}
+
 // Close the DB
 func (k *KVDB) Close() {
 	if k.db != nil {
@@ -541,4 +552,79 @@ func (k *KVDB) Close() {
 	}
 	// wait for deletion of old checkpoints
 	k.wg.Wait()
+}
+
+// ResetFromSynchronizer performs a reset in the KVDB getting the state from
+// synchronizerKVDB for the given batchNum.
+func (k *KVDB) ResetFromSynchronizer(batchNum common.BatchNum, synchronizerKVDB *KVDB) error {
+	if synchronizerKVDB == nil {
+		return common.Wrap(fmt.Errorf("synchronizerKVDB can not be nil"))
+	}
+
+	currentPath := path.Join(k.cfg.Path, PathCurrent)
+	if k.db != nil {
+		k.db.Close()
+		k.db = nil
+	}
+
+	// remove 'current'
+	if err := os.RemoveAll(currentPath); err != nil {
+		return common.Wrap(err)
+	}
+	// remove all checkpoints
+	list, err := k.ListCheckpoints()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	for _, bn := range list {
+		if err := k.DeleteCheckpoint(common.BatchNum(bn)); err != nil {
+			return common.Wrap(err)
+		}
+	}
+
+	if batchNum == 0 {
+		// if batchNum == 0, open the new fresh 'current'
+		sto, err := pebble.NewPebbleStorage(currentPath, false)
+		if err != nil {
+			return common.Wrap(err)
+		}
+		k.db = sto
+		k.CurrentAccountIdx = common.RollupConstReservedIDx // 255
+		k.CurrentBatch = 0
+
+		return nil
+	}
+
+	checkpointPath := path.Join(k.cfg.Path, fmt.Sprintf("%s%d", PathBatchNum, batchNum))
+
+	// copy synchronizer 'BatchNumX' to 'BatchNumX'
+	if err := synchronizerKVDB.MakeCheckpointFromTo(batchNum, checkpointPath); err != nil {
+		return common.Wrap(err)
+	}
+
+	// copy 'BatchNumX' to 'current'
+	err = k.MakeCheckpointFromTo(batchNum, currentPath)
+	if err != nil {
+		return common.Wrap(err)
+	}
+
+	// open the new 'current'
+	sto, err := pebble.NewPebbleStorage(currentPath, false)
+	if err != nil {
+		return common.Wrap(err)
+	}
+	k.db = sto
+
+	// get currentBatch num
+	k.CurrentBatch, err = k.GetCurrentBatch()
+	if err != nil {
+		return common.Wrap(err)
+	}
+	// get currentIdx
+	k.CurrentAccountIdx, err = k.GetCurrentAccountIdx()
+	if err != nil {
+		return common.Wrap(err)
+	}
+
+	return nil
 }

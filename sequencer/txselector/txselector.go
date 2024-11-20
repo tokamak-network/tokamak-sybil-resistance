@@ -68,6 +68,8 @@ import (
 	"tokamak-sybil-resistance/database/kvdb"
 	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/database/statedb"
+	"tokamak-sybil-resistance/metric"
+	"tokamak-sybil-resistance/txprocessor"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/babyjub"
@@ -91,6 +93,12 @@ type TxSelector struct {
 	coordAccount *CoordAccount
 }
 
+type failedAtomicGroup struct {
+	id         common.AtomicGroupID
+	failedTxID common.TxID // ID of the tx that made the entire atomic group fail
+	reason     common.TxSelectorError
+}
+
 // NewTxSelector returns a *TxSelector
 func NewTxSelector(coordAccount *CoordAccount, dbpath string,
 	synchronizerStateDB *statedb.StateDB, l2 *l2db.L2DB) (*TxSelector, error) {
@@ -112,3 +120,226 @@ func NewTxSelector(coordAccount *CoordAccount, dbpath string,
 		coordAccount:    coordAccount,
 	}, nil
 }
+
+// // getL1L2TxSelection returns the selection of L1 + L2 txs.
+// // It returns: The L1UserTxs, PoolL2Txs that will be
+// // included in the next batch.
+// func (txsel *TxSelector) getL1L2TxSelection(selectionConfig txprocessor.Config,
+// 	l1UserTxs, l1UserFutureTxs []common.L1Tx) ([]common.L1Tx, []common.PoolL2Tx, []common.PoolL2Tx, error) {
+// 	// WIP.0: the TxSelector is not optimized and will need a redesign. The
+// 	// current version is implemented in order to have a functional
+// 	// implementation that can be used ASAP.
+
+// 	// Steps of this method:
+// 	// - ProcessL1Txs (User txs)
+// 	// - getPendingTxs (forgable directly with current state & not forgable
+// 	// yet)
+// 	// - split between l2TxsForgable & l2TxsNonForgable, where:
+// 	// 	- l2TxsForgable are the txs that are directly forgable with the
+// 	// 	current state
+// 	// 	- l2TxsNonForgable are the txs that are not directly forgable
+// 	// 	with the current state, but that may be forgable once the
+// 	// 	l2TxsForgable ones are processed
+// 	// - for l2TxsForgable, and if needed, for l2TxsNonForgable:
+// 	// 	- sort by Fee & Nonce
+// 	// 	- loop over l2Txs (txsel.processL2Txs)
+// 	// 	        - Fill tx.TokenID tx.Nonce
+// 	// 	        - Check enough Balance on sender
+// 	// 	        - Check Nonce
+// 	// 	        - Check validity of receiver Account for ToEthAddr / ToBJJ
+// 	// 	        - If everything is fine, store l2Tx to selectedTxs & update NoncesMap
+// 	// - MakeCheckpoint
+// 	failedAtomicGroups := []failedAtomicGroup{}
+// START_SELECTION:
+// 	txselStateDB := txsel.localAccountsDB.StateDB
+// 	tp := txprocessor.NewTxProcessor(txselStateDB, selectionConfig)
+
+// 	// Process L1UserTxs
+// 	for i := 0; i < len(l1UserTxs); i++ {
+// 		// assumption: l1usertx are sorted by L1Tx.Position
+// 		_, _, _, _, err := tp.ProcessL1Tx(nil, &l1UserTxs[i])
+// 		if err != nil {
+// 			return nil, nil, nil, common.Wrap(err)
+// 		}
+// 	}
+
+// 	// Get pending txs from the pool
+// 	l2TxsFromDB, err := txsel.l2db.GetPendingTxs()
+// 	if err != nil {
+// 		return nil, nil, nil, common.Wrap(err)
+// 	}
+// 	// Filter transactions belonging to failed atomic groups
+// 	selectableTxsTmp, discardedTxs := filterFailedAtomicGroups(l2TxsFromDB, failedAtomicGroups)
+// 	// Filter invalid atomic groups
+// 	selectableTxs, discardedTxsTmp := filterInvalidAtomicGroups(selectableTxsTmp)
+// 	discardedTxs = append(discardedTxs, discardedTxsTmp...)
+
+// 	// in case that length of l2TxsForgable is 0, no need to continue, there
+// 	// is no L2Txs to forge at all
+// 	if len(selectableTxs) == 0 {
+// 		err = tp.StateDB().MakeCheckpoint()
+// 		if err != nil {
+// 			return nil, nil, nil, common.Wrap(err)
+// 		}
+
+// 		metric.SelectedL1UserTxs.Set(float64(len(l1UserTxs)))
+// 		// metric.SelectedL2Txs.Set(0)
+// 		// metric.DiscardedL2Txs.Set(float64(len(discardedTxs)))
+
+// 		return l1UserTxs, nil, discardedTxs, nil
+// 	}
+
+// 	// Processed txs
+// 	var selectedTxs []common.PoolL2Tx
+// 	// Start selection process
+// 	shouldKeepSelectionProcess := true
+// 	// Order L2 txs. This has to be done just once,
+// 	// as the array will get smaller over iterations, but the order won't be affected
+// 	// selectableTxs = sortL2Txs(selectableTxs, atomicFeeMap)
+// 	for shouldKeepSelectionProcess {
+// 		// Process txs and get selection
+// 		iteSelectedTxs,
+// 			nonSelectedTxs, invalidTxs, failedAtomicGroup, err := txsel.processL2Txs(
+// 			tp,
+// 			selectionConfig,
+// 			len(l1UserTxs),   // Already added L1 Txs
+// 			len(selectedTxs), // Already added L2 Txs
+// 			l1UserFutureTxs,  // Used to prevent the creation of unnecessary accounts
+// 			selectableTxs,    // Txs that can be selected
+// 		)
+// 		if failedAtomicGroup.id != common.EmptyAtomicGroupID {
+// 			// An atomic group failed to be processed
+// 			// after at least one tx from the group already altered the state.
+// 			// Revert state to current batch and start the selection process again,
+// 			// ignoring the txs from the group that failed
+// 			log.Info(err)
+// 			failedAtomicGroups = append(failedAtomicGroups, failedAtomicGroup)
+// 			if err := txsel.localAccountsDB.Reset(
+// 				txsel.localAccountsDB.CurrentBatch(), false,
+// 			); err != nil {
+// 				return nil, nil, nil, common.Wrap(err)
+// 			}
+// 			goto START_SELECTION
+// 		}
+// 		if err != nil {
+// 			return nil, nil, nil, common.Wrap(err)
+// 		}
+// 		// Add iteration results to selection arrays
+// 		selectedTxs = append(selectedTxs, iteSelectedTxs...)
+// 		discardedTxs = append(discardedTxs, invalidTxs...)
+// 		// Prepare for next iteration
+// 		if len(iteSelectedTxs) == 0 { // Stop iterating
+// 			// If in this iteration no txs got selected, stop selection process
+// 			shouldKeepSelectionProcess = false
+// 			// Add non selected txs to the discarded array as at this point they won't get selected
+// 			for i := 0; i < len(nonSelectedTxs); i++ {
+// 				discardedTxs = append(discardedTxs, nonSelectedTxs[i])
+// 			}
+// 		} else { // Keep iterating
+// 			// Try to select nonSelected txs in next iteration
+// 			selectableTxs = nonSelectedTxs
+// 		}
+// 	}
+
+// 	err = tp.StateDB().MakeCheckpoint()
+// 	if err != nil {
+// 		return nil, nil, nil, common.Wrap(err)
+// 	}
+
+// 	metric.SelectedL1UserTxs.Set(float64(len(l1UserTxs)))
+// 	// metric.SelectedL2Txs.Set(float64(len(selectedTxs)))
+// 	// metric.DiscardedL2Txs.Set(float64(len(discardedTxs)))
+
+// 	return l1UserTxs, selectedTxs, discardedTxs, nil
+// }
+
+// GetL1L2TxSelection returns the selection of L1 + L2 txs.
+// It returns: the CoordinatorIdxs used to receive the fees of the selected
+// L2Txs. An array of bytearrays with the signatures of the
+// AccountCreationAuthorization of the accounts of the users created by the
+// Coordinator with L1CoordinatorTxs of those accounts that does not exist yet
+// but there is a transactions to them and the authorization of account
+// creation exists. The L1UserTxs, L1CoordinatorTxs, PoolL2Txs that will be
+// included in the next batch.
+func (txsel *TxSelector) GetL1L2TxSelection(selectionConfig txprocessor.Config,
+	l1UserTxs, l1UserFutureTxs []common.L1Tx) ([]common.L1Tx,
+	[]common.PoolL2Tx, []common.PoolL2Tx, error) {
+	metric.GetL1L2TxSelection.Inc()
+	// l1UserTxs, l2Txs,
+	// 	discardedL2Txs, err := txsel.getL1L2TxSelection(selectionConfig, l1UserTxs, l1UserFutureTxs)
+	return l1UserTxs, nil,
+		nil, nil
+}
+
+// GetL2TxSelection returns the L1CoordinatorTxs and a selection of the L2Txs
+// for the next batch, from the L2DB pool.
+// It returns: the CoordinatorIdxs used to receive the fees of the selected
+// L2Txs. An array of bytearrays with the signatures of the
+// AccountCreationAuthorization of the accounts of the users created by the
+// Coordinator with L1CoordinatorTxs of those accounts that does not exist yet
+// but there is a transactions to them and the authorization of account
+// creation exists. The L1UserTxs, L1CoordinatorTxs, PoolL2Txs that will be
+// included in the next batch.
+func (txsel *TxSelector) GetL2TxSelection(selectionConfig txprocessor.Config, l1UserFutureTxs []common.L1Tx) ([]common.PoolL2Tx, []common.PoolL2Tx, error) {
+	metric.GetL2TxSelection.Inc()
+	// _, l2Txs,
+	// 	discardedL2Txs, err := txsel.getL1L2TxSelection(selectionConfig,
+	// 	[]common.L1Tx{}, l1UserFutureTxs)
+	return nil,
+		nil, nil
+}
+
+// LocalAccountsDB returns the LocalStateDB of the TxSelector
+func (txsel *TxSelector) LocalAccountsDB() *statedb.LocalStateDB {
+	return txsel.localAccountsDB
+}
+
+// Reset tells the TxSelector to get it's internal AccountsDB
+// from the required `batchNum`
+func (txsel *TxSelector) Reset(batchNum common.BatchNum, fromSynchronizer bool) error {
+	return common.Wrap(txsel.localAccountsDB.Reset(batchNum, fromSynchronizer))
+}
+
+// filterInvalidAtomicGroups split the txs into the ones that can be processed
+// and the ones that can't because they belong to an AtomicGroup that is impossible to forge
+// due to missing or bad ordered txs
+// func filterInvalidAtomicGroups(
+// 	txs []common.PoolL2Tx,
+// ) (txsToProcess []common.PoolL2Tx, filteredTxs []common.PoolL2Tx) {
+// 	// Separate txs into atomic groups
+// 	atomicGroups := make(map[common.AtomicGroupID]common.AtomicGroup)
+// 	for i := 0; i < len(txs); i++ {
+// 		atomicGroupID := txs[i].AtomicGroupID
+// 		if atomicGroupID == common.EmptyAtomicGroupID {
+// 			// Tx is not atomic, not filtering
+// 			txsToProcess = append(txsToProcess, txs[i])
+// 			continue
+// 		}
+// 		if atomicGroup, ok := atomicGroups[atomicGroupID]; !ok {
+// 			atomicGroups[atomicGroupID] = common.AtomicGroup{
+// 				Txs: []common.PoolL2Tx{txs[i]},
+// 			}
+// 		} else {
+// 			atomicGroup.Txs = append(atomicGroup.Txs, txs[i])
+// 			atomicGroups[atomicGroupID] = atomicGroup
+// 		}
+// 	}
+// 	// Validate atomic groups
+// 	for _, atomicGroup := range atomicGroups {
+// 		if !isAtomicGroupValid(atomicGroup) {
+// 			// Set Info message and add txs of the atomic group to filteredTxs
+// 			for i := 0; i < len(atomicGroup.Txs); i++ {
+// 				atomicGroup.Txs[i].Info = ErrInvalidAtomicGroup
+// 				atomicGroup.Txs[i].ErrorType = ErrInvalidAtomicGroupType
+// 				atomicGroup.Txs[i].ErrorCode = ErrInvalidAtomicGroupCode
+// 				filteredTxs = append(filteredTxs, atomicGroup.Txs[i])
+// 			}
+// 		} else {
+// 			// Atomic group is valid, add txs of the atomic group to txsToProcess
+// 			for i := 0; i < len(atomicGroup.Txs); i++ {
+// 				txsToProcess = append(txsToProcess, atomicGroup.Txs[i])
+// 			}
+// 		}
+// 	}
+// 	return txsToProcess, filteredTxs
+// }

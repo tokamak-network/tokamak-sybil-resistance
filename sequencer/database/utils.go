@@ -277,3 +277,10 @@ func SlicePtrsToSlice(slice interface{}) interface{} {
 	}
 	return res.Interface()
 }
+
+// RowsClose close the rows of an sql query, and log the errir if it's not nil
+func RowsClose(rows *sql.Rows) {
+	if err := rows.Close(); err != nil {
+		log.Errorw("rows.Close", "err", err)
+	}
+}
