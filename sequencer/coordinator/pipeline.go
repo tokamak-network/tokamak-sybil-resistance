@@ -630,12 +630,13 @@ func (p *Pipeline) revertPoolChanges(failedBatch common.BatchNum) {
 
 func prepareForgeBatchArgs(batchInfo *BatchInfo) *eth.RollupForgeBatchArgs {
 	proof := batchInfo.Proof
-	zki := batchInfo.ZKInputs
+	//TODO: Need to check this and sync with circuit team for sync regarding Idx root, exit and if it would be included in metadata
+	// zki := batchInfo.ZKInputs
 	return &eth.RollupForgeBatchArgs{
-		NewLastIdx:  int64(zki.Metadata.NewLastIdxRaw),
-		NewStRoot:   zki.Metadata.NewStateRootRaw.BigInt(),
-		NewExitRoot: zki.Metadata.NewExitRootRaw.BigInt(),
-		L1UserTxs:   batchInfo.L1UserTxs,
+		// NewLastIdx:  int64(zki.Metadata.NewLastIdxRaw),
+		// NewStRoot:   zki.Metadata.NewStateRootRaw.BigInt(),
+		// NewExitRoot: zki.Metadata.NewExitRootRaw.BigInt(),
+		L1UserTxs: batchInfo.L1UserTxs,
 
 		L2TxsData: batchInfo.L2Txs,
 		// Circuit selector
@@ -649,5 +650,23 @@ func prepareForgeBatchArgs(batchInfo *BatchInfo) *eth.RollupForgeBatchArgs {
 			{proof.PiB[1][1], proof.PiB[1][0]},
 		},
 		ProofC: [2]*big.Int{proof.PiC[0], proof.PiC[1]},
+	}
+}
+
+// Stop the forging pipeline
+func (p *Pipeline) Stop(ctx context.Context) {
+	if !p.started {
+		log.Fatal("Pipeline already stopped")
+	}
+	p.started = false
+	log.Info("Stopping Pipeline...")
+	p.cancel()
+	p.wg.Wait()
+	for _, prover := range p.provers {
+		if err := prover.Cancel(ctx); ctx.Err() != nil {
+			continue
+		} else if err != nil {
+			log.Errorw("prover.Cancel", "err", err)
+		}
 	}
 }

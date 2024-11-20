@@ -145,3 +145,36 @@ func L2TxFromBytesDataAvailability(b []byte, nLevels int) (*L2Tx, error) {
 	// tx.Fee = FeeSelector(b[idxLen*2+Float40BytesLength])
 	return tx, nil
 }
+
+// BytesDataAvailability encodes a L2Tx into []byte for the Data Availability
+// [ fromIdx | toIdx | amountFloat40 | Fee ]
+func (tx L2Tx) BytesDataAvailability(nLevels uint32) ([]byte, error) {
+	idxLen := nLevels / 8 //nolint:gomnd
+
+	b := make([]byte, ((nLevels*2)+40+8)/8) //nolint:gomnd
+
+	fromIdxBytes, err := tx.FromIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[0:idxLen], fromIdxBytes[6-idxLen:]) // [6-idxLen:] as is BigEndian
+
+	toIdxBytes, err := tx.ToIdx.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[idxLen:idxLen*2], toIdxBytes[6-idxLen:])
+
+	amountFloat40, err := NewFloat40(tx.Amount)
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	amountFloat40Bytes, err := amountFloat40.Bytes()
+	if err != nil {
+		return nil, Wrap(err)
+	}
+	copy(b[idxLen*2:idxLen*2+Float40BytesLength], amountFloat40Bytes)
+	// b[idxLen*2+Float40BytesLength] = byte(tx.Fee)
+
+	return b[:], nil
+}

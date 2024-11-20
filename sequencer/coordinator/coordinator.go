@@ -55,6 +55,7 @@ import (
 	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/eth"
 	"tokamak-sybil-resistance/etherscan"
+	"tokamak-sybil-resistance/log"
 	"tokamak-sybil-resistance/synchronizer"
 	"tokamak-sybil-resistance/txprocessor"
 	"tokamak-sybil-resistance/txselector"
@@ -307,4 +308,300 @@ func NewCoordinator(cfg Config,
 	// guaranteed to return false before it's updated with a real stats
 	c.stats.Eth.LastBlock.Num = -1
 	return &c, nil
+}
+
+func updateSCVars(vars *common.SCVariables, update common.SCVariablesPtr) {
+	if update.Rollup != nil {
+		vars.Rollup = *update.Rollup
+	}
+}
+
+func (c *Config) debugBatchStore(batchInfo *BatchInfo) {
+	if c.DebugBatchPath != "" {
+		if err := batchInfo.DebugStore(c.DebugBatchPath); err != nil {
+			log.Warnw("Error storing debug BatchInfo",
+				"path", c.DebugBatchPath, "err", err)
+		}
+	}
+}
+
+func (c *Coordinator) syncSCVars(vars common.SCVariablesPtr) {
+	updateSCVars(&c.vars, vars)
+}
+
+// TODO: Need to check and update this for forge if required
+func canForge(
+	addr ethCommon.Address, blockNum int64,
+	mustForgeAtDeadline bool) bool {
+	var slot *common.Slot
+	if slot.Forger == addr || mustForgeAtDeadline {
+		return true
+	}
+	return false
+}
+
+func (c *Coordinator) canForgeAt(blockNum int64) bool {
+	return canForge(
+		c.cfg.ForgerAddress, blockNum, c.cfg.MustForgeAtSlotDeadline)
+}
+
+func (c *Coordinator) newPipeline(ctx context.Context) (*Pipeline, error) {
+	c.pipelineNum++
+	return NewPipeline(ctx, c.cfg, c.pipelineNum, c.historyDB, c.l2DB, c.txSelector,
+		c.batchBuilder, &c.mutexL2DBUpdateDelete, c.purger, c, c.txManager,
+		c.provers, &c.consts)
+}
+
+func (c *Coordinator) syncStats(ctx context.Context, stats *synchronizer.Stats) error {
+	nextBlock := c.stats.Eth.LastBlock.Num + 1
+	canForge := c.canForgeAt(nextBlock)
+	if c.cfg.ScheduleBatchBlocksAheadCheck != 0 && canForge {
+		canForge = c.canForgeAt(nextBlock + c.cfg.ScheduleBatchBlocksAheadCheck)
+	}
+	if c.pipeline == nil {
+		if canForge {
+			log.Debugf("Coordinator: delaying pipeline start "+
+				"(%v)",
+				c.cfg.StartSlotBlocksDelay)
+		} else if canForge {
+			log.Infow("Coordinator: forging state begin", "block",
+				stats.Eth.LastBlock.Num+1, "batch", stats.Sync.LastBatch.BatchNum)
+			fromBatch := fromBatch{
+				BatchNum:   stats.Sync.LastBatch.BatchNum,
+				ForgerAddr: stats.Sync.LastBatch.ForgerAddr,
+				StateRoot:  stats.Sync.LastBatch.StateRoot,
+			}
+			if c.lastNonFailedBatchNum > fromBatch.BatchNum {
+				fromBatch.BatchNum = c.lastNonFailedBatchNum
+				fromBatch.ForgerAddr = c.cfg.ForgerAddress
+				fromBatch.StateRoot = big.NewInt(0)
+			}
+			// Before starting the pipeline make sure we reset any
+			// l2tx from the pool that was forged in a batch that
+			// didn't end up being mined.  We are already doing
+			// this in handleStopPipeline, but we do it again as a
+			// failsafe in case the last synced batchnum is
+			// different than in the previous call to l2DB.Reorg,
+			// or in case the node was restarted when there was a
+			// started batch that included l2txs but was not mined.
+			if err := c.l2DB.Reorg(fromBatch.BatchNum); err != nil {
+				return common.Wrap(err)
+			}
+			var err error
+			if c.pipeline, err = c.newPipeline(ctx); err != nil {
+				return common.Wrap(err)
+			}
+			c.pipelineFromBatch = fromBatch
+			// Start the pipeline
+			if err := c.pipeline.Start(fromBatch.BatchNum, stats, &c.vars); err != nil {
+				c.pipeline = nil
+				return common.Wrap(err)
+			}
+		}
+	} else {
+		if !canForge {
+			log.Infow("Coordinator: forging state end", "block", stats.Eth.LastBlock.Num+1)
+			c.pipeline.Stop(c.ctx)
+			c.pipeline = nil
+		}
+	}
+	if c.pipeline == nil {
+		if _, err := c.purger.InvalidateMaybe(c.l2DB, c.txSelector.LocalAccountsDB(),
+			stats.Sync.LastBlock.Num, int64(stats.Sync.LastBatch.BatchNum)); err != nil {
+			return common.Wrap(err)
+		}
+		if _, err := c.purger.PurgeMaybe(c.l2DB, stats.Sync.LastBlock.Num,
+			int64(stats.Sync.LastBatch.BatchNum)); err != nil {
+			return common.Wrap(err)
+		}
+	}
+	return nil
+}
+
+func (c *Coordinator) handleMsgSyncBlock(ctx context.Context, msg *MsgSyncBlock) error {
+	c.stats = msg.Stats
+	c.syncSCVars(msg.Vars)
+	c.txManager.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+	if c.pipeline != nil {
+		c.pipeline.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+	}
+
+	// If there's any batch not forged by us, make sure we don't keep
+	// "phantom forged l2txs" in the pool.  That is, l2txs that we
+	// attempted to forge in BatchNum=N, where the forgeBatch transaction
+	// failed, but another batch with BatchNum=N was forged by another
+	// coordinator successfully.
+	externalBatchNums := []common.BatchNum{}
+	for _, batch := range msg.Batches {
+		if batch.Batch.ForgerAddr != c.cfg.ForgerAddress {
+			externalBatchNums = append(externalBatchNums, batch.Batch.BatchNum)
+		}
+	}
+	if len(externalBatchNums) > 0 {
+		// If we just synced external batches, make sure the pipeline
+		// is stopped
+		lastValidBatch := externalBatchNums[0] - 1
+		if c.pipeline != nil {
+			if err := c.handleStopPipeline(ctx, "synced external batches",
+				lastValidBatch); err != nil {
+				return err
+			}
+		} else {
+			if err := c.l2DB.Reorg(lastValidBatch); err != nil {
+				return err
+			}
+		}
+	}
+
+	if !c.stats.Synced() {
+		return nil
+	}
+	return c.syncStats(ctx, &c.stats)
+}
+
+func (c *Coordinator) handleReorg(ctx context.Context, msg *MsgSyncReorg) error {
+	c.stats = msg.Stats
+	c.syncSCVars(msg.Vars)
+	c.txManager.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+	if c.pipeline != nil {
+		c.pipeline.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+	}
+	if c.stats.Sync.LastBatch.ForgerAddr != c.cfg.ForgerAddress &&
+		(c.stats.Sync.LastBatch.StateRoot == nil || c.pipelineFromBatch.StateRoot == nil ||
+			c.stats.Sync.LastBatch.StateRoot.Cmp(c.pipelineFromBatch.StateRoot) != 0) {
+		// There's been a reorg and the batch state root from which the
+		// pipeline was started has changed (probably because it was in
+		// a block that was discarded), and it was sent by a different
+		// coordinator than us.  That batch may never be in the main
+		// chain, so we stop the pipeline  (it will be started again
+		// once the node is in sync).
+		log.Infow("Coordinator.handleReorg StopPipeline sync.LastBatch.ForgerAddr != cfg.ForgerAddr "+
+			"& sync.LastBatch.StateRoot != pipelineFromBatch.StateRoot",
+			"sync.LastBatch.StateRoot", c.stats.Sync.LastBatch.StateRoot,
+			"pipelineFromBatch.StateRoot", c.pipelineFromBatch.StateRoot)
+		c.txManager.DiscardPipeline(ctx, c.pipelineNum)
+		if err := c.handleStopPipeline(ctx, "reorg", 0); err != nil {
+			return common.Wrap(err)
+		}
+	}
+	return nil
+}
+
+// handleStopPipeline handles stopping the pipeline.  If failedBatchNum is 0,
+// the next pipeline will start from the last state of the synchronizer,
+// otherwise, it will state from failedBatchNum-1.
+func (c *Coordinator) handleStopPipeline(ctx context.Context, reason string,
+	failedBatchNum common.BatchNum) error {
+	batchNum := c.stats.Sync.LastBatch.BatchNum
+	if failedBatchNum != 0 {
+		batchNum = failedBatchNum - 1
+	}
+	if c.pipeline != nil {
+		c.pipeline.Stop(c.ctx)
+		c.pipeline = nil
+	}
+	if err := c.l2DB.Reorg(batchNum); err != nil {
+		return common.Wrap(err)
+	}
+	c.lastNonFailedBatchNum = batchNum
+	return nil
+}
+
+func (c *Coordinator) handleMsg(ctx context.Context, msg interface{}) error {
+	switch msg := msg.(type) {
+	case MsgSyncBlock:
+		if err := c.handleMsgSyncBlock(ctx, &msg); err != nil {
+			return common.Wrap(fmt.Errorf("Coordinator.handleMsgSyncBlock error: %w", err))
+		}
+	case MsgSyncReorg:
+		if err := c.handleReorg(ctx, &msg); err != nil {
+			return common.Wrap(fmt.Errorf("Coordinator.handleReorg error: %w", err))
+		}
+	case MsgStopPipeline:
+		log.Infow("Coordinator received MsgStopPipeline", "reason", msg.Reason)
+		if err := c.handleStopPipeline(ctx, msg.Reason, msg.FailedBatchNum); err != nil {
+			return common.Wrap(fmt.Errorf("Coordinator.handleStopPipeline: %w", err))
+		}
+	default:
+		log.Fatalw("Coordinator Unexpected Coordinator msg of type %T: %+v", msg, msg)
+	}
+	return nil
+}
+
+// SendMsg is a thread safe method to pass a message to the Coordinator
+func (c *Coordinator) SendMsg(ctx context.Context, msg interface{}) {
+	select {
+	case c.msgCh <- msg:
+	case <-ctx.Done():
+	}
+}
+
+// Start the coordinator
+func (c *Coordinator) Start() {
+	if c.started {
+		log.Fatal("Coordinator already started")
+	}
+	c.started = true
+	c.wg.Add(1)
+	go func() {
+		c.txManager.Run(c.ctx)
+		c.wg.Done()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		timer := time.NewTimer(longWaitDuration)
+		for {
+			select {
+			case <-c.ctx.Done():
+				log.Info("Coordinator done")
+				c.wg.Done()
+				return
+			case msg := <-c.msgCh:
+				if err := c.handleMsg(c.ctx, msg); c.ctx.Err() != nil {
+					continue
+				} else if err != nil {
+					log.Errorw("Coordinator.handleMsg", "err", err)
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(c.cfg.SyncRetryInterval)
+					continue
+				}
+			case <-timer.C:
+				timer.Reset(longWaitDuration)
+				if !c.stats.Synced() {
+					continue
+				}
+				if err := c.syncStats(c.ctx, &c.stats); c.ctx.Err() != nil {
+					continue
+				} else if err != nil {
+					log.Errorw("Coordinator.syncStats", "err", err)
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(c.cfg.SyncRetryInterval)
+					continue
+				}
+			}
+		}
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		for {
+			select {
+			case <-c.ctx.Done():
+				log.Info("Coordinator L2DB.PurgeByExternalDelete loop done")
+				c.wg.Done()
+				return
+			case <-time.After(c.cfg.PurgeByExtDelInterval):
+				c.mutexL2DBUpdateDelete.Lock()
+				if err := c.l2DB.PurgeByExternalDelete(); err != nil {
+					log.Errorw("L2DB.PurgeByExternalDelete", "err", err)
+				}
+				c.mutexL2DBUpdateDelete.Unlock()
+			}
+		}
+	}()
 }
