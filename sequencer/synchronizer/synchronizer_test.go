@@ -519,4 +519,113 @@ func TestSyncGeneral(t *testing.T) {
 	// Set EthBlockNum for Vars to the blockNum in which they were updated (should be 5)
 	rollupVars.EthBlockNum = syncBlock.Block.Num
 	assert.Equal(t, rollupVars, dbRollupVars)
+
+	//
+	// Reorg test
+	//
+
+	// Redo blocks 2-5 (as a reorg) only leaving:
+	// - 4 create account transactions
+	// We add a 6th block so that the synchronizer can detect the reorg
+	set2 := `
+		Type: Blockchain
+
+		CreateAccountDeposit A: 1000 // Idx=256+0=256
+		CreateAccountDeposit B: 2000 // Idx=256+1=257
+
+		> batchL1 // forge L1UserTxs{nil}, freeze defined L1UserTxs{1}
+		> batchL1 // forge defined L1UserTxs{1}, freeze L1UserTxs{nil}
+		> block // blockNum=2
+		> block // blockNum=3
+		> block // blockNum=4
+		> block // blockNum=5
+		> block // blockNum=6
+	`
+	tc = til.NewContext(chainID, common.RollupConstMaxL1UserTx)
+	tilCfgExtra = til.ConfigExtra{
+		BootCoordAddr: bootCoordAddr,
+		CoordUser:     "A",
+	}
+	blocks, err = tc.GenerateBlocks(set2)
+	require.NoError(t, err)
+
+	// Set StateRoots for batches manually (til doesn't set it)
+	blocks[0].Rollup.Batches[0].Batch.StateRoot =
+		newBigInt("14095767774967159269372103336737817266053275274769794195030162905513860477094")
+	blocks[0].Rollup.Batches[1].Batch.StateRoot =
+		newBigInt("2095674348545184674850951945506660952512376416769035169971006930847780339914")
+
+	for i := 0; i < 4; i++ {
+		client.CtlRollback()
+	}
+	block := client.CtlLastBlock()
+	require.Equal(t, int64(1), block.Num)
+
+	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)
+	require.NoError(t, err)
+	tc.FillBlocksL1UserTxsBatchNum(blocks)
+
+	// Add block data to the smart contracts
+	err = client.CtlAddBlocks(blocks)
+	require.NoError(t, err)
+
+	// First sync detects the reorg and discards 4 blocks
+	syncBlock, discards, err = s.Sync(ctx, nil)
+	require.NoError(t, err)
+	expetedDiscards := int64(4)
+	require.Equal(t, &expetedDiscards, discards)
+	require.Nil(t, syncBlock)
+	stats = s.Stats()
+	assert.Equal(t, false, stats.Synced())
+	assert.Equal(t, int64(6), stats.Eth.LastBlock.Num)
+	vars = s.SCVars()
+	assert.Equal(t, *clientSetup.RollupVariables, vars.Rollup)
+
+	// At this point, the DB only has data up to block 1
+	dbBlock, err := s.historyDB.GetLastBlock()
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), dbBlock.Num)
+
+	// Accounts in HistoryDB and StateDB must be empty
+	dbAccounts, err := s.historyDB.GetAllAccounts()
+	require.NoError(t, err)
+	sdbAccounts, err := s.stateDB.TestGetAccounts()
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(dbAccounts))
+	assertEqualAccountsHistoryDBStateDB(t, dbAccounts, sdbAccounts)
+
+	// Sync blocks 2-6
+	for i := 0; i < 5; i++ {
+		syncBlock, discards, err = s.Sync(ctx, nil)
+		require.NoError(t, err)
+		require.Nil(t, discards)
+		require.NotNil(t, syncBlock)
+		assert.Nil(t, syncBlock.Rollup.Vars)
+		assert.Equal(t, int64(2+i), syncBlock.Block.Num)
+
+		stats = s.Stats()
+		assert.Equal(t, int64(1), stats.Eth.FirstBlockNum)
+		assert.Equal(t, int64(6), stats.Eth.LastBlock.Num)
+		assert.Equal(t, int64(2+i), stats.Sync.LastBlock.Num)
+		if i == 4 {
+			assert.Equal(t, true, stats.Synced())
+		} else {
+			assert.Equal(t, false, stats.Synced())
+		}
+
+		vars = s.SCVars()
+		assert.Equal(t, *clientSetup.RollupVariables, vars.Rollup)
+	}
+
+	dbBlock, err = s.historyDB.GetLastBlock()
+	require.NoError(t, err)
+	assert.Equal(t, int64(6), dbBlock.Num)
+
+	// Accounts in HistoryDB and StateDB is only 2 entries
+	dbAccounts, err = s.historyDB.GetAllAccounts()
+	require.NoError(t, err)
+	sdbAccounts, err = s.stateDB.TestGetAccounts()
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(dbAccounts))
+	assertEqualAccountsHistoryDBStateDB(t, dbAccounts, sdbAccounts)
 }
