@@ -403,7 +403,7 @@ type LogConf struct {
 }
 
 // LoadNode loads the Node configuration from path.
-func LoadNode(path string, coordinator bool) (*Node, error) {
+func LoadNode(path string /*, coordinator bool*/) (*Node, error) {
 	var cfg, aux Node
 	err := SourceParamsNode(path, &cfg, &aux)
 	if err != nil {
@@ -421,10 +421,10 @@ func LoadNode(path string, coordinator bool) (*Node, error) {
 	if err := validate.Struct(cfg); err != nil {
 		return nil, common.Wrap(fmt.Errorf("error validating configuration file: %w", err))
 	}
-	if coordinator {
-		if err := validate.Struct(cfg.Coordinator); err != nil {
-			return nil, common.Wrap(fmt.Errorf("error validating configuration file: %w", err))
-		}
+	// if coordinator {
+	if err := validate.Struct(cfg.Coordinator); err != nil {
+		return nil, common.Wrap(fmt.Errorf("error validating configuration file: %w", err))
+		// }
 	}
 	log.Printf("Loaded Configuration: %+v", cfg)
 	return &cfg, nil

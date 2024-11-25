@@ -13,7 +13,6 @@ package node
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"tokamak-sybil-resistance/batchbuilder"
@@ -33,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/jmoiron/sqlx"
 	"github.com/russross/meddler"
 )
@@ -334,27 +332,27 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	// if mode == ModeCoordinator {
 	// Unlock FeeAccount EthAddr in the keystore to generate the
 	// account creation authorization
-	if !keyStore.HasAddress(cfg.Coordinator.FeeAccount.Address) {
-		return nil, common.Wrap(fmt.Errorf(
-			"ethereum keystore doesn't have the key for address %v",
-			cfg.Coordinator.FeeAccount.Address))
-	}
-	feeAccount := accounts.Account{
-		Address: cfg.Coordinator.FeeAccount.Address,
-	}
-	if err := keyStore.Unlock(feeAccount,
-		cfg.Coordinator.EthClient.Keystore.Password); err != nil {
-		return nil, common.Wrap(err)
-	}
-	//Swap bjj endianness
-	decodedBjjPubKey, err := hex.DecodeString(cfg.Coordinator.FeeAccount.BJJ.String())
-	if err != nil {
-		log.Error("Error decoding BJJ public key from config file. Error: ", err.Error())
-		return nil, common.Wrap(err)
-	}
-	bSwapped := common.SwapEndianness(decodedBjjPubKey)
-	var bjj babyjub.PublicKeyComp
-	copy(bjj[:], bSwapped[:])
+	// if !keyStore.HasAddress(cfg.Coordinator.FeeAccount.Address) {
+	// 	return nil, common.Wrap(fmt.Errorf(
+	// 		"ethereum keystore doesn't have the key for address %v",
+	// 		cfg.Coordinator.FeeAccount.Address))
+	// }
+	// feeAccount := accounts.Account{
+	// 	Address: cfg.Coordinator.FeeAccount.Address,
+	// }
+	// if err := keyStore.Unlock(feeAccount,
+	// 	cfg.Coordinator.EthClient.Keystore.Password); err != nil {
+	// 	return nil, common.Wrap(err)
+	// }
+	// //Swap bjj endianness
+	// decodedBjjPubKey, err := hex.DecodeString(cfg.Coordinator.FeeAccount.BJJ.String())
+	// if err != nil {
+	// 	log.Error("Error decoding BJJ public key from config file. Error: ", err.Error())
+	// 	return nil, common.Wrap(err)
+	// }
+	// bSwapped := common.SwapEndianness(decodedBjjPubKey)
+	// var bjj babyjub.PublicKeyComp
+	// copy(bjj[:], bSwapped[:])
 
 	// auth := &common.AccountCreationAuth{
 	// 	EthAddr: cfg.Coordinator.FeeAccount.Address,
@@ -628,18 +626,20 @@ func (n *Node) Start() {
 }
 
 // Stop the node
-// func (n *Node) Stop() {
-// 	log.Infow("Stopping node...")
-// 	n.cancel()
-// 	n.wg.Wait()
-// if n.mode == ModeCoordinator {
-// 	log.Info("Stopping Coordinator...")
-// 	n.coord.Stop()
-// }
-// // Close kv DBs
-// n.sync.StateDB().Close()
-// if n.mode == ModeCoordinator {
-// 	n.coord.TxSelector().LocalAccountsDB().Close()
-// 	n.coord.BatchBuilder().LocalStateDB().Close()
-// }
-// }
+func (n *Node) Stop() {
+	log.Infow("Stopping node...")
+	n.cancel()
+	n.wg.Wait()
+	//	if n.mode == ModeCoordinator {
+	//		log.Info("Stopping Coordinator...")
+	//		n.coord.Stop()
+	//	}
+	//
+	// // Close kv DBs
+	// n.sync.StateDB().Close()
+	//
+	//	if n.mode == ModeCoordinator {
+	//		n.coord.TxSelector().LocalAccountsDB().Close()
+	//		n.coord.BatchBuilder().LocalStateDB().Close()
+	//	}
+}

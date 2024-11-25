@@ -14,21 +14,21 @@ import (
 )
 
 const (
-	flagCfg     = "cfg"
-	flagMode    = "mode"
-	flagSK      = "privatekey"
-	flagYes     = "yes"
-	flagBlock   = "block"
-	modeSync    = "sync"
-	modeCoord   = "coord"
-	nMigrations = "nMigrations"
-	flagAccount = "account"
-	flagPath    = "path"
+	flagCfg = "cfg"
+	// flagMode    = "mode"
+	// flagSK      = "privatekey"
+	// flagYes     = "yes"
+	// flagBlock   = "block"
+	// modeSync    = "sync"
+	// modeCoord   = "coord"
+	// nMigrations = "nMigrations"
+	// flagAccount = "account"
+	// flagPath    = "path"
 )
 
 // Config is the configuration of the node execution
 type Config struct {
-	mode node.Mode
+	// mode node.Mode
 	node *config.Node
 }
 
@@ -45,25 +45,25 @@ func parseCli(c *cli.Context) (*Config, error) {
 
 func getConfig(c *cli.Context) (*Config, error) {
 	var cfg Config
-	mode := c.String(flagMode)
+	// mode := c.String(flagMode)
 	nodeCfgPath := c.String(flagCfg)
 	var err error
-	switch mode {
-	case modeSync:
-		cfg.mode = node.ModeSynchronizer
-		cfg.node, err = config.LoadNode(nodeCfgPath, false)
-		if err != nil {
-			return nil, common.Wrap(err)
-		}
-	case modeCoord:
-		cfg.mode = node.ModeCoordinator
-		cfg.node, err = config.LoadNode(nodeCfgPath, true)
-		if err != nil {
-			return nil, common.Wrap(err)
-		}
-	default:
-		return nil, common.Wrap(fmt.Errorf("invalid mode \"%v\"", mode))
+	// switch mode {
+	// case modeSync:
+	// 	// cfg.mode = node.ModeSynchronizer
+	// 	cfg.node, err = config.LoadNode(nodeCfgPath, false)
+	// 	if err != nil {
+	// 		return nil, common.Wrap(err)
+	// 	}
+	// case modeCoord:
+	// 	cfg.mode = node.ModeCoordinator
+	cfg.node, err = config.LoadNode(nodeCfgPath /*, true*/)
+	if err != nil {
+		return nil, common.Wrap(err)
 	}
+	// default:
+	// 	return nil, common.Wrap(fmt.Errorf("invalid mode \"%v\"", mode))
+	// }
 
 	return &cfg, nil
 }
@@ -98,7 +98,7 @@ func cmdRun(c *cli.Context) error {
 	}
 	// TODO: Initialize lof library
 	// log.Init(cfg.node.Log.Level, cfg.node.Log.Out)
-	innerNode, err := node.NewNode(cfg.mode, cfg.node, c.App.Version)
+	innerNode, err := node.NewNode( /*cfg.mode, */ cfg.node, c.App.Version)
 	if err != nil {
 		return common.Wrap(fmt.Errorf("error starting node: %w", err))
 	}
@@ -115,11 +115,11 @@ func main() {
 	app.Version = "v1"
 
 	flags := []cli.Flag{
-		&cli.StringFlag{
-			Name:     flagMode,
-			Usage:    fmt.Sprintf("Set node `MODE` (can be \"%v\" or \"%v\")", modeSync, modeCoord),
-			Required: true,
-		},
+		// &cli.StringFlag{
+		// 	Name:     flagMode,
+		// 	Usage:    fmt.Sprintf("Set node `MODE` (can be \"%v\" or \"%v\")", modeSync, modeCoord),
+		// 	Required: true,
+		// },
 		&cli.StringFlag{
 			Name:     flagCfg,
 			Usage:    "Node configuration `FILE`",
@@ -131,7 +131,7 @@ func main() {
 		{
 			Name:    "run",
 			Aliases: []string{},
-			Usage:   "Run the tokamak-node in the indicated mode",
+			Usage:   "Run the tokamak-node", // in the indicated mode",
 			Action:  cmdRun,
 			Flags:   flags,
 		},

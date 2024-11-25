@@ -60,6 +60,7 @@ NameWrite     = "postgres"
 [Web3]
 ## Url of the web3 ethereum-node RPC server. Only geth is officially supported
 URL = "http://localhost:8545"
+## URL = "https://ethereum-sepolia-rpc.publicnode.com"
 
 [Synchronizer]
 ### Interval between attempts to synchronize a new block from an ethereum node
