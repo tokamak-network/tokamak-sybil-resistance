@@ -166,7 +166,7 @@ type Config struct {
 	Purger         PurgerCfg
 	// VerifierIdx is the index of the verifier contract registered in the
 	// smart contract
-	VerifierIdx uint8
+	// VerifierIdx uint8
 	// ForgeBatchGasCost contains the cost of each action in the
 	// ForgeBatch transaction.
 	ForgeBatchGasCost config.ForgeBatchGasCost

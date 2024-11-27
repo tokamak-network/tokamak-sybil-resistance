@@ -466,7 +466,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 				InvalidateBlockDelay: cfg.Coordinator.L2DB.InvalidateBlockDelay,
 			},
 			ForgeBatchGasCost: cfg.Coordinator.EthClient.ForgeBatchGasCost,
-			VerifierIdx:       uint8(verifierIdx),
+			// VerifierIdx:       uint8(verifierIdx),
 			TxProcessorConfig: txProcessorCfg,
 			ProverReadTimeout: cfg.Coordinator.ProverWaitReadTimeout.Duration,
 		},
