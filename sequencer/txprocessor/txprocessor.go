@@ -117,9 +117,9 @@ type TxProcessor struct {
 type Config struct {
 	NLevels uint32
 	// MaxFeeTx is the maximum number of coordinator accounts that can receive fees
-	MaxFeeTx uint32
-	MaxTx    uint32
-	MaxL1Tx  uint32
+	// MaxFeeTx uint32
+	MaxTx   uint32
+	MaxL1Tx uint32
 	// ChainID of the blockchain
 	ChainID uint16
 }

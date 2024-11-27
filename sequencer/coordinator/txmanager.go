@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 	"tokamak-sybil-resistance/common"
-	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/eth"
 	"tokamak-sybil-resistance/etherscan"
 	"tokamak-sybil-resistance/log"
@@ -20,7 +19,7 @@ type TxManager struct {
 	cfg Config
 	// ethClient        eth.ClientInterface
 	// etherscanService *etherscan.Service
-	l2DB    *l2db.L2DB   // Used only to mark forged txs as forged in the L2DB
+	// l2DB    *l2db.L2DB   // Used only to mark forged txs as forged in the L2DB
 	coord   *Coordinator // Used only to send messages to stop the pipeline
 	batchCh chan *BatchInfo
 	chainID *big.Int
@@ -64,8 +63,16 @@ func NewQueue() Queue {
 }
 
 // NewTxManager creates a new TxManager
-func NewTxManager(ctx context.Context, cfg *Config, ethClient eth.ClientInterface, l2DB *l2db.L2DB,
-	coord *Coordinator, scConsts *common.SCConsts, initSCVars *common.SCVariables, etherscanService *etherscan.Service) (
+func NewTxManager(
+	ctx context.Context,
+	cfg *Config,
+	ethClient eth.ClientInterface,
+	// l2DB *l2db.L2DB,
+	coord *Coordinator,
+	scConsts *common.SCConsts,
+	initSCVars *common.SCVariables,
+	etherscanService *etherscan.Service,
+) (
 	*TxManager, error) {
 	chainID, err := ethClient.EthChainID()
 	if err != nil {
@@ -84,7 +91,7 @@ func NewTxManager(ctx context.Context, cfg *Config, ethClient eth.ClientInterfac
 		cfg: *cfg,
 		// ethClient:         ethClient,
 		// etherscanService:  etherscanService,
-		l2DB:              l2DB,
+		// l2DB:              l2DB,
 		coord:             coord,
 		batchCh:           make(chan *BatchInfo, queueLen),
 		statsVarsCh:       make(chan statsVars, queueLen),

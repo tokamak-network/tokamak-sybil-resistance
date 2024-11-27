@@ -19,7 +19,8 @@ import (
 )
 
 var historyDB *HistoryDB
-var historyDBWithACC *HistoryDB
+
+// var historyDBWithACC *HistoryDB
 
 // Block0 represents Ethereum's genesis block,
 // which is stored by default at HistoryDB
@@ -47,9 +48,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	historyDB = NewHistoryDB(db, db, nil)
-	apiConnCon := database.NewAPIConnectionController(1, time.Second)
-	historyDBWithACC = NewHistoryDB(db, db, apiConnCon)
+	historyDB = NewHistoryDB(db, db /*, nil*/)
+	// apiConnCon := database.NewAPIConnectionController(1, time.Second)
+	// historyDBWithACC = NewHistoryDB(db, db, apiConnCon)
 
 	test.MigrationsDownTest(historyDB.DB())
 

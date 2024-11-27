@@ -52,7 +52,6 @@ import (
 	"tokamak-sybil-resistance/config"
 	"tokamak-sybil-resistance/coordinator/prover"
 	"tokamak-sybil-resistance/database/historydb"
-	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/eth"
 	"tokamak-sybil-resistance/etherscan"
 	"tokamak-sybil-resistance/synchronizer"
@@ -167,7 +166,7 @@ type Config struct {
 	Purger         PurgerCfg
 	// VerifierIdx is the index of the verifier contract registered in the
 	// smart contract
-	VerifierIdx uint8
+	// VerifierIdx uint8
 	// ForgeBatchGasCost contains the cost of each action in the
 	// ForgeBatch transaction.
 	ForgeBatchGasCost config.ForgeBatchGasCost
@@ -194,8 +193,8 @@ type Coordinator struct {
 
 	cfg Config
 
-	historyDB    *historydb.HistoryDB
-	l2DB         *l2db.L2DB
+	historyDB *historydb.HistoryDB
+	// l2DB         *l2db.L2DB
 	txSelector   *txselector.TxSelector
 	batchBuilder *batchbuilder.BatchBuilder
 
@@ -246,7 +245,7 @@ type MsgStopPipeline struct {
 // NewCoordinator creates a new Coordinator
 func NewCoordinator(cfg Config,
 	historyDB *historydb.HistoryDB,
-	l2DB *l2db.L2DB,
+	// l2DB *l2db.L2DB,
 	txSelector *txselector.TxSelector,
 	batchBuilder *batchbuilder.BatchBuilder,
 	serverProofs []prover.Client,
@@ -283,8 +282,8 @@ func NewCoordinator(cfg Config,
 
 		cfg: cfg,
 
-		historyDB:    historyDB,
-		l2DB:         l2DB,
+		historyDB: historyDB,
+		// l2DB:         l2DB,
 		txSelector:   txSelector,
 		batchBuilder: batchBuilder,
 
@@ -297,8 +296,16 @@ func NewCoordinator(cfg Config,
 	}
 	ctxTimeout, ctxTimeoutCancel := context.WithTimeout(ctx, 1*time.Second)
 	defer ctxTimeoutCancel()
-	txManager, err := NewTxManager(ctxTimeout, &cfg, ethClient, l2DB, &c,
-		scConsts, initSCVars, etherscanService)
+	txManager, err := NewTxManager(
+		ctxTimeout,
+		&cfg,
+		ethClient,
+		// l2DB,
+		&c,
+		scConsts,
+		initSCVars,
+		etherscanService,
+	)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -307,4 +314,93 @@ func NewCoordinator(cfg Config,
 	// guaranteed to return false before it's updated with a real stats
 	c.stats.Eth.LastBlock.Num = -1
 	return &c, nil
+}
+
+// Start the coordinator
+func (c *Coordinator) Start() {
+	// if c.started {
+	// 	log.Fatal("Coordinator already started")
+	// }
+	// c.started = true
+	// c.wg.Add(1)
+	// go func() {
+	// 	c.txManager.Run(c.ctx)
+	// 	c.wg.Done()
+	// }()
+
+	// c.wg.Add(1)
+	// go func() {
+	// 	timer := time.NewTimer(longWaitDuration)
+	// 	for {
+	// 		select {
+	// 		case <-c.ctx.Done():
+	// 			log.Info("Coordinator done")
+	// 			c.wg.Done()
+	// 			return
+	// 		case msg := <-c.msgCh:
+	// 			if err := c.handleMsg(c.ctx, msg); c.ctx.Err() != nil {
+	// 				continue
+	// 			} else if err != nil {
+	// 				log.Errorw("Coordinator.handleMsg", "err", err)
+	// 				if !timer.Stop() {
+	// 					<-timer.C
+	// 				}
+	// 				timer.Reset(c.cfg.SyncRetryInterval)
+	// 				continue
+	// 			}
+	// 		case <-timer.C:
+	// 			timer.Reset(longWaitDuration)
+	// 			if !c.stats.Synced() {
+	// 				continue
+	// 			}
+	// 			if err := c.syncStats(c.ctx, &c.stats); c.ctx.Err() != nil {
+	// 				continue
+	// 			} else if err != nil {
+	// 				log.Errorw("Coordinator.syncStats", "err", err)
+	// 				if !timer.Stop() {
+	// 					<-timer.C
+	// 				}
+	// 				timer.Reset(c.cfg.SyncRetryInterval)
+	// 				continue
+	// 			}
+	// 		}
+	// 	}
+	// }()
+
+	// c.wg.Add(1)
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-c.ctx.Done():
+	// 			log.Info("Coordinator L2DB.PurgeByExternalDelete loop done")
+	// 			c.wg.Done()
+	// 			return
+	// 		case <-time.After(c.cfg.PurgeByExtDelInterval):
+	// 			c.mutexL2DBUpdateDelete.Lock()
+	// 			if err := c.l2DB.PurgeByExternalDelete(); err != nil {
+	// 				log.Errorw("L2DB.PurgeByExternalDelete", "err", err)
+	// 			}
+	// 			c.mutexL2DBUpdateDelete.Unlock()
+	// 		}
+	// 	}
+	// }()
+}
+
+const stopCtxTimeout = 200 * time.Millisecond
+
+// Stop the coordinator
+func (c *Coordinator) Stop() {
+	// if !c.started {
+	// 	log.Fatal("Coordinator already stopped")
+	// }
+	// c.started = false
+	// log.Infow("Stopping Coordinator...")
+	// c.cancel()
+	// c.wg.Wait()
+	// if c.pipeline != nil {
+	// 	ctx, cancel := context.WithTimeout(context.Background(), stopCtxTimeout)
+	// 	defer cancel()
+	// 	c.pipeline.Stop(ctx)
+	// 	c.pipeline = nil
+	// }
 }

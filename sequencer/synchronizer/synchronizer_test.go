@@ -262,7 +262,7 @@ func newTestModules(t *testing.T) (*statedb.StateDB, *historydb.HistoryDB, *l2db
 	// Init History DB
 	db, err := dbUtils.InitTestSQLDB()
 	require.NoError(t, err)
-	historyDB := historydb.NewHistoryDB(db, db, nil)
+	historyDB := historydb.NewHistoryDB(db, db /*, nil*/)
 
 	// Init L2 DB
 	l2DB := l2db.NewL2DB(db, db, 10, 100, 0.0, 1000.0, 24*time.Hour, nil)
@@ -285,7 +285,7 @@ func newBigInt(s string) *big.Int {
 }
 
 func TestSyncGeneral(t *testing.T) {
-	stateDB, historyDB, l2DB := newTestModules(t)
+	stateDB, historyDB, _ := newTestModules(t)
 
 	// Init eth client
 	var timer timer
@@ -295,10 +295,16 @@ func TestSyncGeneral(t *testing.T) {
 	client := test.NewClient(true, &timer, &ethCommon.Address{}, clientSetup)
 
 	// Create Synchronizer
-	s, err := NewSynchronizer(client, historyDB, l2DB, stateDB, Config{
-		StatsUpdateBlockNumDiffThreshold: 100,
-		StatsUpdateFrequencyDivider:      100,
-	})
+	s, err := NewSynchronizer(
+		client,
+		historyDB,
+		// l2DB,
+		stateDB,
+		Config{
+			StatsUpdateBlockNumDiffThreshold: 100,
+			StatsUpdateFrequencyDivider:      100,
+		},
+	)
 	require.NoError(t, err)
 
 	ctx := context.Background()
