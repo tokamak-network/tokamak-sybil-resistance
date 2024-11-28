@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"tokamak-sybil-resistance/api/stateapiupdater"
 	"tokamak-sybil-resistance/batchbuilder"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/config"
@@ -54,7 +55,7 @@ import (
 // Node is the Hermez Node
 type Node struct {
 	// nodeAPI         *NodeAPI
-	// stateAPIUpdater *stateapiupdater.Updater
+	stateAPIUpdater *stateapiupdater.Updater
 	// debugAPI        *debugapi.DebugAPI
 	// Coordinator
 	coord *coordinator.Coordinator
@@ -571,11 +572,11 @@ func (n *Node) StartSynchronizer() {
 	// and avoid waiting for the next block.  Without this, the API and
 	// Coordinator will not react until the following block (starting from
 	// the last synced one) is synchronized
-	// stats := n.sync.Stats()
-	// vars := n.sync.SCVars()
-	// if err := n.handleNewBlock(n.ctx, stats, vars.AsPtr(), []common.BatchData{}); err != nil {
-	// 	log.Fatalw("Node.handleNewBlock", "err", err)
-	// }
+	stats := n.sync.Stats()
+	vars := n.sync.SCVars()
+	if err := n.handleNewBlock( /*n.ctx,*/ stats, vars.AsPtr() /*, []common.BatchData{}*/); err != nil {
+		log.Fatalw("Node.handleNewBlock", "err", err)
+	}
 
 	// n.wg.Add(1)
 	// go func() {
@@ -642,4 +643,42 @@ func (n *Node) Stop() {
 	//		n.coord.TxSelector().LocalAccountsDB().Close()
 	//		n.coord.BatchBuilder().LocalStateDB().Close()
 	//	}
+}
+
+func (n *Node) handleNewBlock( /*ctx context.Context,*/ stats *synchronizer.Stats,
+	vars *common.SCVariablesPtr /*, batches []common.BatchData*/) error {
+	// if n.mode == ModeCoordinator {
+	// 	n.coord.SendMsg(ctx, coordinator.MsgSyncBlock{
+	// 		Stats:   *stats,
+	// 		Vars:    *vars,
+	// 		Batches: batches,
+	// 	})
+	// }
+	n.stateAPIUpdater.SetSCVars(vars)
+
+	/*
+		When the state is out of sync, which means, the last block synchronized by the node is
+		different/smaller from the last block provided by the ethereum, the network info in the state
+		will not be updated. So, in order to get some information on the node state, we need
+		to wait until the node finish the synchronization with the ethereum network.
+
+		Side effects are information like lastBatch, nextForgers, metrics with zeros, defaults or null values
+	*/
+	if stats.Synced() {
+		if err := n.stateAPIUpdater.UpdateNetworkInfo(
+			stats.Eth.LastBlock, stats.Sync.LastBlock,
+			common.BatchNum(stats.Eth.LastBatchNum),
+			stats.Sync.Auction.CurrentSlot.SlotNum,
+		); err != nil {
+			log.Errorw("ApiStateUpdater.UpdateNetworkInfo", "err", err)
+		}
+	} else {
+		n.stateAPIUpdater.UpdateNetworkInfoBlock(
+			stats.Eth.LastBlock, stats.Sync.LastBlock,
+		)
+	}
+	if err := n.stateAPIUpdater.Store(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
 }

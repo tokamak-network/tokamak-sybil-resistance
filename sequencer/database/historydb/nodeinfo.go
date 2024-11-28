@@ -105,6 +105,26 @@ func (hdb *HistoryDB) SetConstants(constants *Constants) error {
 	return common.Wrap(err)
 }
 
+// SetStateInternalAPI sets the StateAPI
+func (hdb *HistoryDB) SetStateInternalAPI(stateAPI *StateAPI) error {
+	if stateAPI.Network.LastBatch != nil {
+		// stateAPI.Network.LastBatch.CollectedFeesAPI =
+		// 	apitypes.NewCollectedFeesAPI(stateAPI.Network.LastBatch.CollectedFeesDB)
+	}
+	_stateAPI := struct {
+		StateAPI *StateAPI `meddler:"state,json"`
+	}{stateAPI}
+	values, err := meddler.Default.Values(&_stateAPI, false)
+	if err != nil {
+		return common.Wrap(err)
+	}
+	_, err = hdb.dbWrite.Exec(
+		"UPDATE node_info SET state = $1 WHERE item_id = 1;",
+		values[0],
+	)
+	return common.Wrap(err)
+}
+
 // GetConstants returns the Constats
 func (hdb *HistoryDB) GetConstants() (*Constants, error) {
 	var nodeInfo NodeInfo
