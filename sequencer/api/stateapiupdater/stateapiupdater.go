@@ -117,7 +117,7 @@ func (u *Updater) Store() error {
 // UpdateNetworkInfo update Status.Network information
 func (u *Updater) UpdateNetworkInfo(
 	lastEthBlock, lastSyncBlock common.Block,
-	lastBatchNum common.BatchNum, currentSlot int64,
+	lastBatchNum common.BatchNum, /*, currentSlot int64*/
 ) error {
 	// Get last batch in API format
 	lastBatch, err := u.hdb.GetBatchInternalAPI(lastBatchNum)
@@ -165,7 +165,7 @@ func (u *Updater) UpdateNetworkInfo(
 	u.state.Network.LastSyncBlock = lastSyncBlock.Num
 	u.state.Network.LastEthBlock = lastEthBlock.Num
 	u.state.Network.LastBatch = lastBatch
-	u.state.Network.CurrentSlot = currentSlot
+	// u.state.Network.CurrentSlot = currentSlot
 	// u.state.Network.NextForgers = nextForgers
 	u.state.Network.PendingL1Txs = pendingL1s
 	u.rw.Unlock()

@@ -107,10 +107,10 @@ func (hdb *HistoryDB) SetConstants(constants *Constants) error {
 
 // SetStateInternalAPI sets the StateAPI
 func (hdb *HistoryDB) SetStateInternalAPI(stateAPI *StateAPI) error {
-	if stateAPI.Network.LastBatch != nil {
-		// stateAPI.Network.LastBatch.CollectedFeesAPI =
-		// 	apitypes.NewCollectedFeesAPI(stateAPI.Network.LastBatch.CollectedFeesDB)
-	}
+	// if stateAPI.Network.LastBatch != nil {
+	// stateAPI.Network.LastBatch.CollectedFeesAPI =
+	// 	apitypes.NewCollectedFeesAPI(stateAPI.Network.LastBatch.CollectedFeesDB)
+	// }
 	_stateAPI := struct {
 		StateAPI *StateAPI `meddler:"state,json"`
 	}{stateAPI}

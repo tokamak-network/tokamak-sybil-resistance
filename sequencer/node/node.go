@@ -718,7 +718,7 @@ func (n *Node) handleNewBlock( /*ctx context.Context,*/ stats *synchronizer.Stat
 		if err := n.stateAPIUpdater.UpdateNetworkInfo(
 			stats.Eth.LastBlock, stats.Sync.LastBlock,
 			common.BatchNum(stats.Eth.LastBatchNum),
-			stats.Sync.Auction.CurrentSlot.SlotNum,
+			// stats.Sync.Auction.CurrentSlot.SlotNum,
 		); err != nil {
 			log.Errorw("ApiStateUpdater.UpdateNetworkInfo", "err", err)
 		}
