@@ -13,8 +13,10 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+	"time"
 	"tokamak-sybil-resistance/api/stateapiupdater"
 	"tokamak-sybil-resistance/batchbuilder"
 	"tokamak-sybil-resistance/common"
@@ -563,6 +565,54 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	}, nil
 }
 
+func (n *Node) handleReorg( /*ctx context.Context,*/ stats *synchronizer.Stats,
+	vars *common.SCVariables) error {
+	// if n.mode == ModeCoordinator {
+	// 	n.coord.SendMsg(ctx, coordinator.MsgSyncReorg{
+	// 		Stats: *stats,
+	// 		Vars:  *vars.AsPtr(),
+	// 	})
+	// }
+	n.stateAPIUpdater.SetSCVars(vars.AsPtr())
+	n.stateAPIUpdater.UpdateNetworkInfoBlock(
+		stats.Eth.LastBlock, stats.Sync.LastBlock,
+	)
+	if err := n.stateAPIUpdater.Store(); err != nil {
+		return common.Wrap(err)
+	}
+	return nil
+}
+
+func (n *Node) syncLoopFn(ctx context.Context, lastBlock *common.Block) (*common.Block,
+	time.Duration, error) {
+	blockData, discarded, err := n.sync.Sync(ctx, lastBlock)
+	stats := n.sync.Stats()
+	if err != nil {
+		// case: error
+		return nil, n.cfg.Synchronizer.SyncLoopInterval.Duration, common.Wrap(err)
+	} else if discarded != nil {
+		// case: reorg
+		log.Infow("Synchronizer.Sync reorg", "discarded", *discarded)
+		vars := n.sync.SCVars()
+		if err := n.handleReorg( /*ctx,*/ stats, vars); err != nil {
+			return nil, time.Duration(0), common.Wrap(err)
+		}
+		return nil, time.Duration(0), nil
+	} else if blockData != nil {
+		// case: new block
+		vars := common.SCVariablesPtr{
+			Rollup: blockData.Rollup.Vars,
+		}
+		if err := n.handleNewBlock( /*ctx, */ stats, &vars /*, blockData.Rollup.Batches*/); err != nil {
+			return nil, time.Duration(0), common.Wrap(err)
+		}
+		return &blockData.Block, time.Duration(0), nil
+	} else {
+		// case: no block
+		return lastBlock, n.cfg.Synchronizer.SyncLoopInterval.Duration, nil
+	}
+}
+
 // StartSynchronizer starts the synchronizer
 func (n *Node) StartSynchronizer() {
 	log.Info("Starting Synchronizer...")
@@ -578,34 +628,34 @@ func (n *Node) StartSynchronizer() {
 		log.Fatalw("Node.handleNewBlock", "err", err)
 	}
 
-	// n.wg.Add(1)
-	// go func() {
-	// 	var err error
-	// 	var lastBlock *common.Block
-	// 	waitDuration := time.Duration(0)
-	// 	for {
-	// 		select {
-	// 		case <-n.ctx.Done():
-	// 			log.Info("Synchronizer done")
-	// 			n.wg.Done()
-	// 			return
-	// 		case <-time.After(waitDuration):
-	// 			if lastBlock, waitDuration, err = n.syncLoopFn(n.ctx,
-	// 				lastBlock); err != nil {
-	// 				if n.ctx.Err() != nil {
-	// 					continue
-	// 				}
-	// 				if errors.Is(err, eth.ErrBlockHashMismatchEvent) {
-	// 					log.Warnw("Synchronizer.Sync", "err", err)
-	// 				} else if errors.Is(err, synchronizer.ErrUnknownBlock) {
-	// 					log.Warnw("Synchronizer.Sync", "err", err)
-	// 				} else {
-	// 					log.Errorw("Synchronizer.Sync", "err", err)
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }()
+	n.wg.Add(1)
+	go func() {
+		var err error
+		var lastBlock *common.Block
+		waitDuration := time.Duration(0)
+		for {
+			select {
+			case <-n.ctx.Done():
+				log.Info("Synchronizer done")
+				n.wg.Done()
+				return
+			case <-time.After(waitDuration):
+				if lastBlock, waitDuration, err = n.syncLoopFn(n.ctx,
+					lastBlock); err != nil {
+					if n.ctx.Err() != nil {
+						continue
+					}
+					if errors.Is(err, eth.ErrBlockHashMismatchEvent) {
+						log.Warnw("Synchronizer.Sync", "err", err)
+					} else if errors.Is(err, synchronizer.ErrUnknownBlock) {
+						log.Warnw("Synchronizer.Sync", "err", err)
+					} else {
+						log.Errorw("Synchronizer.Sync", "err", err)
+					}
+				}
+			}
+		}
+	}()
 }
 
 // TODO: Update Start and Stop functionalities and Start functionality for coordinator, synchronizer
