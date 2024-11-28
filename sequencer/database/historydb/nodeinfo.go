@@ -51,11 +51,11 @@ type NetworkAPI struct {
 
 // StateAPI is an object representing the node and network state exposed via the API
 type StateAPI struct {
-	NodePublicInfo NodePublicInfo        `json:"node"`
-	Network        NetworkAPI            `json:"network"`
-	Metrics        MetricsAPI            `json:"metrics"`
-	Rollup         RollupVariablesAPI    `json:"rollup"`
-	RecommendedFee common.RecommendedFee `json:"recommendedFee"`
+	NodePublicInfo NodePublicInfo     `json:"node"`
+	Network        NetworkAPI         `json:"network"`
+	Metrics        MetricsAPI         `json:"metrics"`
+	Rollup         RollupVariablesAPI `json:"rollup"`
+	// RecommendedFee common.RecommendedFee `json:"recommendedFee"`
 }
 
 // Constants contains network constants
