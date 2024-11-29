@@ -68,6 +68,15 @@ type MetricsAPI struct {
 	EstimatedTimeToForgeL1 float64 `json:"estimatedTimeToForgeL1" meddler:"estimated_time_to_forge_l1"`
 }
 
+// BucketUpdateAPI are the bucket updates (tracking the withdrawals value changes)
+// in Rollup Smart Contract
+type BucketUpdateAPI struct {
+	EthBlockNum int64               `json:"ethereumBlockNum" meddler:"eth_block_num"`
+	NumBucket   int                 `json:"numBucket" meddler:"num_bucket"`
+	BlockStamp  int64               `json:"blockStamp" meddler:"block_stamp"`
+	Withdrawals *apitypes.BigIntStr `json:"withdrawals" meddler:"withdrawals"`
+}
+
 // BucketParamsAPI are the parameter variables of each Bucket of Rollup Smart
 // Contract
 type BucketParamsAPI struct {
