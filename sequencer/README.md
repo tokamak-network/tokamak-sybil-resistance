@@ -15,6 +15,23 @@ cp githooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 
+If you are using VSCode, install the go extension and add the following to your user settings.json file to lint `go` files on save (note that if you push unlinted go files, triggered actions will fail):
+```json
+"go.lintTool": "golangci-lint",
+"go.lintFlags": [
+    "--fast"
+],
+"go.lintOnSave": "file",
+"go.formatTool": "gofmt",
+"go.useLanguageServer": true,
+"[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always"
+    }
+}
+```
+
 ## Running Tests
 ```bash
 task test-<name> # for example: task test-historydb
