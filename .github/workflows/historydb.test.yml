@@ -54,7 +54,10 @@ jobs:
       - name: Golangci-lint
         uses: golangci/golangci-lint-action@v6.1.1
         with:
-          args: ./sequencer/database/historydb/... ./sequencer/test/til/... ./sequencer/database/utils.go
+          args: |
+            ./sequencer/database/historydb
+            ./sequencer/test/til 
+            ./sequencer/database/utils.go
 
       - name: Run historydb tests
         run: |
