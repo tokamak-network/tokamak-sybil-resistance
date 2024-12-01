@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Get a list of staged Go files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
+
+if [ -z "$STAGED_FILES" ]; then
+  # No Go files staged for commit
+  exit 0
+fi
+
+# Run golangci-lint on each staged file
+for FILE in $STAGED_FILES; do
+  golangci-lint run "$FILE"
+  if [ $? -ne 0 ]; then
+    echo "Linting failed for $FILE"
+    exit 1
+  fi
+done
+
+exit 0

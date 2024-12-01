@@ -8,6 +8,11 @@ By utilizing a zk-rollup architecture, we aim to significantly reduce the comput
 ```bash
 cp .env.example .env
 brew install go-task # for running various tasks, especially tests
+brew install golangci-lint
+
+# from the root directory
+cp githooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
 ## Running Tests
