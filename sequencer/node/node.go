@@ -39,6 +39,8 @@ import (
 	"github.com/russross/meddler"
 )
 
+const SyncTime = 24 * 60 * time.Minute
+
 // Mode sets the working mode of the node (synchronizer or coordinator)
 // type Mode string
 
@@ -605,9 +607,9 @@ func (n *Node) syncLoopFn(ctx context.Context, lastBlock *common.Block) (*common
 			Rollup: blockData.Rollup.Vars,
 		}
 		if err := n.handleNewBlock( ctx, stats, &vars); err != nil {
-			return nil, time.Duration(24 * 60 * time.Minute), common.Wrap(err)
+			return nil, time.Duration(SyncTime), common.Wrap(err)
 		}
-		return &blockData.Block, time.Duration(24 * 60 * time.Minute), nil
+		return &blockData.Block, time.Duration(SyncTime), nil
 	} else {
 		// case: no block
 		return lastBlock, n.cfg.Synchronizer.SyncLoopInterval.Duration, nil
