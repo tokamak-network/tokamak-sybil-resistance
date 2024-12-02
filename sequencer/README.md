@@ -8,6 +8,28 @@ By utilizing a zk-rollup architecture, we aim to significantly reduce the comput
 ```bash
 cp .env.example .env
 brew install go-task # for running various tasks, especially tests
+brew install golangci-lint
+
+# from the root directory
+cp githooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+If you are using VSCode, install the go extension and add the following to your user settings.json file to lint `go` files on save (note that if you push unlinted go files, triggered actions will fail):
+```json
+"go.lintTool": "golangci-lint",
+"go.lintFlags": [
+    "--fast"
+],
+"go.lintOnSave": "file",
+"go.formatTool": "gofmt",
+"go.useLanguageServer": true,
+"[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always"
+    }
+}
 ```
 
 ## Running Tests
