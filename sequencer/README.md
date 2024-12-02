@@ -15,7 +15,7 @@ cp githooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 
-If you are using VSCode, install the go extension and add the following to your user settings.json file to lint `go` files on save (note that if you push unlinted go files, triggered actions will fail):
+If you are using VSCode, install the [go extension](https://marketplace.visualstudio.com/items?itemName=golang.go) and add the following to your user settings.json file to lint `go` files on save (note that if you push unlinted go files, triggered actions will fail):
 ```json
 "go.lintTool": "golangci-lint",
 "go.lintFlags": [
