@@ -7,7 +7,7 @@ By utilizing a zk-rollup architecture, we aim to significantly reduce the comput
 ## Setup
 ```bash
 cp .env.example .env
-brew install go-task # for running various tasks, especially tests
+brew install go-task # if you are on different OS: https://taskfile.dev/installation/
 brew install golangci-lint
 
 # from the root directory
@@ -32,7 +32,12 @@ If you are using VSCode, install the [go extension](https://marketplace.visualst
 }
 ```
 
-## Running Tests
+## Run Sequencer
+```bash
+task run-seq
+```
+
+## Run Tests
 ```bash
 task test-<name> # for example: task test-historydb
 ```
