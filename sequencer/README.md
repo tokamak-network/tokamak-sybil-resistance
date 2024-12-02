@@ -32,7 +32,12 @@ If you are using VSCode, install the [go extension](https://marketplace.visualst
 }
 ```
 
-## Running Tests
+## Run Sequencer
+```bash
+task run-seq
+```
+
+## Run Tests
 ```bash
 task test-<name> # for example: task test-historydb
 ```
