@@ -43,6 +43,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"sync"
@@ -387,6 +388,65 @@ func (c *Coordinator) Start() {
 }
 
 const stopCtxTimeout = 200 * time.Millisecond
+
+func (c *Coordinator) syncSCVars(vars common.SCVariablesPtr) {
+	updateSCVars(&c.vars, vars)
+}
+
+func updateSCVars(vars *common.SCVariables, update common.SCVariablesPtr) {
+	if update.Rollup != nil {
+		vars.Rollup = *update.Rollup
+	}
+}
+
+// SetSyncStatsVars is a thread safe method to sets the synchronizer Stats
+func (t *TxManager) SetSyncStatsVars(ctx context.Context, stats *synchronizer.Stats,
+	vars *common.SCVariablesPtr) {
+	select {
+	case t.statsVarsCh <- statsVars{Stats: *stats, Vars: *vars}:
+	case <-ctx.Done():
+	}
+}
+
+func (c *Coordinator) handleMsgSyncBlock(ctx context.Context, msg *MsgSyncBlock) error {
+	c.stats = msg.Stats
+	c.syncSCVars(msg.Vars)
+	c.txManager.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+
+	// If there's any batch not forged by us, make sure we don't keep
+	// "phantom forged l2txs" in the pool.  That is, l2txs that we
+	// attempted to forge in BatchNum=N, where the forgeBatch transaction
+	// failed, but another batch with BatchNum=N was forged by another
+	// coordinator successfully.
+	externalBatchNums := []common.BatchNum{}
+	for _, batch := range msg.Batches {
+		if batch.Batch.ForgerAddr != c.cfg.ForgerAddress {
+			externalBatchNums = append(externalBatchNums, batch.Batch.BatchNum)
+		}
+	}
+
+	if !c.stats.Synced() {
+		return nil
+	}
+	// return c.syncStats(ctx, &c.stats)
+	return nil
+}
+
+func (c *Coordinator) HandleMsg(ctx context.Context, msg interface{}) error {
+	switch msg := msg.(type) {
+	case MsgSyncBlock:
+		if err := c.handleMsgSyncBlock(ctx, &msg); err != nil {
+			return fmt.Errorf("Coordinator.handleMsgSyncBlock error: %w", err)
+		}
+	// case MsgSyncReorg:
+	// 	if err := c.handleReorg(ctx, &msg); err != nil {
+	// 		return fmt.Errorf("Coordinator.handleReorg error: %w", err)
+	// 	}
+	default:
+		log.Fatal("Coordinator Unexpected Coordinator msg of type %T: %+v", msg, msg)
+	}
+	return nil
+}
 
 // Stop the coordinator
 func (c *Coordinator) Stop() {
