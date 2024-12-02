@@ -7,7 +7,7 @@ By utilizing a zk-rollup architecture, we aim to significantly reduce the comput
 ## Setup
 ```bash
 cp .env.example .env
-brew install go-task # for running various tasks, especially tests
+brew install go-task # if you are on different OS: https://taskfile.dev/installation/
 brew install golangci-lint
 
 # from the root directory
