@@ -144,5 +144,8 @@ func main() {
 	}
 
 	router := gin.Default()
-	router.Run("localhost:8080")
+	err = router.Run("localhost:8080")
+	if err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
 }
