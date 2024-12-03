@@ -2,7 +2,6 @@ package kvdb
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -382,7 +381,7 @@ func (k *KVDB) SetCurrentVouchIdx(idx common.VouchIdx) error {
 // ListCheckpoints returns the list of batchNums of the checkpoints, sorted.
 // If there's a gap between the list of checkpoints, an error is returned.
 func (k *KVDB) ListCheckpoints() ([]int, error) {
-	files, err := ioutil.ReadDir(k.cfg.Path)
+	files, err := os.ReadDir(k.cfg.Path)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}

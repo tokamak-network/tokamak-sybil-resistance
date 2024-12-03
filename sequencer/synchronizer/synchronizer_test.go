@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"sort"
@@ -251,7 +250,7 @@ func TestMain(m *testing.M) {
 
 func newTestModules(t *testing.T) (*statedb.StateDB, *historydb.HistoryDB, *l2db.L2DB) {
 	// Int State DB
-	dir, err := ioutil.TempDir("", "tmpdb")
+	dir, err := os.MkdirTemp("", "tmpdb")
 	require.NoError(t, err)
 	deleteme = append(deleteme, dir)
 
