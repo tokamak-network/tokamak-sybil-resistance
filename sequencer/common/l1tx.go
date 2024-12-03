@@ -91,10 +91,11 @@ func (tx *L1Tx) SetType() error {
 			tx.Type = TxTypeDeposit
 		} else if tx.ToIdx == AccountIdx(1) {
 			tx.Type = TxTypeForceExit
-		} else {
-			return Wrap(fmt.Errorf(
-				"cannot determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
 		}
+		// else {
+		// 	return Wrap(fmt.Errorf(
+		// 		"cannot determine type of L1Tx, invalid ToIdx value: %d", tx.ToIdx))
+		// }
 	} else {
 		return Wrap(fmt.Errorf(
 			"cannot determine type of L1Tx, invalid FromIdx value: %d", tx.FromIdx))
