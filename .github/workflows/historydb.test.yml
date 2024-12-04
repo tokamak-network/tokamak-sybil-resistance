@@ -51,6 +51,17 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install golanci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.62.2
+
+      - name: Run golangci-lint on historydb & til & database/utils.go
+        run: |
+          cd ./sequencer
+          golangci-lint run ./database/utils.go 
+          golangci-lint run ./database/historydb/... 
+          golangci-lint run ./test/til/...
+
       - name: Run historydb tests
         run: |
           cd ./sequencer

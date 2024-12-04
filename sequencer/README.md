@@ -7,10 +7,37 @@ By utilizing a zk-rollup architecture, we aim to significantly reduce the comput
 ## Setup
 ```bash
 cp .env.example .env
-brew install go-task # for running various tasks, especially tests
+brew install go-task # if you are on different OS: https://taskfile.dev/installation/
+brew install golangci-lint
+
+# from the root directory
+cp githooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
-## Running Tests
+If you are using VSCode, install the [go extension](https://marketplace.visualstudio.com/items?itemName=golang.go) and add the following to your user settings.json file to lint `go` files on save (note that if you push unlinted go files, triggered actions will fail):
+```json
+"go.lintTool": "golangci-lint",
+"go.lintFlags": [
+    "--fast"
+],
+"go.lintOnSave": "file",
+"go.formatTool": "gofmt",
+"go.useLanguageServer": true,
+"[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always"
+    }
+}
+```
+
+## Run Sequencer
+```bash
+task run-seq
+```
+
+## Run Tests
 ```bash
 task test-<name> # for example: task test-historydb
 ```

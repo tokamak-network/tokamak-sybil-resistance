@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var decimals = uint64(3)
+// var decimals = uint64(3)
 var l2DB *L2DB
 var l2DBWithACC *L2DB
 var historyDB *historydb.HistoryDB
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	apiConnCon := database.NewAPIConnectionController(1, time.Second)
 	l2DBWithACC = NewL2DB(db, db, 10, 1000, 0.0, 1000.0, 24*time.Hour, apiConnCon)
 	WipeDB(l2DB.DB())
-	historyDB = historydb.NewHistoryDB(db, db, nil)
+	historyDB = historydb.NewHistoryDB(db, db /*, nil*/)
 	// Run tests
 	result := m.Run()
 	// Close DB

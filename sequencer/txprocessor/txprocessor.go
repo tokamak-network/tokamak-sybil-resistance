@@ -85,7 +85,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"tokamak-sybil-resistance/common"
@@ -117,9 +116,9 @@ type TxProcessor struct {
 type Config struct {
 	NLevels uint32
 	// MaxFeeTx is the maximum number of coordinator accounts that can receive fees
-	MaxFeeTx uint32
-	MaxTx    uint32
-	MaxL1Tx  uint32
+	// MaxFeeTx uint32
+	MaxTx   uint32
+	MaxL1Tx uint32
 	// ChainID of the blockchain
 	ChainID uint16
 }
@@ -235,7 +234,7 @@ func (txProcessor *TxProcessor) ProcessTxs(l1usertxs []common.L1Tx,
 	// TBD if ExitTree is only in memory or stored in disk, for the moment
 	// is only needed in memory
 	if txProcessor.state.Type() == statedb.TypeSynchronizer || txProcessor.state.Type() == statedb.TypeBatchBuilder {
-		tmpDir, err := ioutil.TempDir("", "tokamak-statedb-exittree")
+		tmpDir, err := os.MkdirTemp("", "tokamak-statedb-exittree")
 		if err != nil {
 			return nil, common.Wrap(err)
 		}

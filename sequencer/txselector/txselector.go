@@ -66,34 +66,34 @@ package txselector
 import (
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/database/kvdb"
-	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/database/statedb"
-
-	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
 // CoordAccount contains the data of the Coordinator account, that will be used
 // to create new transactions of CreateAccountDeposit type to add new TokenID
 // accounts for the Coordinator to receive the fees.
-type CoordAccount struct {
-	Addr                ethCommon.Address
-	BJJ                 babyjub.PublicKeyComp
-	AccountCreationAuth []byte // signature in byte array format
-}
+// type CoordAccount struct {
+// 	Addr                ethCommon.Address
+// 	BJJ                 babyjub.PublicKeyComp
+// 	AccountCreationAuth []byte // signature in byte array format
+// }
 
 // TxSelector implements all the functionalities to select the txs for the next
 // batch
 type TxSelector struct {
-	l2db            *l2db.L2DB
+	// l2db            *l2db.L2DB
 	localAccountsDB *statedb.LocalStateDB
 
-	coordAccount *CoordAccount
+	// coordAccount *CoordAccount
 }
 
 // NewTxSelector returns a *TxSelector
-func NewTxSelector(coordAccount *CoordAccount, dbpath string,
-	synchronizerStateDB *statedb.StateDB, l2 *l2db.L2DB) (*TxSelector, error) {
+func NewTxSelector(
+	// coordAccount *CoordAccount,
+	dbpath string,
+	synchronizerStateDB *statedb.StateDB,
+	// l2 *l2db.L2DB,
+) (*TxSelector, error) {
 	localAccountsDB, err := statedb.NewLocalStateDB(
 		statedb.Config{
 			Path:    dbpath,
@@ -107,8 +107,8 @@ func NewTxSelector(coordAccount *CoordAccount, dbpath string,
 	}
 
 	return &TxSelector{
-		l2db:            l2,
+		// l2db:            l2,
 		localAccountsDB: localAccountsDB,
-		coordAccount:    coordAccount,
+		// coordAccount:    coordAccount,
 	}, nil
 }

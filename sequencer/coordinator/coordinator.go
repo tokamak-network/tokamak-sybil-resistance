@@ -43,6 +43,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"sync"
@@ -52,7 +53,6 @@ import (
 	"tokamak-sybil-resistance/config"
 	"tokamak-sybil-resistance/coordinator/prover"
 	"tokamak-sybil-resistance/database/historydb"
-	"tokamak-sybil-resistance/database/l2db"
 	"tokamak-sybil-resistance/eth"
 	"tokamak-sybil-resistance/etherscan"
 	"tokamak-sybil-resistance/synchronizer"
@@ -167,7 +167,7 @@ type Config struct {
 	Purger         PurgerCfg
 	// VerifierIdx is the index of the verifier contract registered in the
 	// smart contract
-	VerifierIdx uint8
+	// VerifierIdx uint8
 	// ForgeBatchGasCost contains the cost of each action in the
 	// ForgeBatch transaction.
 	ForgeBatchGasCost config.ForgeBatchGasCost
@@ -194,8 +194,8 @@ type Coordinator struct {
 
 	cfg Config
 
-	historyDB    *historydb.HistoryDB
-	l2DB         *l2db.L2DB
+	historyDB *historydb.HistoryDB
+	// l2DB         *l2db.L2DB
 	txSelector   *txselector.TxSelector
 	batchBuilder *batchbuilder.BatchBuilder
 
@@ -246,7 +246,7 @@ type MsgStopPipeline struct {
 // NewCoordinator creates a new Coordinator
 func NewCoordinator(cfg Config,
 	historyDB *historydb.HistoryDB,
-	l2DB *l2db.L2DB,
+	// l2DB *l2db.L2DB,
 	txSelector *txselector.TxSelector,
 	batchBuilder *batchbuilder.BatchBuilder,
 	serverProofs []prover.Client,
@@ -283,8 +283,8 @@ func NewCoordinator(cfg Config,
 
 		cfg: cfg,
 
-		historyDB:    historyDB,
-		l2DB:         l2DB,
+		historyDB: historyDB,
+		// l2DB:         l2DB,
 		txSelector:   txSelector,
 		batchBuilder: batchBuilder,
 
@@ -297,8 +297,16 @@ func NewCoordinator(cfg Config,
 	}
 	ctxTimeout, ctxTimeoutCancel := context.WithTimeout(ctx, 1*time.Second)
 	defer ctxTimeoutCancel()
-	txManager, err := NewTxManager(ctxTimeout, &cfg, ethClient, l2DB, &c,
-		scConsts, initSCVars, etherscanService)
+	txManager, err := NewTxManager(
+		ctxTimeout,
+		&cfg,
+		ethClient,
+		// l2DB,
+		&c,
+		scConsts,
+		initSCVars,
+		etherscanService,
+	)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -307,4 +315,152 @@ func NewCoordinator(cfg Config,
 	// guaranteed to return false before it's updated with a real stats
 	c.stats.Eth.LastBlock.Num = -1
 	return &c, nil
+}
+
+// Start the coordinator
+func (c *Coordinator) Start() {
+	// if c.started {
+	// 	log.Fatal("Coordinator already started")
+	// }
+	// c.started = true
+	// c.wg.Add(1)
+	// go func() {
+	// 	c.txManager.Run(c.ctx)
+	// 	c.wg.Done()
+	// }()
+
+	// c.wg.Add(1)
+	// go func() {
+	// 	timer := time.NewTimer(longWaitDuration)
+	// 	for {
+	// 		select {
+	// 		case <-c.ctx.Done():
+	// 			log.Info("Coordinator done")
+	// 			c.wg.Done()
+	// 			return
+	// 		case msg := <-c.msgCh:
+	// 			if err := c.handleMsg(c.ctx, msg); c.ctx.Err() != nil {
+	// 				continue
+	// 			} else if err != nil {
+	// 				log.Errorw("Coordinator.handleMsg", "err", err)
+	// 				if !timer.Stop() {
+	// 					<-timer.C
+	// 				}
+	// 				timer.Reset(c.cfg.SyncRetryInterval)
+	// 				continue
+	// 			}
+	// 		case <-timer.C:
+	// 			timer.Reset(longWaitDuration)
+	// 			if !c.stats.Synced() {
+	// 				continue
+	// 			}
+	// 			if err := c.syncStats(c.ctx, &c.stats); c.ctx.Err() != nil {
+	// 				continue
+	// 			} else if err != nil {
+	// 				log.Errorw("Coordinator.syncStats", "err", err)
+	// 				if !timer.Stop() {
+	// 					<-timer.C
+	// 				}
+	// 				timer.Reset(c.cfg.SyncRetryInterval)
+	// 				continue
+	// 			}
+	// 		}
+	// 	}
+	// }()
+
+	// c.wg.Add(1)
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-c.ctx.Done():
+	// 			log.Info("Coordinator L2DB.PurgeByExternalDelete loop done")
+	// 			c.wg.Done()
+	// 			return
+	// 		case <-time.After(c.cfg.PurgeByExtDelInterval):
+	// 			c.mutexL2DBUpdateDelete.Lock()
+	// 			if err := c.l2DB.PurgeByExternalDelete(); err != nil {
+	// 				log.Errorw("L2DB.PurgeByExternalDelete", "err", err)
+	// 			}
+	// 			c.mutexL2DBUpdateDelete.Unlock()
+	// 		}
+	// 	}
+	// }()
+}
+
+const stopCtxTimeout = 200 * time.Millisecond
+
+func (c *Coordinator) syncSCVars(vars common.SCVariablesPtr) {
+	updateSCVars(&c.vars, vars)
+}
+
+func updateSCVars(vars *common.SCVariables, update common.SCVariablesPtr) {
+	if update.Rollup != nil {
+		vars.Rollup = *update.Rollup
+	}
+}
+
+// SetSyncStatsVars is a thread safe method to sets the synchronizer Stats
+func (t *TxManager) SetSyncStatsVars(ctx context.Context, stats *synchronizer.Stats,
+	vars *common.SCVariablesPtr) {
+	select {
+	case t.statsVarsCh <- statsVars{Stats: *stats, Vars: *vars}:
+	case <-ctx.Done():
+	}
+}
+
+func (c *Coordinator) handleMsgSyncBlock(ctx context.Context, msg *MsgSyncBlock) error {
+	c.stats = msg.Stats
+	c.syncSCVars(msg.Vars)
+	c.txManager.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+
+	// If there's any batch not forged by us, make sure we don't keep
+	// "phantom forged l2txs" in the pool.  That is, l2txs that we
+	// attempted to forge in BatchNum=N, where the forgeBatch transaction
+	// failed, but another batch with BatchNum=N was forged by another
+	// coordinator successfully.
+	externalBatchNums := []common.BatchNum{}
+	for _, batch := range msg.Batches {
+		if batch.Batch.ForgerAddr != c.cfg.ForgerAddress {
+			externalBatchNums = append(externalBatchNums, batch.Batch.BatchNum)
+		}
+	}
+
+	if !c.stats.Synced() {
+		return nil
+	}
+	// return c.syncStats(ctx, &c.stats)
+	return nil
+}
+
+func (c *Coordinator) HandleMsg(ctx context.Context, msg interface{}) error {
+	switch msg := msg.(type) {
+	case MsgSyncBlock:
+		if err := c.handleMsgSyncBlock(ctx, &msg); err != nil {
+			return fmt.Errorf("Coordinator.handleMsgSyncBlock error: %w", err)
+		}
+	// case MsgSyncReorg:
+	// 	if err := c.handleReorg(ctx, &msg); err != nil {
+	// 		return fmt.Errorf("Coordinator.handleReorg error: %w", err)
+	// 	}
+	default:
+		log.Fatal("Coordinator Unexpected Coordinator msg of type %T: %+v", msg, msg)
+	}
+	return nil
+}
+
+// Stop the coordinator
+func (c *Coordinator) Stop() {
+	// if !c.started {
+	// 	log.Fatal("Coordinator already stopped")
+	// }
+	// c.started = false
+	// log.Infow("Stopping Coordinator...")
+	// c.cancel()
+	// c.wg.Wait()
+	// if c.pipeline != nil {
+	// 	ctx, cancel := context.WithTimeout(context.Background(), stopCtxTimeout)
+	// 	defer cancel()
+	// 	c.pipeline.Stop(ctx)
+	// 	c.pipeline = nil
+	// }
 }
