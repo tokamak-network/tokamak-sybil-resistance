@@ -246,8 +246,9 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			// }
 			// tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
 			tx := common.L1Tx{
-				Amount: big.NewInt(0),
-				Type:   common.TxTypeCreateVouch,
+				Amount:        big.NewInt(0),
+				DepositAmount: big.NewInt(0),
+				Type:          common.TxTypeCreateVouch,
 			}
 			testTx := L1Tx{
 				lineNum:     inst.LineNum,
@@ -275,8 +276,9 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			// }
 			// tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
 			tx := common.L1Tx{
-				Amount: big.NewInt(0),
-				Type:   common.TxTypeDeleteVouch,
+				Amount:        big.NewInt(0),
+				DepositAmount: big.NewInt(0),
+				Type:          common.TxTypeDeleteVouch,
 			}
 			testTx := L1Tx{
 				lineNum:     inst.LineNum,
