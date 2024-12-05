@@ -394,4 +394,37 @@ contract MvpTest is Test, TransactionTypeHelper{
         );
     }
 
+        // Test initializing with invalid verifier address
+    function testInitializeWithInvalidVerifierAddresses() public {
+        PoseidonUnit2 mockPoseidon2 = new PoseidonUnit2();
+        PoseidonUnit3 mockPoseidon3 = new PoseidonUnit3();
+        PoseidonUnit4 mockPoseidon4 = new PoseidonUnit4();
+        // Deploy verifier stub
+        VerifierRollupStub verifierStub = new VerifierRollupStub(); 
+        
+        address[] memory verifiers = new address[](1);
+        uint256[] memory maxTx = new uint256[](1);
+        uint256[] memory nLevels = new uint256[](1);
+
+        verifiers[0] = address(0);
+        maxTx[0] = uint(256);
+        nLevels[0] = uint(1);
+
+
+        address invalidAddress = address(0);
+
+        // Expect revert for invalid verifier address
+        Sybil newSybil = new Sybil();
+        vm.expectRevert(IMVPSybil.InvalidVerifierAddress.selector);
+        newSybil.initialize(
+            verifiers, 
+            maxTx, 
+            nLevels, 
+            120, 
+            invalidAddress, 
+            address(mockPoseidon3), 
+            address(mockPoseidon4)
+        );
+    }
+
 }
