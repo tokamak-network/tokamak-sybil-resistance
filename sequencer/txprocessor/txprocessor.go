@@ -331,6 +331,7 @@ func (txProcessor *TxProcessor) ProcessTxs(l1usertxs []common.L1Tx,
 			}
 			exitIdx = &l1usertxs[i].FromIdx
 		case common.TxTypeCreateVouch, common.TxTypeDeleteVouch:
+			txProcessor.computeEffectiveAmounts(&l1usertxs[i])
 			// go to the MT account of sender and receiver, and update nonce
 			// TODO: update score
 			err = txProcessor.applyVouch(l1usertxs[i].Tx(), l1usertxs[i].ToIdx)
