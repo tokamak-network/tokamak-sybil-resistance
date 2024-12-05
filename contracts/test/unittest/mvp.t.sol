@@ -306,4 +306,36 @@ contract MvpTest is Test, TransactionTypeHelper{
             value: loadAmount
         }(params.fromIdx, params.loadAmountF, params.amountF);
     }
+
+    // ForceExplode transactions tests
+    function testForceExplodeTransaction() public {
+        TxParams memory params = validForceExplode();
+        uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
+        uint48 initialLastIdx = 256;
+
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
+        vm.prank(address(this));
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0,  
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
+
+        vm.prank(address(this));
+        sybil.explode {
+            value: loadAmount
+        }(params.fromIdx, params.loadAmountF, params.amountF);
+    }
+    
 }
