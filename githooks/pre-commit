@@ -11,6 +11,11 @@ fi
 # Run golangci-lint on the sequencer directory
 echo "Running golangci-lint on the sequencer directory"
 cd sequencer
-golangci-lint run --fix --out-format=colored-line-number
+output=$(golangci-lint run --fix --out-format=colored-line-number)
+
+if [[ -n "$output" ]]; then
+  echo "$output"
+  exit 1
+fi
 
 exit 0
