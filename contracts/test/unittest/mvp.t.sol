@@ -427,4 +427,31 @@ contract MvpTest is Test, TransactionTypeHelper{
         );
     }
 
+    function testWithdrawMerkleProofTransferFails() public {
+        // Deploy RevertingReceiver contract
+
+        uint192 amount = 1 ether;
+        uint32 numExitRoot = 1;
+        uint48 idx = 0;
+
+        // Directly set exitRootsMap[numExitRoot] to a dummy value
+        bytes32 exitRootSlot = keccak256(abi.encode(numExitRoot, uint256(keccak256("exitRootsMap"))));
+        vm.store(address(sybil), exitRootSlot, bytes32(uint256(0xdeadbeef)));
+
+        // Ensure exitNullifierMap[numExitRoot][idx] is false
+        bytes32 nullifierSlot = keccak256(abi.encode(idx, keccak256(abi.encode(numExitRoot, uint256(keccak256("exitNullifierMap"))))));
+        vm.store(address(sybil), nullifierSlot, bytes32(uint256(0)));
+
+        uint256 [] memory siblings; // Empty siblings
+
+        // Expect revert due to ETH transfer failure
+        vm.expectRevert(IMVPSybil.EthTransferFailed.selector);
+        sybil.withdrawMerkleProof(
+            amount,
+            numExitRoot,
+            siblings,
+            idx
+        );
+    }
+
 }
