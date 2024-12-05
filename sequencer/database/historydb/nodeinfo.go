@@ -61,7 +61,7 @@ type StateAPI struct {
 // Constants contains network constants
 type Constants struct {
 	common.SCConsts
-	ChainID       uint16
+	ChainID       uint64
 	HermezAddress ethCommon.Address
 }
 

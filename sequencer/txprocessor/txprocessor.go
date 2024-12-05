@@ -121,7 +121,7 @@ type Config struct {
 	MaxTx   uint32
 	MaxL1Tx uint32
 	// ChainID of the blockchain
-	ChainID uint16
+	ChainID uint64
 }
 
 type processedExit struct {

@@ -169,7 +169,6 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	var ethCfg eth.EthereumConfig
 	var forgerAccount *accounts.Account
 	var keyStore *keystore.KeyStore
-	// if mode == ModeCoordinator {
 	ethCfg = eth.EthereumConfig{
 		CallGasLimit: 0, // cfg.Coordinator.EthClient.CallGasLimit,
 		GasPriceDiv:  0, // cfg.Coordinator.EthClient.GasPriceDiv,
@@ -222,14 +221,9 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	}
 	log.Infow("Forger ethereum account unlocked in the keystore",
 		"addr", cfg.Coordinator.ForgerAddress)
-	// }
 	client, err := eth.NewClient(ethClient, forgerAccount, keyStore, &eth.ClientConfig{
 		Ethereum: ethCfg,
-		Rollup: eth.RollupConfig{
-			Address: cfg.SmartContracts.Rollup,
-		},
 	})
-
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -242,12 +236,14 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	if !chainID.IsUint64() {
 		return nil, common.Wrap(fmt.Errorf("chainID cannot be represented as uint64"))
 	}
+
 	chainIDU64 := chainID.Uint64()
-	const maxUint16 uint64 = 0xffff
-	if chainIDU64 > maxUint16 {
-		return nil, common.Wrap(fmt.Errorf("chainID overflows uint16"))
-	}
-	chainIDU16 := uint16(chainIDU64)
+
+	// const maxUint16 uint64 = 0xffff
+	// if chainIDU64 > maxUint16 {
+	// 	return nil, common.Wrap(fmt.Errorf("chainID overflows uint16"))
+	// }
+	// chainIDU16 := uint16(chainIDU64)
 
 	stateDB, err := statedb.NewStateDB(statedb.Config{
 		Path:    cfg.StateDB.Path,
@@ -280,7 +276,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 		synchronizer.Config{
 			StatsUpdateBlockNumDiffThreshold: cfg.Synchronizer.StatsUpdateBlockNumDiffThreshold,
 			StatsUpdateFrequencyDivider:      cfg.Synchronizer.StatsUpdateFrequencyDivider,
-			ChainID:                          chainIDU16,
+			ChainID:                          chainIDU64,
 		})
 	if err != nil {
 		return nil, common.Wrap(err)
@@ -304,7 +300,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 		SCConsts: common.SCConsts{
 			Rollup: scConsts.Rollup,
 		},
-		ChainID:       chainIDU16,
+		ChainID:       chainIDU64,
 		HermezAddress: cfg.SmartContracts.Rollup,
 	}
 	if err := historyDB.SetConstants(&hdbConsts); err != nil {
@@ -375,6 +371,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	// 	BJJ:  bjj,
 	// 	// AccountCreationAuth: auth.Signature,
 	// }
+
 	txSelector, err := txselector.NewTxSelector(
 		// &coordAccount,
 		cfg.Coordinator.TxSelector.Path,
@@ -404,7 +401,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	txProcessorCfg := txprocessor.Config{
 		NLevels: uint32(cfg.Coordinator.Circuit.NLevels),
 		MaxTx:   uint32(cfg.Coordinator.Circuit.MaxTx),
-		ChainID: chainIDU16,
+		ChainID: chainIDU64,
 		// MaxFeeTx: common.RollupConstMaxFeeIdxCoordinator,
 		MaxL1Tx: common.RollupConstMaxL1Tx,
 	}

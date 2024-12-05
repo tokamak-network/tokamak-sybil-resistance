@@ -112,7 +112,7 @@ func (s *StatsHolder) CopyStats() *Stats {
 type Config struct {
 	StatsUpdateBlockNumDiffThreshold uint16
 	StatsUpdateFrequencyDivider      uint16
-	ChainID                          uint16
+	ChainID                          uint64
 }
 
 // Synchronizer implements the Synchronizer type
