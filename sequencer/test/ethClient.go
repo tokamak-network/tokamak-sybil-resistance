@@ -535,7 +535,6 @@ func (c *Client) RollupL1UserTxERC20ETH(
 	depositAmount *big.Int,
 	amount *big.Int,
 	toIdx int64,
-	txType common.TxType,
 ) (tx *types.Transaction, err error) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
@@ -573,7 +572,6 @@ func (c *Client) RollupL1UserTxERC20ETH(
 		ToForgeL1TxsNum: &toForgeL1TxsNum,
 		Position:        len(queue.L1TxQueue),
 		UserOrigin:      true,
-		Type:            txType,
 	})
 	if err != nil {
 		return nil, common.Wrap(err)
@@ -838,7 +836,7 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 		for _, tx := range block.Rollup.L1UserTxs {
 			c.CtlSetAddr(tx.FromEthAddr)
 			if _, err := c.RollupL1UserTxERC20ETH(tx.FromBJJ, int64(tx.FromIdx),
-				tx.DepositAmount, tx.Amount, int64(tx.ToIdx), tx.Type); err != nil {
+				tx.DepositAmount, tx.Amount, int64(tx.ToIdx)); err != nil {
 				return common.Wrap(err)
 			}
 		}
