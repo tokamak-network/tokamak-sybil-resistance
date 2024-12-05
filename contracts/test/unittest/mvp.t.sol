@@ -454,4 +454,123 @@ contract MvpTest is Test, TransactionTypeHelper{
         );
     }
 
+    function testWithdrawMerkleProofTransferPasses() public {
+        uint192 amount = 1 ether;
+        uint256 babyPubKey = 0x1234;
+        uint32 numExitRoot = 1;
+        uint48 idx = 2;
+        
+        // Calcuate exit root
+        bytes32 exitRoot = calculateTestExitTreeRoot();
+        
+        // forge batch with exit root
+        uint256 input = uint(1);
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+
+        vm.prank(address(this));
+        sybil.forgeBatch(
+            256, 
+            0xabc, 
+            0, 
+            0, 
+            uint(exitRoot), 
+            0, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
+
+        /* verify
+            3rd leaf
+            0xdca3326ad7e8121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b
+
+            root
+            0xcc086fcc038189b4641db2cc4f1de3bb132aefbd65d510d817591550937818c7
+
+            index
+            2
+
+            proof
+            0x8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950
+            0x995788ffc103b987ad50f5e5707fd094419eb12d9552cc423bd0cd86a3861433
+        */
+        // Calculate proof (sibling)
+        uint[] memory siblings = new uint[](2);
+        siblings[0] = uint(0x8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950);
+        siblings[1] = uint(0x995788ffc103b987ad50f5e5707fd094419eb12d9552cc423bd0cd86a3861433);
+
+        bytes32 leaf = bytes32(0xdca3326ad7e8121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b);
+
+        // verify proof
+        bool isVerified = verify(
+            siblings,
+            exitRoot,
+            leaf,
+            idx
+        );
+
+        assert(isVerified == true);
+
+        // call withdrawMerkleProof
+        vm.expectRevert(IMVPSybil.EthTransferFailed.selector);
+        sybil.withdrawMerkleProof(
+            amount,
+            numExitRoot,
+            siblings,
+            idx
+        );   
+    }
+
+    function calculateTestExitTreeRoot() internal returns (bytes32) {
+        uint256[4] memory transactions = [uint(0), uint(1), uint(2), uint(3)];
+        uint256[4] memory keys = [uint(0), uint(1), uint(2), uint(3)];
+
+        for (uint256 i = 0; i < transactions.length; i++) {
+            uint256 hashValue = sybil._hashNode(keys[i], transactions[i]);
+            hashes.push(bytes32(hashValue));
+        }
+
+        uint256 n = transactions.length;
+        uint256 offset = 0;
+
+        while (n > 0) {
+            for (uint256 i = 0; i < n - 1; i += 2) {
+                uint256 res = sybil._hashNode(uint(hashes[offset + i]), uint(hashes[offset + i + 1]));
+                hashes.push(
+                    bytes32(res)
+                );
+            }
+            offset += n;
+            n = n / 2;
+        }
+
+        return hashes[hashes.length - 1];
+    }
+
+    function verify(
+        uint[] memory proof,
+        bytes32 root,
+        bytes32 leaf,
+        uint256 index
+    ) internal view returns (bool) {
+        uint256 hash = uint(leaf);
+
+        for (uint256 i = 0; i < proof.length; i++) {
+            uint256 proofElement = uint(proof[i]);
+
+            if (index % 2 == 0) {
+                hash = sybil._hashNode(hash, proofElement);
+            } else {
+                hash = sybil._hashNode(proofElement, hash);
+            }
+
+            index = index / 2;
+        }
+
+        return hash == uint(root);
+    }
+    
 }
