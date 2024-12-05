@@ -10,6 +10,7 @@ import "../../src/stub/VerifierRollupStub.sol";
 
 contract MvpTest is Test, TransactionTypeHelper{
     Sybil public sybil;
+    bytes32[] public hashes;
 
     function setUp() public {
         PoseidonUnit2 mockPoseidon2 = new PoseidonUnit2();
@@ -275,4 +276,34 @@ contract MvpTest is Test, TransactionTypeHelper{
         }(params.fromIdx, params.loadAmountF, params.amountF);
     }
 
+    // ForceExit transactions tests
+    function testForceExitTransaction() public {
+        TxParams memory params = validForceExit();
+        uint256 loadAmount = (params.loadAmountF) * 10 ** (18 - 8);
+        uint48 initialLastIdx = 256;
+
+        uint256[2] memory proofA = [uint(0),uint(0)];
+        uint256[2][2] memory proofB = [[uint(0), uint(0)], [uint(0), uint(0)]];
+        uint256[2] memory proofC = [uint(0), uint(0)];
+        uint256 input = uint(1);
+
+        vm.prank(address(this));
+        sybil.forgeBatch(
+            initialLastIdx, 
+            0xabc, 
+            0, 
+            0, 
+            0, 
+            0, 
+            proofA,
+            proofB,
+            proofC,
+            input
+        );
+
+        vm.prank(address(this));
+        sybil.exit {
+            value: loadAmount
+        }(params.fromIdx, params.loadAmountF, params.amountF);
+    }
 }
