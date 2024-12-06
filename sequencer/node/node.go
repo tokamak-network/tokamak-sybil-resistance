@@ -39,6 +39,8 @@ import (
 	"github.com/russross/meddler"
 )
 
+const SyncTime = 24 * 60 * time.Minute
+
 // Mode sets the working mode of the node (synchronizer or coordinator)
 // type Mode string
 
@@ -61,6 +63,7 @@ type Node struct {
 	// debugAPI        *debugapi.DebugAPI
 	// Coordinator
 	coord *coordinator.Coordinator
+	msgCh  chan interface{}
 
 	// Synchronizer
 	sync *synchronizer.Synchronizer
@@ -600,10 +603,10 @@ func (n *Node) syncLoopFn(ctx context.Context, lastBlock *common.Block) (*common
 		vars := common.SCVariablesPtr{
 			Rollup: blockData.Rollup.Vars,
 		}
-		if err := n.handleNewBlock( /*ctx, */ stats, &vars /*, blockData.Rollup.Batches*/); err != nil {
-			return nil, time.Duration(0), common.Wrap(err)
+		if err := n.handleNewBlock( ctx, stats, &vars); err != nil {
+			return nil, time.Duration(SyncTime), common.Wrap(err)
 		}
-		return &blockData.Block, time.Duration(0), nil
+		return &blockData.Block, time.Duration(SyncTime), nil
 	} else {
 		// case: no block
 		return lastBlock, n.cfg.Synchronizer.SyncLoopInterval.Duration, nil
@@ -611,19 +614,8 @@ func (n *Node) syncLoopFn(ctx context.Context, lastBlock *common.Block) (*common
 }
 
 // StartSynchronizer starts the synchronizer
-func (n *Node) StartSynchronizer() {
+func (n *Node) StartSequencer() {
 	log.Info("Starting Synchronizer...")
-
-	// Trigger a manual call to handleNewBlock with the loaded state of the
-	// synchronizer in order to quickly activate the API and Coordinator
-	// and avoid waiting for the next block.  Without this, the API and
-	// Coordinator will not react until the following block (starting from
-	// the last synced one) is synchronized
-	stats := n.sync.Stats()
-	vars := n.sync.SCVars()
-	if err := n.handleNewBlock( /*n.ctx,*/ stats, vars.AsPtr() /*, []common.BatchData{}*/); err != nil {
-		log.Fatalw("Node.handleNewBlock", "err", err)
-	}
 
 	n.wg.Add(1)
 	go func() {
@@ -650,27 +642,25 @@ func (n *Node) StartSynchronizer() {
 						log.Errorw("Synchronizer.Sync", "err", err)
 					}
 				}
+			case msg := <-n.msgCh:
+				if err := n.coord.HandleMsg(n.ctx, msg);  n.ctx.Err() != nil {  // We will use forger here to handle the message
+					continue
+				} else if err != nil {
+					log.Fatal("Coordinator.handleMsg", "err", err)
+					continue
+				}
 			}
 		}
 	}()
+
 }
 
-// TODO: Update Start and Stop functionalities and Start functionality for coordinator, synchronizer
-// StartDebugAPI, StartNodeAPI
-// Start the node
+// Start the sequencer node
 func (n *Node) Start() {
 	log.Infow("Starting node..." /*, "mode", n.mode*/)
-	// if n.debugAPI != nil {
-	// 	n.StartDebugAPI()
-	// }
-	// if n.nodeAPI != nil {
-	// 	n.StartNodeAPI()
-	// }
-	// if n.mode == ModeCoordinator {
-	// log.Info("Starting Coordinator...")
-	n.coord.Start()
-	// }
-	n.StartSynchronizer()
+
+	n.StartSequencer()
+
 }
 
 // Stop the node
@@ -692,15 +682,19 @@ func (n *Node) Stop() {
 	//	}
 }
 
-func (n *Node) handleNewBlock( /*ctx context.Context,*/ stats *synchronizer.Stats,
+func (n *Node) SendMsg(ctx context.Context, msg interface{}) {
+	select {
+	case n.msgCh <- msg:
+	case <-ctx.Done():
+	}
+}
+
+func (n *Node) handleNewBlock(ctx context.Context, stats *synchronizer.Stats,
 	vars *common.SCVariablesPtr /*, batches []common.BatchData*/) error {
-	// if n.mode == ModeCoordinator {
-	// 	n.coord.SendMsg(ctx, coordinator.MsgSyncBlock{
-	// 		Stats:   *stats,
-	// 		Vars:    *vars,
-	// 		Batches: batches,
-	// 	})
-	// }
+	n.SendMsg(ctx, coordinator.MsgSyncBlock{
+		Stats: *stats,
+		Vars:  *vars,
+	})
 	n.stateAPIUpdater.SetSCVars(vars)
 
 	/*

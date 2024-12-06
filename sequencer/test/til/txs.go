@@ -230,37 +230,65 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 				return nil, common.Wrap(err)
 			}
 		case common.TxTypeCreateVouch:
-			tx := common.L2Tx{
-				Amount: big.NewInt(0),
-				// Fee:         common.FeeSelector(inst.Fee),
-				Type:        common.TxTypeCreateVouch,
-				EthBlockNum: tc.blockNum,
+			// tx := common.L2Tx{
+			// 	Amount: big.NewInt(0),
+			// 	// Fee:         common.FeeSelector(inst.Fee),
+			// 	Type:        common.TxTypeCreateVouch,
+			// 	EthBlockNum: tc.blockNum,
+			// }
+			// // when converted to PoolL2Tx BatchNum parameter is lost
+			// tx.BatchNum = common.BatchNum(tc.currBatchNum)
+			// testTx := L2Tx{
+			// 	lineNum:     inst.LineNum,
+			// 	fromIdxName: inst.From,
+			// 	toIdxName:   inst.To,
+			// 	L2Tx:        tx,
+			// }
+			// tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
+			tx := common.L1Tx{
+				Amount:        big.NewInt(0),
+				DepositAmount: big.NewInt(0),
+				Type:          common.TxTypeCreateVouch,
 			}
-			// when converted to PoolL2Tx BatchNum parameter is lost
-			tx.BatchNum = common.BatchNum(tc.currBatchNum)
-			testTx := L2Tx{
+			testTx := L1Tx{
 				lineNum:     inst.LineNum,
 				fromIdxName: inst.From,
 				toIdxName:   inst.To,
-				L2Tx:        tx,
+				L1Tx:        tx,
 			}
-			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
+			if err := tc.addToL1UserQueue(testTx); err != nil {
+				return nil, common.Wrap(err)
+			}
 		case common.TxTypeDeleteVouch:
-			tx := common.L2Tx{
-				Amount: big.NewInt(0),
-				// Fee:         common.FeeSelector(inst.Fee),
-				Type:        common.TxTypeDeleteVouch,
-				EthBlockNum: tc.blockNum,
+			// tx := common.L2Tx{
+			// 	Amount: big.NewInt(0),
+			// 	// Fee:         common.FeeSelector(inst.Fee),
+			// 	Type:        common.TxTypeDeleteVouch,
+			// 	EthBlockNum: tc.blockNum,
+			// }
+			// // when converted to PoolL2Tx BatchNum parameter is lost
+			// tx.BatchNum = common.BatchNum(tc.currBatchNum)
+			// testTx := L2Tx{
+			// 	lineNum:     inst.LineNum,
+			// 	fromIdxName: inst.From,
+			// 	toIdxName:   inst.To,
+			// 	L2Tx:        tx,
+			// }
+			// tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
+			tx := common.L1Tx{
+				Amount:        big.NewInt(0),
+				DepositAmount: big.NewInt(0),
+				Type:          common.TxTypeDeleteVouch,
 			}
-			// when converted to PoolL2Tx BatchNum parameter is lost
-			tx.BatchNum = common.BatchNum(tc.currBatchNum)
-			testTx := L2Tx{
+			testTx := L1Tx{
 				lineNum:     inst.LineNum,
 				fromIdxName: inst.From,
 				toIdxName:   inst.To,
-				L2Tx:        tx,
+				L1Tx:        tx,
 			}
-			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
+			if err := tc.addToL1UserQueue(testTx); err != nil {
+				return nil, common.Wrap(err)
+			}
 		case common.TxTypeForceExit: // tx source: L1UserTx
 			tx := common.L1Tx{
 				ToIdx: common.AccountIdx(1), // as is an Exit
@@ -278,22 +306,22 @@ func (tc *Context) generateBlocks() ([]common.BlockData, error) {
 			if err := tc.addToL1UserQueue(testTx); err != nil {
 				return nil, common.Wrap(err)
 			}
-		case common.TxTypeExit: // tx source: L2Tx
-			tx := common.L2Tx{
-				ToIdx:       common.AccountIdx(1), // as is an Exit
-				Amount:      inst.Amount,
-				Type:        common.TxTypeExit,
-				EthBlockNum: tc.blockNum,
-			}
-			// when converted to PoolL2Tx BatchNum parameter is lost
-			tx.BatchNum = common.BatchNum(tc.currBatchNum)
-			testTx := L2Tx{
-				lineNum:     inst.LineNum,
-				fromIdxName: inst.From,
-				toIdxName:   inst.To,
-				L2Tx:        tx,
-			}
-			tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
+		// case common.TxTypeExit: // tx source: L2Tx
+		// tx := common.L2Tx{
+		// 	ToIdx:       common.AccountIdx(1), // as is an Exit
+		// 	Amount:      inst.Amount,
+		// 	Type:        common.TxTypeExit,
+		// 	EthBlockNum: tc.blockNum,
+		// }
+		// // when converted to PoolL2Tx BatchNum parameter is lost
+		// tx.BatchNum = common.BatchNum(tc.currBatchNum)
+		// testTx := L2Tx{
+		// 	lineNum:     inst.LineNum,
+		// 	fromIdxName: inst.From,
+		// 	toIdxName:   inst.To,
+		// 	L2Tx:        tx,
+		// }
+		// tc.currBatchTest.l2Txs = append(tc.currBatchTest.l2Txs, testTx)
 		case TypeNewBatch:
 			for _, tx := range tc.currBatchTest.l1CoordinatorTxs {
 				tc.l1CreatedAccounts[tx.fromIdxName] = tc.Accounts[tx.fromIdxName]
