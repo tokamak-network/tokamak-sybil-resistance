@@ -59,7 +59,7 @@ type Context struct {
 	// queued in a batch
 	rollupConstMaxL1UserTx int
 
-	chainID       uint16
+	chainID       uint64
 	idx           int
 	currBlock     common.BlockData
 	currBatch     common.BatchData
@@ -77,7 +77,7 @@ type Context struct {
 }
 
 // NewContext returns a new Context
-func NewContext(chainID uint16, rollupConstMaxL1UserTx int) *Context {
+func NewContext(chainID uint64, rollupConstMaxL1UserTx int) *Context {
 	currBatchNum := 1 // The protocol defines the first batchNum to be 1
 	return &Context{
 		Accounts:              make(map[string]*Account),
