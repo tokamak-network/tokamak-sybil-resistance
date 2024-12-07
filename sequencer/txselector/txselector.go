@@ -112,3 +112,14 @@ func NewTxSelector(
 		// coordAccount:    coordAccount,
 	}, nil
 }
+
+// LocalAccountsDB returns the LocalStateDB of the TxSelector
+func (txsel *TxSelector) LocalAccountsDB() *statedb.LocalStateDB {
+	return txsel.localAccountsDB
+}
+
+// Reset tells the TxSelector to get it's internal AccountsDB
+// from the required `batchNum`
+func (txsel *TxSelector) Reset(batchNum common.BatchNum, fromSynchronizer bool) error {
+	return common.Wrap(txsel.localAccountsDB.Reset(batchNum, fromSynchronizer))
+}

@@ -15,15 +15,21 @@ type Batch struct {
 	BatchNum  BatchNum       `meddler:"batch_num"`
 	EthTxHash ethCommon.Hash `meddler:"eth_tx_hash"`
 	// Ethereum block in which the batch is forged
-	EthBlockNum   int64             `meddler:"eth_block_num"`
-	ForgerAddr    ethCommon.Address `meddler:"forger_addr"`
-	StateRoot     *big.Int          `meddler:"state_root,bigint"`
-	NumAccounts   int               `meddler:"num_accounts"`
-	LastIdx       int64             `meddler:"last_idx"`
-	ExitRoot      *big.Int          `meddler:"exit_root,bigint"`
-	GasUsed       uint64            `meddler:"gas_used"`
-	GasPrice      *big.Int          `meddler:"gas_price,bigint"`
-	EtherPriceUSD float64           `meddler:"ether_price_usd"`
+	EthBlockNum int64             `meddler:"eth_block_num"`
+	ForgerAddr  ethCommon.Address `meddler:"forger_addr"`
+
+	// TODO: implement
+	StateRoot *big.Int `meddler:"state_root,bigint"`
+	// AccountStateRoot *big.Int `meddler:"state_root,bigint"`
+	// VouchStateRoot   *big.Int `meddler:"state_root,bigint"`
+	// ScoreStateRoot   *big.Int `meddler:"state_root,bigint"`
+
+	NumAccounts   int      `meddler:"num_accounts"`
+	LastIdx       int64    `meddler:"last_idx"`
+	ExitRoot      *big.Int `meddler:"exit_root,bigint"`
+	GasUsed       uint64   `meddler:"gas_used"`
+	GasPrice      *big.Int `meddler:"gas_price,bigint"`
+	EtherPriceUSD float64  `meddler:"ether_price_usd"`
 	// ForgeL1TxsNum is optional, Only when the batch forges L1 txs. Identifier that corresponds
 	// to the group of L1 txs forged in the current batch.
 	ForgeL1TxsNum *int64   `meddler:"forge_l1_txs_num"`

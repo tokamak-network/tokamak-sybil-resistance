@@ -73,8 +73,12 @@ func GenBatches(nBatches int, blocks []common.Block) []common.Batch {
 			EthBlockNum: blocks[i%len(blocks)].Num,
 			//nolint:gomnd
 			ForgerAddr: ethCommon.BigToAddress(big.NewInt(6886723)),
-			// CollectedFees: collectedFees,
+
+			// TODO: implement
 			StateRoot: big.NewInt(int64(i+1) * 5), //nolint:gomnd
+			// AccountStateRoot: big.NewInt(int64(i+1) * 5), //nolint:gomnd
+			// VouchStateRoot:   big.NewInt(int64(i+1) * 6), //nolint:gomnd
+			// ScoreStateRoot:   big.NewInt(int64(i+1) * 7), //nolint:gomnd
 			//nolint:gomnd
 			NumAccounts: 30,
 			ExitRoot:    big.NewInt(int64(i+1) * 16), //nolint:gomnd

@@ -43,7 +43,6 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"sync"
@@ -55,6 +54,7 @@ import (
 	"tokamak-sybil-resistance/database/historydb"
 	"tokamak-sybil-resistance/eth"
 	"tokamak-sybil-resistance/etherscan"
+	"tokamak-sybil-resistance/log"
 	"tokamak-sybil-resistance/synchronizer"
 	"tokamak-sybil-resistance/txprocessor"
 	"tokamak-sybil-resistance/txselector"
@@ -176,9 +176,11 @@ type Config struct {
 }
 
 type fromBatch struct {
-	BatchNum   common.BatchNum
-	ForgerAddr ethCommon.Address
-	StateRoot  *big.Int
+	BatchNum         common.BatchNum
+	ForgerAddr       ethCommon.Address
+	AccountStateRoot *big.Int
+	VouchStateRoot   *big.Int
+	ScoreStateRoot   *big.Int
 }
 
 // Coordinator implements the Coordinator type
@@ -186,7 +188,7 @@ type Coordinator struct {
 	// State
 	pipelineNum       int       // Pipeline sequential number.  The first pipeline is 1
 	pipelineFromBatch fromBatch // batch from which we started the pipeline
-	provers           []prover.Client
+	prover            prover.Client
 	consts            common.SCConsts
 	vars              common.SCVariables
 	stats             synchronizer.Stats
@@ -194,8 +196,7 @@ type Coordinator struct {
 
 	cfg Config
 
-	historyDB *historydb.HistoryDB
-	// l2DB         *l2db.L2DB
+	historyDB    *historydb.HistoryDB
 	txSelector   *txselector.TxSelector
 	batchBuilder *batchbuilder.BatchBuilder
 
@@ -204,15 +205,6 @@ type Coordinator struct {
 	wg     sync.WaitGroup
 	cancel context.CancelFunc
 
-	// mutexL2DBUpdateDelete protects updates to the L2DB so that
-	// these two processes always happen exclusively:
-	// - Pipeline taking pending txs, running through the TxProcessor and
-	//   marking selected txs as forging
-	// - Coordinator deleting pending txs that have been marked with
-	//   `external_delete`.
-	// Without this mutex, the coordinator could delete a pending txs that
-	// has just been selected by the TxProcessor in the pipeline.
-	mutexL2DBUpdateDelete sync.Mutex
 	pipeline              *Pipeline
 	lastNonFailedBatchNum common.BatchNum
 
@@ -246,10 +238,9 @@ type MsgStopPipeline struct {
 // NewCoordinator creates a new Coordinator
 func NewCoordinator(cfg Config,
 	historyDB *historydb.HistoryDB,
-	// l2DB *l2db.L2DB,
 	txSelector *txselector.TxSelector,
 	batchBuilder *batchbuilder.BatchBuilder,
-	serverProofs []prover.Client,
+	prover prover.Client,
 	ethClient eth.ClientInterface,
 	scConsts *common.SCConsts,
 	initSCVars *common.SCVariables,
@@ -273,18 +264,19 @@ func NewCoordinator(cfg Config,
 	c := Coordinator{
 		pipelineNum: 0,
 		pipelineFromBatch: fromBatch{
-			BatchNum:   0,
-			ForgerAddr: ethCommon.Address{},
-			StateRoot:  big.NewInt(0),
+			BatchNum:         0,
+			ForgerAddr:       ethCommon.Address{},
+			AccountStateRoot: big.NewInt(0),
+			VouchStateRoot:   big.NewInt(0),
+			ScoreStateRoot:   big.NewInt(0),
 		},
-		provers: serverProofs,
-		consts:  *scConsts,
-		vars:    *initSCVars,
+		prover: prover,
+		consts: *scConsts,
+		vars:   *initSCVars,
 
 		cfg: cfg,
 
-		historyDB: historyDB,
-		// l2DB:         l2DB,
+		historyDB:    historyDB,
 		txSelector:   txSelector,
 		batchBuilder: batchBuilder,
 
@@ -301,7 +293,6 @@ func NewCoordinator(cfg Config,
 		ctxTimeout,
 		&cfg,
 		ethClient,
-		// l2DB,
 		&c,
 		scConsts,
 		initSCVars,
@@ -319,72 +310,54 @@ func NewCoordinator(cfg Config,
 
 // Start the coordinator
 func (c *Coordinator) Start() {
-	// if c.started {
-	// 	log.Fatal("Coordinator already started")
-	// }
-	// c.started = true
-	// c.wg.Add(1)
-	// go func() {
-	// 	c.txManager.Run(c.ctx)
-	// 	c.wg.Done()
-	// }()
+	if c.started {
+		log.Fatal("Coordinator already started")
+	}
+	c.started = true
+	c.wg.Add(1)
+	go func() {
+		c.txManager.Run(c.ctx)
+		c.wg.Done()
+	}()
 
-	// c.wg.Add(1)
-	// go func() {
-	// 	timer := time.NewTimer(longWaitDuration)
-	// 	for {
-	// 		select {
-	// 		case <-c.ctx.Done():
-	// 			log.Info("Coordinator done")
-	// 			c.wg.Done()
-	// 			return
-	// 		case msg := <-c.msgCh:
-	// 			if err := c.handleMsg(c.ctx, msg); c.ctx.Err() != nil {
-	// 				continue
-	// 			} else if err != nil {
-	// 				log.Errorw("Coordinator.handleMsg", "err", err)
-	// 				if !timer.Stop() {
-	// 					<-timer.C
-	// 				}
-	// 				timer.Reset(c.cfg.SyncRetryInterval)
-	// 				continue
-	// 			}
-	// 		case <-timer.C:
-	// 			timer.Reset(longWaitDuration)
-	// 			if !c.stats.Synced() {
-	// 				continue
-	// 			}
-	// 			if err := c.syncStats(c.ctx, &c.stats); c.ctx.Err() != nil {
-	// 				continue
-	// 			} else if err != nil {
-	// 				log.Errorw("Coordinator.syncStats", "err", err)
-	// 				if !timer.Stop() {
-	// 					<-timer.C
-	// 				}
-	// 				timer.Reset(c.cfg.SyncRetryInterval)
-	// 				continue
-	// 			}
-	// 		}
-	// 	}
-	// }()
-
-	// c.wg.Add(1)
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-c.ctx.Done():
-	// 			log.Info("Coordinator L2DB.PurgeByExternalDelete loop done")
-	// 			c.wg.Done()
-	// 			return
-	// 		case <-time.After(c.cfg.PurgeByExtDelInterval):
-	// 			c.mutexL2DBUpdateDelete.Lock()
-	// 			if err := c.l2DB.PurgeByExternalDelete(); err != nil {
-	// 				log.Errorw("L2DB.PurgeByExternalDelete", "err", err)
-	// 			}
-	// 			c.mutexL2DBUpdateDelete.Unlock()
-	// 		}
-	// 	}
-	// }()
+	c.wg.Add(1)
+	go func() {
+		timer := time.NewTimer(longWaitDuration)
+		for {
+			select {
+			case <-c.ctx.Done():
+				log.Info("Coordinator done")
+				c.wg.Done()
+				return
+			case msg := <-c.msgCh:
+				if err := c.handleMsg(c.ctx, msg); c.ctx.Err() != nil {
+					continue
+				} else if err != nil {
+					log.Errorw("Coordinator.handleMsg", "err", err)
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(c.cfg.SyncRetryInterval)
+					continue
+				}
+			case <-timer.C:
+				timer.Reset(longWaitDuration)
+				if !c.stats.Synced() {
+					continue
+				}
+				if err := c.syncStats(c.ctx, &c.stats); c.ctx.Err() != nil {
+					continue
+				} else if err != nil {
+					log.Errorw("Coordinator.syncStats", "err", err)
+					if !timer.Stop() {
+						<-timer.C
+					}
+					timer.Reset(c.cfg.SyncRetryInterval)
+					continue
+				}
+			}
+		}
+	}()
 }
 
 const stopCtxTimeout = 200 * time.Millisecond
@@ -399,37 +372,143 @@ func updateSCVars(vars *common.SCVariables, update common.SCVariablesPtr) {
 	}
 }
 
-// SetSyncStatsVars is a thread safe method to sets the synchronizer Stats
-func (t *TxManager) SetSyncStatsVars(ctx context.Context, stats *synchronizer.Stats,
-	vars *common.SCVariablesPtr) {
-	select {
-	case t.statsVarsCh <- statsVars{Stats: *stats, Vars: *vars}:
-	case <-ctx.Done():
-	}
-}
-
+// handle some arbitrary block sync, not necessarily the latest block
 func (c *Coordinator) handleMsgSyncBlock(ctx context.Context, msg *MsgSyncBlock) error {
 	c.stats = msg.Stats
 	c.syncSCVars(msg.Vars)
 	c.txManager.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
 
-	// If there's any batch not forged by us, make sure we don't keep
-	// "phantom forged l2txs" in the pool.  That is, l2txs that we
-	// attempted to forge in BatchNum=N, where the forgeBatch transaction
-	// failed, but another batch with BatchNum=N was forged by another
-	// coordinator successfully.
-	// externalBatchNums := []common.BatchNum{}
-	// for _, batch := range msg.Batches {
-	// 	if batch.Batch.ForgerAddr != c.cfg.ForgerAddress {
-	// 		externalBatchNums = append(externalBatchNums, batch.Batch.BatchNum)
-	// 	}
-	// }
-
+	// if the synced block is not the latest block, don't do anything
 	if !c.stats.Synced() {
 		return nil
 	}
-	// return c.syncStats(ctx, &c.stats)
+
+	// else, start forging pipeline
+	return c.syncStats(ctx, &c.stats)
+}
+
+// NewPipeline creates a new Pipeline
+func NewPipeline(
+	ctx context.Context,
+	cfg Config,
+	num int, // Pipeline sequential number
+	historyDB *historydb.HistoryDB,
+	txSelector *txselector.TxSelector,
+	batchBuilder *batchbuilder.BatchBuilder,
+	purger *Purger,
+	coord *Coordinator,
+	txManager *TxManager,
+	prover prover.Client,
+	scConsts *common.SCConsts,
+) (*Pipeline, error) {
+	ctxTimeout, ctxTimeoutCancel := context.WithTimeout(ctx, cfg.ProverReadTimeout)
+	defer ctxTimeoutCancel()
+	if err := prover.WaitReady(ctxTimeout); err != nil {
+		log.Errorw("prover.WaitReady", "err", err)
+	}
+
+	return &Pipeline{
+		num:          num,
+		cfg:          cfg,
+		historyDB:    historyDB,
+		txSelector:   txSelector,
+		batchBuilder: batchBuilder,
+		prover:       prover,
+		purger:       purger,
+		coord:        coord,
+		txManager:    txManager,
+		consts:       *scConsts,
+		statsVarsCh:  make(chan statsVars, queueLen),
+	}, nil
+}
+
+func (c *Coordinator) newPipeline(ctx context.Context) (*Pipeline, error) {
+	c.pipelineNum++
+	return NewPipeline(
+		ctx,
+		c.cfg,
+		c.pipelineNum,
+		c.historyDB,
+		c.txSelector,
+		c.batchBuilder,
+		c.purger,
+		c,
+		c.txManager,
+		c.prover,
+		&c.consts,
+	)
+}
+
+// TxSelector returns the inner TxSelector
+func (c *Coordinator) TxSelector() *txselector.TxSelector {
+	return c.txSelector
+}
+
+// BatchBuilder returns the inner BatchBuilder
+func (c *Coordinator) BatchBuilder() *batchbuilder.BatchBuilder {
+	return c.batchBuilder
+}
+
+func (c *Coordinator) syncStats(ctx context.Context, stats *synchronizer.Stats) error {
+	nextBlock := c.stats.Eth.LastBlock.Num + 1
+
+	if c.pipeline == nil {
+		log.Infow(
+			"Coordinator: forging state begin",
+			"block",
+			nextBlock,
+			"batch",
+			stats.Sync.LastBatch.BatchNum,
+		)
+		fromBatch := fromBatch{
+			BatchNum:   stats.Sync.LastBatch.BatchNum,
+			ForgerAddr: stats.Sync.LastBatch.ForgerAddr,
+
+			// TODO: implement
+			// AccountStateRoot: stats.Sync.LastBatch.AccountStateRoot,
+			// VouchStateRoot:   stats.Sync.LastBatch.VouchStateRoot,
+			// ScoreStateRoot:   stats.Sync.LastBatch.ScoreStateRoot,
+		}
+		if c.lastNonFailedBatchNum > fromBatch.BatchNum {
+			fromBatch.BatchNum = c.lastNonFailedBatchNum
+			fromBatch.ForgerAddr = c.cfg.ForgerAddress
+			fromBatch.AccountStateRoot = big.NewInt(0)
+			fromBatch.VouchStateRoot = big.NewInt(0)
+			fromBatch.ScoreStateRoot = big.NewInt(0)
+		}
+
+		var err error
+		if c.pipeline, err = c.newPipeline(ctx); err != nil {
+			return common.Wrap(err)
+		}
+		c.pipelineFromBatch = fromBatch
+
+		// Start the pipeline
+		if err := c.pipeline.Start(fromBatch.BatchNum, stats, &c.vars); err != nil {
+			c.pipeline = nil
+			return common.Wrap(err)
+		}
+
+		// TODO: Purging seems to be relevant to only L2 txs, need to confirm
+		// if _, err := c.purger.InvalidateMaybe(c.l2DB, c.txSelector.LocalAccountsDB(),
+		// 	stats.Sync.LastBlock.Num, int64(stats.Sync.LastBatch.BatchNum)); err != nil {
+		// 	return common.Wrap(err)
+		// }
+		// if _, err := c.purger.PurgeMaybe(c.l2DB, stats.Sync.LastBlock.Num,
+		// 	int64(stats.Sync.LastBatch.BatchNum)); err != nil {
+		// 	return common.Wrap(err)
+		// }
+	}
+
 	return nil
+}
+
+// SendMsg is a thread safe method to pass a message to the Coordinator
+func (c *Coordinator) SendMsg(ctx context.Context, msg interface{}) {
+	select {
+	case c.msgCh <- msg:
+	case <-ctx.Done():
+	}
 }
 
 func (c *Coordinator) HandleMsg(ctx context.Context, msg interface{}) error {
@@ -448,19 +527,105 @@ func (c *Coordinator) HandleMsg(ctx context.Context, msg interface{}) error {
 	return nil
 }
 
+// TODO: implement
+func (c *Coordinator) handleReorg(ctx context.Context, msg *MsgSyncReorg) error {
+	// c.stats = msg.Stats
+	// c.syncSCVars(msg.Vars)
+	// c.txManager.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+	// if c.pipeline != nil {
+	// 	c.pipeline.SetSyncStatsVars(ctx, &msg.Stats, &msg.Vars)
+	// }
+	// if c.stats.Sync.LastBatch.ForgerAddr != c.cfg.ForgerAddress &&
+	// 	(c.stats.Sync.LastBatch.StateRoot == nil || c.pipelineFromBatch.StateRoot == nil ||
+	// 		c.stats.Sync.LastBatch.StateRoot.Cmp(c.pipelineFromBatch.StateRoot) != 0) {
+	// 	// There's been a reorg and the batch state root from which the
+	// 	// pipeline was started has changed (probably because it was in
+	// 	// a block that was discarded), and it was sent by a different
+	// 	// coordinator than us.  That batch may never be in the main
+	// 	// chain, so we stop the pipeline  (it will be started again
+	// 	// once the node is in sync).
+	// 	log.Infow("Coordinator.handleReorg StopPipeline sync.LastBatch.ForgerAddr != cfg.ForgerAddr "+
+	// 		"& sync.LastBatch.StateRoot != pipelineFromBatch.StateRoot",
+	// 		"sync.LastBatch.StateRoot", c.stats.Sync.LastBatch.StateRoot,
+	// 		"pipelineFromBatch.StateRoot", c.pipelineFromBatch.StateRoot)
+	// 	c.txManager.DiscardPipeline(ctx, c.pipelineNum)
+	// 	if err := c.handleStopPipeline(ctx, "reorg", 0); err != nil {
+	// 		return tracerr.Wrap(err)
+	// 	}
+	// }
+	return nil
+}
+
+// Stop the forging pipeline
+func (p *Pipeline) Stop(ctx context.Context) {
+	if !p.started {
+		log.Fatal("Pipeline already stopped")
+	}
+	p.started = false
+	log.Info("Stopping Pipeline...")
+	p.cancel()
+	p.wg.Wait()
+	if err := p.prover.Cancel(ctx); ctx.Err() != nil {
+		log.Errorw("prover.Cancel", "err", ctx.Err())
+	} else if err != nil {
+		log.Errorw("prover.Cancel", "err", err)
+	}
+}
+
+// handleStopPipeline handles stopping the pipeline.  If failedBatchNum is 0,
+// the next pipeline will start from the last state of the synchronizer,
+// otherwise, it will state from failedBatchNum-1.
+func (c *Coordinator) handleStopPipeline(
+	ctx context.Context,
+	reason string,
+	failedBatchNum common.BatchNum,
+) error {
+	batchNum := c.stats.Sync.LastBatch.BatchNum
+	if failedBatchNum != 0 {
+		batchNum = failedBatchNum - 1
+	}
+	if c.pipeline != nil {
+		c.pipeline.Stop(c.ctx)
+		c.pipeline = nil
+	}
+	c.lastNonFailedBatchNum = batchNum
+	return nil
+}
+
+func (c *Coordinator) handleMsg(ctx context.Context, msg interface{}) error {
+	switch msg := msg.(type) {
+	case MsgSyncBlock:
+		if err := c.handleMsgSyncBlock(ctx, &msg); err != nil {
+			return common.Wrap(fmt.Errorf("Coordinator.handleMsgSyncBlock error: %w", err))
+		}
+	case MsgSyncReorg:
+		if err := c.handleReorg(ctx, &msg); err != nil {
+			return common.Wrap(fmt.Errorf("Coordinator.handleReorg error: %w", err))
+		}
+	case MsgStopPipeline:
+		log.Infow("Coordinator received MsgStopPipeline", "reason", msg.Reason)
+		if err := c.handleStopPipeline(ctx, msg.Reason, msg.FailedBatchNum); err != nil {
+			return common.Wrap(fmt.Errorf("Coordinator.handleStopPipeline: %w", err))
+		}
+	default:
+		log.Fatalw("Coordinator Unexpected Coordinator msg of type %T: %+v", msg, msg)
+	}
+	return nil
+}
+
 // Stop the coordinator
 func (c *Coordinator) Stop() {
-	// if !c.started {
-	// 	log.Fatal("Coordinator already stopped")
-	// }
-	// c.started = false
-	// log.Infow("Stopping Coordinator...")
-	// c.cancel()
-	// c.wg.Wait()
-	// if c.pipeline != nil {
-	// 	ctx, cancel := context.WithTimeout(context.Background(), stopCtxTimeout)
-	// 	defer cancel()
-	// 	c.pipeline.Stop(ctx)
-	// 	c.pipeline = nil
-	// }
+	if !c.started {
+		log.Fatal("Coordinator already stopped")
+	}
+	c.started = false
+	log.Infow("Stopping Coordinator...")
+	c.cancel()
+	c.wg.Wait()
+	if c.pipeline != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), stopCtxTimeout)
+		defer cancel()
+		c.pipeline.Stop(ctx)
+		c.pipeline = nil
+	}
 }

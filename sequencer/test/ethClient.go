@@ -849,8 +849,11 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 				auths[i] = make([]byte, 65)
 			}
 			if _, err := c.RollupForgeBatch(&eth.RollupForgeBatchArgs{
-				NewLastIdx:            batch.Batch.LastIdx,
-				NewStRoot:             batch.Batch.StateRoot,
+				NewLastIdx: batch.Batch.LastIdx,
+
+				// TODO: add AccountStateRoot, VouchStateRoot, ScoreStateRoot to Rollup
+				// NewStRoot:             batch.Batch.StateRoot,
+
 				NewExitRoot:           batch.Batch.ExitRoot,
 				L1CoordinatorTxs:      batch.L1CoordinatorTxs,
 				L1CoordinatorTxsAuths: auths,

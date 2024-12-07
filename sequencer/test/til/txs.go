@@ -20,8 +20,14 @@ func newBatchData(batchNum int) common.BatchData {
 		L1CoordinatorTxs: []common.L1Tx{},
 		L2Txs:            []common.L2Tx{},
 		Batch: common.Batch{
-			BatchNum:  common.BatchNum(batchNum),
-			StateRoot: big.NewInt(0), ExitRoot: big.NewInt(0),
+			BatchNum: common.BatchNum(batchNum),
+
+			// TODO: implement
+			StateRoot: big.NewInt(0),
+			// AccountStateRoot: big.NewInt(0),
+			// VouchStateRoot:   big.NewInt(0),
+			// ScoreStateRoot:   big.NewInt(0),
+			ExitRoot: big.NewInt(0),
 			// CollectedFees:      make(map[common.TokenID]*big.Int),
 		},
 	}

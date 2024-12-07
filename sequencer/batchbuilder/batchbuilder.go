@@ -58,3 +58,8 @@ func (bb *BatchBuilder) Reset(batchNum common.BatchNum, fromSynchronizer bool) e
 	//TODO: Check and Update this reseting functionality
 	// return tracerr.Wrap(bb.localStateDB.Reset(batchNum, fromSynchronizer))
 }
+
+// LocalStateDB returns the underlying LocalStateDB
+func (bb *BatchBuilder) LocalStateDB() *statedb.LocalStateDB {
+	return bb.localStateDB
+}
