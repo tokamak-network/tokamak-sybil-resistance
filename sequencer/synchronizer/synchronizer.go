@@ -807,7 +807,7 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			ForgerAddr:  *sender,
 
 			// TODO: add AccountStateRoot, VouchStateRoot, ScoreStateRoot to Rollup
-			// StateRoot:   forgeBatchArgs.NewStRoot,
+			StateRoot:   forgeBatchArgs.NewStRoot,
 			NumAccounts: len(batchData.CreatedAccounts),
 			LastIdx:     forgeBatchArgs.NewLastIdx,
 			ExitRoot:    forgeBatchArgs.NewExitRoot,

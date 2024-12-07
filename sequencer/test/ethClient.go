@@ -852,8 +852,7 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 				NewLastIdx: batch.Batch.LastIdx,
 
 				// TODO: add AccountStateRoot, VouchStateRoot, ScoreStateRoot to Rollup
-				// NewStRoot:             batch.Batch.StateRoot,
-
+				NewStRoot:             batch.Batch.StateRoot,
 				NewExitRoot:           batch.Batch.ExitRoot,
 				L1CoordinatorTxs:      batch.L1CoordinatorTxs,
 				L1CoordinatorTxsAuths: auths,

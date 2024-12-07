@@ -176,11 +176,14 @@ type Config struct {
 }
 
 type fromBatch struct {
-	BatchNum         common.BatchNum
-	ForgerAddr       ethCommon.Address
-	AccountStateRoot *big.Int
-	VouchStateRoot   *big.Int
-	ScoreStateRoot   *big.Int
+	BatchNum   common.BatchNum
+	ForgerAddr ethCommon.Address
+
+	// TODO: implement
+	StateRoot *big.Int
+	// AccountStateRoot *big.Int
+	// VouchStateRoot   *big.Int
+	// ScoreStateRoot   *big.Int
 }
 
 // Coordinator implements the Coordinator type
@@ -264,11 +267,14 @@ func NewCoordinator(cfg Config,
 	c := Coordinator{
 		pipelineNum: 0,
 		pipelineFromBatch: fromBatch{
-			BatchNum:         0,
-			ForgerAddr:       ethCommon.Address{},
-			AccountStateRoot: big.NewInt(0),
-			VouchStateRoot:   big.NewInt(0),
-			ScoreStateRoot:   big.NewInt(0),
+			BatchNum:   0,
+			ForgerAddr: ethCommon.Address{},
+
+			// TODO: implement
+			StateRoot: big.NewInt(0),
+			// AccountStateRoot: big.NewInt(0),
+			// VouchStateRoot:   big.NewInt(0),
+			// ScoreStateRoot:   big.NewInt(0),
 		},
 		prover: prover,
 		consts: *scConsts,
@@ -465,6 +471,7 @@ func (c *Coordinator) syncStats(ctx context.Context, stats *synchronizer.Stats) 
 			ForgerAddr: stats.Sync.LastBatch.ForgerAddr,
 
 			// TODO: implement
+			StateRoot: stats.Sync.LastBatch.StateRoot,
 			// AccountStateRoot: stats.Sync.LastBatch.AccountStateRoot,
 			// VouchStateRoot:   stats.Sync.LastBatch.VouchStateRoot,
 			// ScoreStateRoot:   stats.Sync.LastBatch.ScoreStateRoot,
@@ -472,9 +479,12 @@ func (c *Coordinator) syncStats(ctx context.Context, stats *synchronizer.Stats) 
 		if c.lastNonFailedBatchNum > fromBatch.BatchNum {
 			fromBatch.BatchNum = c.lastNonFailedBatchNum
 			fromBatch.ForgerAddr = c.cfg.ForgerAddress
-			fromBatch.AccountStateRoot = big.NewInt(0)
-			fromBatch.VouchStateRoot = big.NewInt(0)
-			fromBatch.ScoreStateRoot = big.NewInt(0)
+
+			// TODO: implement
+			fromBatch.StateRoot = big.NewInt(0)
+			// fromBatch.AccountStateRoot = big.NewInt(0)
+			// fromBatch.VouchStateRoot = big.NewInt(0)
+			// fromBatch.ScoreStateRoot = big.NewInt(0)
 		}
 
 		var err error
