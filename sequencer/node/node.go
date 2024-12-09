@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 	"tokamak-sybil-resistance/api/stateapiupdater"
@@ -63,7 +64,7 @@ type Node struct {
 	// debugAPI        *debugapi.DebugAPI
 	// Coordinator
 	coord *coordinator.Coordinator
-	msgCh  chan interface{}
+	msgCh chan interface{}
 
 	// Synchronizer
 	sync *synchronizer.Synchronizer
@@ -121,6 +122,18 @@ type Node struct {
 // 		writetimeout:                            cfgAPI.Writetimeout.Duration,
 // 	}, nil
 // }
+
+// Check if a directory exists and is empty
+func isDirectoryEmpty(path string) (bool, error) {
+	dirEntries, err := os.ReadDir(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return true, nil // Directory doesn't exist, treat as empty
+		}
+		return false, err
+	}
+	return len(dirEntries) == 0, nil
+}
 
 // NewNode creates a Node
 func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
@@ -183,11 +196,23 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 		scryptN = keystore.LightScryptN
 		scryptP = keystore.LightScryptP
 	}
-	keyStore = keystore.NewKeyStore(
-		cfg.Coordinator.EthClient.Keystore.Path,
-		scryptN,
-		scryptP,
-	)
+	keyStore = keystore.NewKeyStore(cfg.Coordinator.EthClient.Keystore.Path, scryptN, scryptP)
+
+	isEmpty, err := isDirectoryEmpty(cfg.Coordinator.EthClient.Keystore.Path)
+	if err != nil {
+		log.Fatalf("Error checking keystore directory: %v", err)
+	}
+
+	if isEmpty {
+		// Create a new account if keystore is empty
+		account, err := keyStore.NewAccount(cfg.Coordinator.EthClient.Keystore.Password)
+		if err != nil {
+			log.Fatalf("Error creating new account: %v", err)
+		}
+		log.Infof("New account created: %s", account.Address.Hex())
+	} else {
+		log.Infof("Keystore already initialized, skipping account creation.")
+	}
 
 	forgerBalance, err := ethClient.BalanceAt(context.TODO(), cfg.Coordinator.ForgerAddress, nil)
 	if err != nil {
@@ -208,11 +233,11 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 
 	// Unlock Coordinator ForgerAddr in the keystore to make calls
 	// to ForgeBatch in the smart contract
-	if !keyStore.HasAddress(cfg.Coordinator.ForgerAddress) {
-		return nil, common.Wrap(fmt.Errorf(
-			"ethereum keystore doesn't have the key for address %v",
-			cfg.Coordinator.ForgerAddress))
-	}
+	// if !keyStore.HasAddress(cfg.Coordinator.ForgerAddress) {
+	// 	return nil, common.Wrap(fmt.Errorf(
+	// 		"ethereum keystore doesn't have the key for address %v",
+	// 		cfg.Coordinator.ForgerAddress))
+	// }
 	forgerAccount = &accounts.Account{
 		Address: cfg.Coordinator.ForgerAddress,
 	}
@@ -603,7 +628,7 @@ func (n *Node) syncLoopFn(ctx context.Context, lastBlock *common.Block) (*common
 		vars := common.SCVariablesPtr{
 			Rollup: blockData.Rollup.Vars,
 		}
-		if err := n.handleNewBlock( ctx, stats, &vars); err != nil {
+		if err := n.handleNewBlock(ctx, stats, &vars); err != nil {
 			return nil, time.Duration(SyncTime), common.Wrap(err)
 		}
 		return &blockData.Block, time.Duration(SyncTime), nil
@@ -643,7 +668,7 @@ func (n *Node) StartSequencer() {
 					}
 				}
 			case msg := <-n.msgCh:
-				if err := n.coord.HandleMsg(n.ctx, msg);  n.ctx.Err() != nil {  // We will use forger here to handle the message
+				if err := n.coord.HandleMsg(n.ctx, msg); n.ctx.Err() != nil { // We will use forger here to handle the message
 					continue
 				} else if err != nil {
 					log.Fatal("Coordinator.handleMsg", "err", err)

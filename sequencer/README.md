@@ -39,7 +39,11 @@ task run-seq
 
 ## Update keystore address
 ```bash
-task run-seq   # It will create a new keystore file in keystore path, get new address and update it in forger address on cfg.toml
+mkdir var/tokamak/ethkeystore  # create this directory inside sequencer/api
+
+# Once file is created,New address will be given in terminal, Please update this address as forger address
+
+cfg.Coordinator.ForgerAddress  # Update this address
 ```
 
 ## Run Tests
