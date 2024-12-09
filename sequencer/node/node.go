@@ -200,14 +200,14 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 
 	isEmpty, err := isDirectoryEmpty(cfg.Coordinator.EthClient.Keystore.Path)
 	if err != nil {
-		log.Fatalf("Error checking keystore directory: %v", err)
+		return nil, common.Wrap(err)
 	}
 
 	if isEmpty {
 		// Create a new account if keystore is empty
 		account, err := keyStore.NewAccount(cfg.Coordinator.EthClient.Keystore.Password)
 		if err != nil {
-			log.Fatalf("Error creating new account: %v", err)
+			return nil, common.Wrap(err)
 		}
 		log.Infof("New account created: %s", account.Address.Hex())
 	} else {
