@@ -233,11 +233,11 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 
 	// Unlock Coordinator ForgerAddr in the keystore to make calls
 	// to ForgeBatch in the smart contract
-	// if !keyStore.HasAddress(cfg.Coordinator.ForgerAddress) {
-	// 	return nil, common.Wrap(fmt.Errorf(
-	// 		"ethereum keystore doesn't have the key for address %v",
-	// 		cfg.Coordinator.ForgerAddress))
-	// }
+	if !keyStore.HasAddress(cfg.Coordinator.ForgerAddress) {
+		return nil, common.Wrap(fmt.Errorf(
+			"ethereum keystore doesn't have the key for address %v",
+			cfg.Coordinator.ForgerAddress))
+	}
 	forgerAccount = &accounts.Account{
 		Address: cfg.Coordinator.ForgerAddress,
 	}
