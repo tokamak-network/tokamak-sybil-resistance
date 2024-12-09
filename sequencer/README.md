@@ -37,6 +37,11 @@ If you are using VSCode, install the [go extension](https://marketplace.visualst
 task run-seq
 ```
 
+## Update keystore address
+```bash
+task run-seq   # It will create a new keystore file in keystore path, get new address and update it in forger address on cfg.toml
+```
+
 ## Run Tests
 ```bash
 task test-<name> # for example: task test-historydb
