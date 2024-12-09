@@ -80,7 +80,7 @@ func TestBlocks(t *testing.T) {
 		> block // blockNum=5
 		> block // blockNum=6
 	`
-	tc := til.NewContext(uint16(0), 1)
+	tc := til.NewContext(uint64(0), 1)
 	blocks, err := tc.GenerateBlocks(set1)
 	require.NoError(t, err)
 	// Save timestamp of a block with UTC and change it without UTC
@@ -142,7 +142,7 @@ func TestBatches(t *testing.T) {
 		> batch   // batchNum=4, L2 only batch, forges delteVouch
 		> block
 	`
-	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	tc := til.NewContext(uint64(0), common.RollupConstMaxL1UserTx)
 	tilCfgExtra := til.ConfigExtra{
 		BootCoordAddr: ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"),
 		CoordUser:     "A",
@@ -299,7 +299,7 @@ func TestTxs(t *testing.T) {
 	// > block							// block 7
 `
 
-	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	tc := til.NewContext(uint64(0), common.RollupConstMaxL1UserTx)
 	tilCfgExtra := til.ConfigExtra{
 		BootCoordAddr: ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"),
 		CoordUser:     "A",
@@ -540,7 +540,7 @@ func TestGetUnforgedL1UserTxs(t *testing.T) {
 		> block
 
 	`
-	tc := til.NewContext(uint16(0), 128)
+	tc := til.NewContext(uint64(0), 128)
 	blocks, err := tc.GenerateBlocks(set)
 	require.NoError(t, err)
 	// Sanity check
@@ -651,7 +651,7 @@ func TestSetExtraInfoForgedL1UserTxs(t *testing.T) {
 		> block // blockNum=3
 	`
 
-	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	tc := til.NewContext(uint64(0), common.RollupConstMaxL1UserTx)
 	tilCfgExtra := til.ConfigExtra{
 		BootCoordAddr: ethCommon.HexToAddress("0xE39fEc6224708f0772D2A74fd3f9055A90E0A9f2"),
 		CoordUser:     "A",
@@ -880,7 +880,7 @@ func TestGetFirstBatchBlockNumBySlot(t *testing.T) {
 		> block // 13
 
 	`
-	tc := til.NewContext(uint16(0), common.RollupConstMaxL1UserTx)
+	tc := til.NewContext(uint64(0), common.RollupConstMaxL1UserTx)
 	blocks, err := tc.GenerateBlocks(set)
 	assert.NoError(t, err)
 
@@ -961,7 +961,7 @@ func TestTxItemID(t *testing.T) {
 	set = append(set, til.Instruction{Typ: til.TypeNewBatchL1})
 	set = append(set, til.Instruction{Typ: til.TypeNewBlock}) // block 33
 
-	var chainID uint16 = 0
+	var chainID uint64 = 0
 	tc := til.NewContext(chainID, common.RollupConstMaxL1UserTx)
 	blocks, err := tc.GenerateBlocksFromInstructions(set)
 	assert.NoError(t, err)

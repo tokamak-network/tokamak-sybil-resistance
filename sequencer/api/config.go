@@ -24,7 +24,7 @@ type rollupConstants struct {
 }
 
 type configAPI struct {
-	ChainID         uint16          `json:"chainId"`
+	ChainID         uint64          `json:"chainId"`
 	RollupConstants rollupConstants `json:"hermez"`
 }
 
