@@ -331,11 +331,11 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 		if err != nil {
 			return common.Wrap(err)
 		}
-		rollupVerifiersLength, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(0))
+		rollupVerifiers, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(0))
 		if err != nil {
 			return common.Wrap(err)
 		}
-		for i := int64(0); i < rollupVerifiersLength.MaxTxs.Int64(); i++ {
+		for i := int64(0); i < rollupVerifiers.MaxTxs.Int64(); i++ {
 			var newRollupVerifier common.RollupVerifierStruct
 			rollupVerifier, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(i))
 			if err != nil {
