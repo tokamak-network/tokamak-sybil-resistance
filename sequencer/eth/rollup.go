@@ -122,9 +122,9 @@ type RollupUpdateBucketsParameters struct {
 	MaxWithdrawals  *big.Int
 }
 
-type rollupEventUpdateBucketsParametersAux struct {
-	ArrayBuckets []*big.Int
-}
+// type rollupEventUpdateBucketsParametersAux struct {
+// 	ArrayBuckets []*big.Int
+// }
 
 // RollupEventUpdateBucketsParameters is an event of the Rollup Smart Contract
 type RollupEventUpdateBucketsParameters struct {
@@ -281,7 +281,7 @@ func (c *RollupClient) RollupEventInit(genesisBlockNum int64) (*RollupEventIniti
 	}
 
 	var rollupInit RollupEventInitialize
-	if err := c.contractAbi.UnpackIntoInterface(&rollupInit, "InitializeSYBEvent",
+	if err := c.contractAbi.UnpackIntoInterface(&rollupInit, "Initialize",
 		vLog.Data); err != nil {
 		return nil, 0, common.Wrap(err)
 	}
@@ -331,21 +331,26 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 		if err != nil {
 			return common.Wrap(err)
 		}
-		rollupVerifiers, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(0))
+		rollupVerifier, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(0))
 		if err != nil {
 			return common.Wrap(err)
 		}
-		for i := int64(0); i < rollupVerifiers.MaxTxs.Int64(); i++ {
-			var newRollupVerifier common.RollupVerifierStruct
-			rollupVerifier, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(i))
-			if err != nil {
-				return common.Wrap(err)
-			}
-			newRollupVerifier.MaxTx = rollupVerifier.MaxTxs.Int64()
-			newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
-			rollupConstants.Verifiers = append(rollupConstants.Verifiers,
-				newRollupVerifier)
-		}
+		// for i := int64(0); i < rollupVerifiers.MaxTxs.Int64(); i++ {
+		// 	var newRollupVerifier common.RollupVerifierStruct
+		// 	rollupVerifier, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(i))
+		// 	if err != nil {
+		// 		return common.Wrap(err)
+		// 	}
+		// 	newRollupVerifier.MaxTx = rollupVerifier.MaxTxs.Int64()
+		// 	newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
+		// 	rollupConstants.Verifiers = append(rollupConstants.Verifiers,
+		// 		newRollupVerifier)
+		// }
+		var newRollupVerifier common.RollupVerifierStruct
+		newRollupVerifier.MaxTx = rollupVerifier.MaxTxs.Int64()
+		newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
+		rollupConstants.Verifiers = append(rollupConstants.Verifiers,
+			newRollupVerifier)
 		return common.Wrap(err)
 	}); err != nil {
 		return nil, common.Wrap(err)
@@ -376,12 +381,12 @@ var (
 		"WithdrawEvent(uint48,uint32,bool)"))
 	logSYBUpdateBucketWithdraw = crypto.Keccak256Hash([]byte(
 		"UpdateBucketWithdraw(uint8,uint256,uint256)"))
-	logSYBUpdateBucketsParameters = crypto.Keccak256Hash([]byte(
-		"UpdateBucketsParameters(uint256[])"))
+	// logSYBUpdateBucketsParameters = crypto.Keccak256Hash([]byte(
+	// 	"UpdateBucketsParameters(uint256[])"))
 	logSYBSafeMode = crypto.Keccak256Hash([]byte(
 		"SafeMode()"))
 	logSYBInitialize = crypto.Keccak256Hash([]byte(
-		"InitializeSYBEvent(uint8,uint256,uint64)"))
+		"Initialize(uint8)"))
 )
 
 // RollupEventsByBlock returns the events in a block that happened in the

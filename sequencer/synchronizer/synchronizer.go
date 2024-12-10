@@ -148,7 +148,7 @@ func NewSynchronizer(
 		Rollup: *rollupConstants,
 	}
 
-	initVars, startBlockNum, err := getInitialVariables(ethClient, &consts)
+	initVars, startBlockNum, err := getInitialVariables(ethClient /*&consts*/)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -433,8 +433,9 @@ func (s *Synchronizer) reorg(uncleBlock *common.Block) (int64, error) {
 }
 
 func getInitialVariables(ethClient eth.ClientInterface,
-	consts *common.SCConsts) (*common.SCVariables, int64, error) {
-	rollupInit, rollupInitBlock, err := ethClient.RollupEventInit(consts.Rollup.GenesisBlockNum) //TODO: Check this with hermuz code
+
+/*consts *common.SCConsts*/) (*common.SCVariables, int64, error) {
+	rollupInit, rollupInitBlock, err := ethClient.RollupEventInit(77877) //TODO: Check this with hermuz code
 	if err != nil {
 		return nil, 0, common.Wrap(fmt.Errorf("RollupEventInit: %w", err))
 	}
