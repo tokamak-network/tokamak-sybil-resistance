@@ -418,12 +418,12 @@ func (c *Coordinator) handleMsgSyncBlock(ctx context.Context, msg *MsgSyncBlock)
 	// attempted to forge in BatchNum=N, where the forgeBatch transaction
 	// failed, but another batch with BatchNum=N was forged by another
 	// coordinator successfully.
-	externalBatchNums := []common.BatchNum{}
-	for _, batch := range msg.Batches {
-		if batch.Batch.ForgerAddr != c.cfg.ForgerAddress {
-			externalBatchNums = append(externalBatchNums, batch.Batch.BatchNum)
-		}
-	}
+	// externalBatchNums := []common.BatchNum{}
+	// for _, batch := range msg.Batches {
+	// 	if batch.Batch.ForgerAddr != c.cfg.ForgerAddress {
+	// 		externalBatchNums = append(externalBatchNums, batch.Batch.BatchNum)
+	// 	}
+	// }
 
 	if !c.stats.Synced() {
 		return nil
@@ -443,7 +443,7 @@ func (c *Coordinator) HandleMsg(ctx context.Context, msg interface{}) error {
 	// 		return fmt.Errorf("Coordinator.handleReorg error: %w", err)
 	// 	}
 	default:
-		log.Fatal("Coordinator Unexpected Coordinator msg of type %T: %+v", msg, msg)
+		log.Fatalf("Coordinator Unexpected Coordinator msg of type %T: %+v", msg, msg)
 	}
 	return nil
 }
