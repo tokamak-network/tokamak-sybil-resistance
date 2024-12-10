@@ -235,7 +235,7 @@ func assertEqualAccountsHistoryDBStateDB(t *testing.T, hdbAccs, sdbAccs []common
 	}
 }
 
-var chainID uint16 = 0
+var chainID uint64 = 0
 var deleteme = []string{}
 
 func TestMain(m *testing.M) {

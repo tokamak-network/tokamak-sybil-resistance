@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 	"tokamak-sybil-resistance/api/stateapiupdater"
@@ -63,7 +64,7 @@ type Node struct {
 	// debugAPI        *debugapi.DebugAPI
 	// Coordinator
 	coord *coordinator.Coordinator
-	msgCh  chan interface{}
+	msgCh chan interface{}
 
 	// Synchronizer
 	sync *synchronizer.Synchronizer
@@ -122,6 +123,18 @@ type Node struct {
 // 	}, nil
 // }
 
+// Check if a directory exists and is empty
+func isDirectoryEmpty(path string) (bool, error) {
+	dirEntries, err := os.ReadDir(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return true, nil // Directory doesn't exist, treat as empty
+		}
+		return false, err
+	}
+	return len(dirEntries) == 0, nil
+}
+
 // NewNode creates a Node
 func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	meddler.Debug = cfg.Debug.MeddlerLogs
@@ -172,7 +185,6 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	var ethCfg eth.EthereumConfig
 	var forgerAccount *accounts.Account
 	var keyStore *keystore.KeyStore
-	// if mode == ModeCoordinator {
 	ethCfg = eth.EthereumConfig{
 		CallGasLimit: 0, // cfg.Coordinator.EthClient.CallGasLimit,
 		GasPriceDiv:  0, // cfg.Coordinator.EthClient.GasPriceDiv,
@@ -184,11 +196,23 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 		scryptN = keystore.LightScryptN
 		scryptP = keystore.LightScryptP
 	}
-	keyStore = keystore.NewKeyStore(
-		cfg.Coordinator.EthClient.Keystore.Path,
-		scryptN,
-		scryptP,
-	)
+	keyStore = keystore.NewKeyStore(cfg.Coordinator.EthClient.Keystore.Path, scryptN, scryptP)
+
+	isEmpty, err := isDirectoryEmpty(cfg.Coordinator.EthClient.Keystore.Path)
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
+
+	if isEmpty {
+		// Create a new account if keystore is empty
+		account, err := keyStore.NewAccount(cfg.Coordinator.EthClient.Keystore.Password)
+		if err != nil {
+			return nil, common.Wrap(err)
+		}
+		log.Infof("New account created: %s", account.Address.Hex())
+	} else {
+		log.Infof("Keystore already initialized, skipping account creation.")
+	}
 
 	forgerBalance, err := ethClient.BalanceAt(context.TODO(), cfg.Coordinator.ForgerAddress, nil)
 	if err != nil {
@@ -209,11 +233,11 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 
 	// Unlock Coordinator ForgerAddr in the keystore to make calls
 	// to ForgeBatch in the smart contract
-	if !keyStore.HasAddress(cfg.Coordinator.ForgerAddress) {
-		return nil, common.Wrap(fmt.Errorf(
-			"ethereum keystore doesn't have the key for address %v",
-			cfg.Coordinator.ForgerAddress))
-	}
+	// if !keyStore.HasAddress(cfg.Coordinator.ForgerAddress) {
+	// 	return nil, common.Wrap(fmt.Errorf(
+	// 		"ethereum keystore doesn't have the key for address %v",
+	// 		cfg.Coordinator.ForgerAddress))
+	// }
 	forgerAccount = &accounts.Account{
 		Address: cfg.Coordinator.ForgerAddress,
 	}
@@ -225,14 +249,9 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	}
 	log.Infow("Forger ethereum account unlocked in the keystore",
 		"addr", cfg.Coordinator.ForgerAddress)
-	// }
 	client, err := eth.NewClient(ethClient, forgerAccount, keyStore, &eth.ClientConfig{
 		Ethereum: ethCfg,
-		Rollup: eth.RollupConfig{
-			Address: cfg.SmartContracts.Rollup,
-		},
 	})
-
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -245,12 +264,14 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	if !chainID.IsUint64() {
 		return nil, common.Wrap(fmt.Errorf("chainID cannot be represented as uint64"))
 	}
+
 	chainIDU64 := chainID.Uint64()
-	const maxUint16 uint64 = 0xffff
-	if chainIDU64 > maxUint16 {
-		return nil, common.Wrap(fmt.Errorf("chainID overflows uint16"))
-	}
-	chainIDU16 := uint16(chainIDU64)
+
+	// const maxUint16 uint64 = 0xffff
+	// if chainIDU64 > maxUint16 {
+	// 	return nil, common.Wrap(fmt.Errorf("chainID overflows uint16"))
+	// }
+	// chainIDU16 := uint16(chainIDU64)
 
 	stateDB, err := statedb.NewStateDB(statedb.Config{
 		Path:    cfg.StateDB.Path,
@@ -283,7 +304,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 		synchronizer.Config{
 			StatsUpdateBlockNumDiffThreshold: cfg.Synchronizer.StatsUpdateBlockNumDiffThreshold,
 			StatsUpdateFrequencyDivider:      cfg.Synchronizer.StatsUpdateFrequencyDivider,
-			ChainID:                          chainIDU16,
+			ChainID:                          chainIDU64,
 		})
 	if err != nil {
 		return nil, common.Wrap(err)
@@ -307,7 +328,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 		SCConsts: common.SCConsts{
 			Rollup: scConsts.Rollup,
 		},
-		ChainID:       chainIDU16,
+		ChainID:       chainIDU64,
 		HermezAddress: cfg.SmartContracts.Rollup,
 	}
 	if err := historyDB.SetConstants(&hdbConsts); err != nil {
@@ -378,6 +399,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	// 	BJJ:  bjj,
 	// 	// AccountCreationAuth: auth.Signature,
 	// }
+
 	txSelector, err := txselector.NewTxSelector(
 		// &coordAccount,
 		cfg.Coordinator.TxSelector.Path,
@@ -407,7 +429,7 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 	txProcessorCfg := txprocessor.Config{
 		NLevels: uint32(cfg.Coordinator.Circuit.NLevels),
 		MaxTx:   uint32(cfg.Coordinator.Circuit.MaxTx),
-		ChainID: chainIDU16,
+		ChainID: chainIDU64,
 		// MaxFeeTx: common.RollupConstMaxFeeIdxCoordinator,
 		MaxL1Tx: common.RollupConstMaxL1Tx,
 	}
@@ -606,7 +628,7 @@ func (n *Node) syncLoopFn(ctx context.Context, lastBlock *common.Block) (*common
 		vars := common.SCVariablesPtr{
 			Rollup: blockData.Rollup.Vars,
 		}
-		if err := n.handleNewBlock( ctx, stats, &vars); err != nil {
+		if err := n.handleNewBlock(ctx, stats, &vars); err != nil {
 			return nil, time.Duration(SyncTime), common.Wrap(err)
 		}
 		return &blockData.Block, time.Duration(SyncTime), nil
@@ -646,7 +668,7 @@ func (n *Node) StartSequencer() {
 					}
 				}
 			case msg := <-n.msgCh:
-				if err := n.coord.HandleMsg(n.ctx, msg);  n.ctx.Err() != nil {  // We will use forger here to handle the message
+				if err := n.coord.HandleMsg(n.ctx, msg); n.ctx.Err() != nil { // We will use forger here to handle the message
 					continue
 				} else if err != nil {
 					log.Fatal("Coordinator.handleMsg", "err", err)

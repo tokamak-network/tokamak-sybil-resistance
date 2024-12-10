@@ -37,6 +37,15 @@ If you are using VSCode, install the [go extension](https://marketplace.visualst
 task run-seq
 ```
 
+## Update keystore address
+```bash
+mkdir -p var/tokamak/ethkeystore  # create this directory inside sequencer
+
+# Once file is created,New address will be given in terminal, Please update this address as forger address in cfg.toml file
+
+cfg.Coordinator.ForgerAddress  # Update this address
+```
+
 ## Run Tests
 ```bash
 task test-<name> # for example: task test-historydb

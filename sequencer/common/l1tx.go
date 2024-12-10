@@ -178,7 +178,7 @@ func (tx L1Tx) Tx() Tx {
 // [ 16 bits ] chainId // 2 bytes
 // [ 32 bits ] empty (signatureConstant) // 4 bytes
 // Total bits compressed data:  225 bits // 29 bytes in *big.Int representation
-func (tx L1Tx) TxCompressedData(chainID uint16) (*big.Int, error) {
+func (tx L1Tx) TxCompressedData(chainID uint64) (*big.Int, error) {
 	var b [29]byte
 	// b[0:11] empty: no ToBJJSign, no fee, no nonce
 	toIdxBytes, err := tx.ToIdx.Bytes()
@@ -191,7 +191,7 @@ func (tx L1Tx) TxCompressedData(chainID uint16) (*big.Int, error) {
 		return nil, Wrap(err)
 	}
 	copy(b[17:23], fromIdxBytes[:])
-	binary.BigEndian.PutUint16(b[23:25], chainID)
+	binary.BigEndian.PutUint64(b[23:25], chainID)
 	copy(b[25:29], SignatureConstantBytes[:])
 
 	bi := new(big.Int).SetBytes(b[:])
