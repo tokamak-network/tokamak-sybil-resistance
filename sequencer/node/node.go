@@ -639,8 +639,19 @@ func (n *Node) syncLoopFn(ctx context.Context, lastBlock *common.Block) (*common
 }
 
 // StartSynchronizer starts the synchronizer
-func (n *Node) StartSequencer() {
+func (n *Node) StartSynchronizer() {
 	log.Info("Starting Synchronizer...")
+
+	// Trigger a manual call to handleNewBlock with the loaded state of the
+	// synchronizer in order to quickly activate the API and Coordinator
+	// and avoid waiting for the next block.  Without this, the API and
+	// Coordinator will not react until the following block (starting from
+	// the last synced one) is synchronized
+	stats := n.sync.Stats()
+	vars := n.sync.SCVars()
+	if err := n.handleNewBlock(n.ctx, stats, vars.AsPtr() /*, []common.BatchData{}*/); err != nil {
+		log.Fatalw("Node.handleNewBlock", "err", err)
+	}
 
 	n.wg.Add(1)
 	go func() {
@@ -682,10 +693,9 @@ func (n *Node) StartSequencer() {
 
 // Start the sequencer node
 func (n *Node) Start() {
-	log.Infow("Starting node..." /*, "mode", n.mode*/)
-
-	n.StartSequencer()
-
+	log.Info("Starting node...")
+	n.coord.Start()
+	n.StartSynchronizer()
 }
 
 // Stop the node
@@ -693,18 +703,14 @@ func (n *Node) Stop() {
 	log.Infow("Stopping node...")
 	n.cancel()
 	n.wg.Wait()
-	//	if n.mode == ModeCoordinator {
-	//		log.Info("Stopping Coordinator...")
-	//		n.coord.Stop()
-	//	}
-	//
-	// // Close kv DBs
-	// n.sync.StateDB().Close()
-	//
-	//	if n.mode == ModeCoordinator {
-	//		n.coord.TxSelector().LocalAccountsDB().Close()
-	//		n.coord.BatchBuilder().LocalStateDB().Close()
-	//	}
+	log.Info("Stopping Coordinator...")
+	n.coord.Stop()
+
+	// Close kv DBs
+	n.sync.StateDB().Close()
+
+	n.coord.TxSelector().LocalAccountsDB().Close()
+	n.coord.BatchBuilder().LocalStateDB().Close()
 }
 
 func (n *Node) SendMsg(ctx context.Context, msg interface{}) {
@@ -714,8 +720,12 @@ func (n *Node) SendMsg(ctx context.Context, msg interface{}) {
 	}
 }
 
-func (n *Node) handleNewBlock(ctx context.Context, stats *synchronizer.Stats,
-	vars *common.SCVariablesPtr /*, batches []common.BatchData*/) error {
+func (n *Node) handleNewBlock(
+	ctx context.Context,
+	stats *synchronizer.Stats,
+	vars *common.SCVariablesPtr,
+	/*, batches []common.BatchData*/
+) error {
 	n.SendMsg(ctx, coordinator.MsgSyncBlock{
 		Stats: *stats,
 		Vars:  *vars,

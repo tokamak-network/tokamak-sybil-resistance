@@ -104,6 +104,20 @@ func (s *StatsHolder) CopyStats() *Stats {
 		sCopy.Sync.LastBatch.StateRoot =
 			common.CopyBigInt(s.Sync.LastBatch.StateRoot)
 	}
+
+	// TODO: implement
+	// if s.Sync.LastBatch.AccountStateRoot != nil {
+	// 	sCopy.Sync.LastBatch.AccountStateRoot =
+	// 		common.CopyBigInt(s.Sync.LastBatch.AccountStateRoot)
+	// }
+	// if s.Sync.LastBatch.VouchStateRoot != nil {
+	// 	sCopy.Sync.LastBatch.VouchStateRoot =
+	// 		common.CopyBigInt(s.Sync.LastBatch.VouchStateRoot)
+	// }
+	// if s.Sync.LastBatch.ScoreStateRoot != nil {
+	// 	sCopy.Sync.LastBatch.ScoreStateRoot =
+	// 		common.CopyBigInt(s.Sync.LastBatch.ScoreStateRoot)
+	// }
 	s.rw.RUnlock()
 	return &sCopy
 }
@@ -166,6 +180,11 @@ func NewSynchronizer(
 		stats:         stats,
 	}
 	return s, s.init()
+}
+
+// StateDB returns the inner StateDB
+func (s *Synchronizer) StateDB() *statedb.StateDB {
+	return s.stateDB
 }
 
 // UpdateEth updates the ethereum stats, only if the previous stats expired
@@ -786,6 +805,8 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			EthTxHash:   ethTxHash,
 			EthBlockNum: blockNum,
 			ForgerAddr:  *sender,
+
+			// TODO: add AccountStateRoot, VouchStateRoot, ScoreStateRoot to Rollup
 			StateRoot:   forgeBatchArgs.NewStRoot,
 			NumAccounts: len(batchData.CreatedAccounts),
 			LastIdx:     forgeBatchArgs.NewLastIdx,

@@ -110,3 +110,26 @@ func NewTxManager(
 		accNextNonce:   accNonce,
 	}, nil
 }
+
+// SetSyncStatsVars is a thread safe method to sets the synchronizer Stats
+func (t *TxManager) SetSyncStatsVars(ctx context.Context, stats *synchronizer.Stats,
+	vars *common.SCVariablesPtr) {
+	select {
+	case t.statsVarsCh <- statsVars{Stats: *stats, Vars: *vars}:
+	case <-ctx.Done():
+	}
+}
+
+// Run the TxManager
+func (t *TxManager) Run(ctx context.Context) {
+	// TODO: implement
+}
+
+// AddBatch is a thread safe method to pass a new batch TxManager to be sent to
+// the smart contract via the forge call
+func (t *TxManager) AddBatch(ctx context.Context, batchInfo *BatchInfo) {
+	select {
+	case t.batchCh <- batchInfo:
+	case <-ctx.Done():
+	}
+}
