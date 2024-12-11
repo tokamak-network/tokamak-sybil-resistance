@@ -150,9 +150,9 @@ URLs = ["http://localhost:3000"]
 
 [Coordinator.Circuit]
 ## Maximum number of txs supported by the circuit
-MaxTx = 2048
+MaxTx = 100
 ## Maximum number of merkle tree levels supported by the circuit
-NLevels = 32
+NLevels = 5
 
 [Coordinator.EthClient]
 ### Interval between receipt checks of ethereum transactions in the TxManager
