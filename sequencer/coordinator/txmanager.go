@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"tokamak-sybil-resistance/common"
 	"tokamak-sybil-resistance/eth"
@@ -84,7 +85,7 @@ func NewTxManager(
 	}
 	accNonce, err := ethClient.EthNonceAt(ctx, *address, nil)
 	if err != nil {
-		return nil, common.Wrap(err)
+		return nil, common.Wrap(fmt.Errorf("failed to get nonce: %w", err))
 	}
 	log.Infow("TxManager started", "nonce", accNonce)
 	return &TxManager{

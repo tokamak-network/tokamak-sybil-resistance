@@ -30,26 +30,26 @@ type Client struct {
 // ClientConfig is the configuration of the Client
 type ClientConfig struct {
 	Ethereum EthereumConfig
-	// Rollup   RollupConfig
+	Rollup   RollupConfig
 }
 
 const (
-	blocksPerDay = (3600 * 24) / 15 //nolint:gomnd
+	blocksPerDay = 0 //nolint:gomnd
 )
 
-// NewClient creates a new Client to interact with Ethereum and the Hermez smart contracts.
+// NewClient creates a new Client to interact with Ethereum and the Sybil smart contracts.
 func NewClient(client *ethclient.Client, account *accounts.Account, ks *ethKeystore.KeyStore,
 	cfg *ClientConfig) (*Client, error) {
 	ethereumClient, err := NewEthereumClient(client, account, ks, &cfg.Ethereum)
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	// rollupClient, err := NewRollupClient(ethereumClient, cfg.Rollup.Address)
-	// if err != nil {
-	// 	return nil, common.Wrap(err)
-	// }
+	rollupClient, err := NewRollupClient(ethereumClient, cfg.Rollup.Address)
+	if err != nil {
+		return nil, common.Wrap(err)
+	}
 	return &Client{
 		EthereumClient: *ethereumClient,
-		// RollupClient:   *rollupClient,
+		RollupClient:   *rollupClient,
 	}, nil
 }

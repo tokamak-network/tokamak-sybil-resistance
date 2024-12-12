@@ -76,7 +76,7 @@ Rollup   = "0x3d4810E4F8377a34781A6Ceaab9dAc08E361192d"
 
 [Coordinator]
 ## Ethereum address that the coordinator is using to forge batches
-ForgerAddress = "0x19795E3f46003bb44538708020DaE2b4cc8B6425"
+ForgerAddress = "0x7ebd0f4de5e4139b1c07fc4acfa4422c3f4347ed"
 ### Minimum balance the forger address needs to start the coordinator in wei. If It is set to 0, the coordinator will not check the balance
 #MinimumForgeAddressBalance = "0"
 ### Number of confirmation blocks to be sure that the tx has been mined correctly
@@ -150,9 +150,9 @@ URLs = ["http://localhost:3000"]
 
 [Coordinator.Circuit]
 ## Maximum number of txs supported by the circuit
-MaxTx = 2048
+MaxTx = 100
 ## Maximum number of merkle tree levels supported by the circuit
-NLevels = 32
+NLevels = 5
 
 [Coordinator.EthClient]
 ### Interval between receipt checks of ethereum transactions in the TxManager

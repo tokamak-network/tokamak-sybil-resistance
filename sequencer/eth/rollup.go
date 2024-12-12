@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 	"tokamak-sybil-resistance/common"
-	"tokamak-sybil-resistance/eth/contracts/tokamak"
+	Sybil "tokamak-sybil-resistance/eth/contracts"
 	"tokamak-sybil-resistance/log"
 
 	"github.com/ethereum/go-ethereum"
@@ -122,9 +122,9 @@ type RollupUpdateBucketsParameters struct {
 	MaxWithdrawals  *big.Int
 }
 
-type rollupEventUpdateBucketsParametersAux struct {
-	ArrayBuckets []*big.Int
-}
+// type rollupEventUpdateBucketsParametersAux struct {
+// 	ArrayBuckets []*big.Int
+// }
 
 // RollupEventUpdateBucketsParameters is an event of the Rollup Smart Contract
 type RollupEventUpdateBucketsParameters struct {
@@ -242,7 +242,7 @@ type RollupClient struct {
 	client      *EthereumClient
 	chainID     *big.Int
 	address     ethCommon.Address
-	tokamak     *tokamak.Tokamak
+	sybil       *Sybil.Sybil
 	contractAbi abi.ABI
 	opts        *bind.CallOpts
 	consts      *common.RollupConstants
@@ -281,7 +281,7 @@ func (c *RollupClient) RollupEventInit(genesisBlockNum int64) (*RollupEventIniti
 	}
 
 	var rollupInit RollupEventInitialize
-	if err := c.contractAbi.UnpackIntoInterface(&rollupInit, "InitializeSYBEvent",
+	if err := c.contractAbi.UnpackIntoInterface(&rollupInit, "Initialize",
 		vLog.Data); err != nil {
 		return nil, 0, common.Wrap(err)
 	}
@@ -290,11 +290,11 @@ func (c *RollupClient) RollupEventInit(genesisBlockNum int64) (*RollupEventIniti
 
 // NewRollupClient creates a new RollupClient
 func NewRollupClient(client *EthereumClient, address ethCommon.Address) (*RollupClient, error) {
-	contractAbi, err := abi.JSON(strings.NewReader(string(tokamak.TokamakABI)))
+	contractAbi, err := abi.JSON(strings.NewReader(string(Sybil.SybilABI)))
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
-	tokamak, err := tokamak.NewTokamak(address, client.Client())
+	sybil, err := Sybil.NewSybil(address, client.Client())
 	if err != nil {
 		return nil, common.Wrap(err)
 	}
@@ -306,7 +306,7 @@ func NewRollupClient(client *EthereumClient, address ethCommon.Address) (*Rollup
 		client:      client,
 		chainID:     chainID,
 		address:     address,
-		tokamak:     tokamak,
+		sybil:       sybil,
 		contractAbi: contractAbi,
 		opts:        newCallOpts(),
 	}
@@ -322,7 +322,7 @@ func NewRollupClient(client *EthereumClient, address ethCommon.Address) (*Rollup
 func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstants, err error) {
 	rollupConstants = new(common.RollupConstants)
 	if err := c.client.Call(func(ec *ethclient.Client) error {
-		absoluteMaxL1L2BatchTimeout, err := c.tokamak.ABSOLUTEMAXL1L2BATCHTIMEOUT(c.opts)
+		absoluteMaxL1L2BatchTimeout, err := c.sybil.ABSOLUTEMAXL1BATCHTIMEOUT(c.opts)
 		if err != nil {
 			return common.Wrap(err)
 		}
@@ -331,21 +331,26 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 		if err != nil {
 			return common.Wrap(err)
 		}
-		rollupVerifiersLength, err := c.tokamak.RollupVerifiersLength(c.opts)
+		rollupVerifier, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(0))
 		if err != nil {
 			return common.Wrap(err)
 		}
-		for i := int64(0); i < rollupVerifiersLength.Int64(); i++ {
-			var newRollupVerifier common.RollupVerifierStruct
-			rollupVerifier, err := c.tokamak.RollupVerifiers(c.opts, big.NewInt(i))
-			if err != nil {
-				return common.Wrap(err)
-			}
-			newRollupVerifier.MaxTx = rollupVerifier.MaxTx.Int64()
-			newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
-			rollupConstants.Verifiers = append(rollupConstants.Verifiers,
-				newRollupVerifier)
-		}
+		// for i := int64(0); i < rollupVerifiers.MaxTxs.Int64(); i++ {
+		// 	var newRollupVerifier common.RollupVerifierStruct
+		// 	rollupVerifier, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(i))
+		// 	if err != nil {
+		// 		return common.Wrap(err)
+		// 	}
+		// 	newRollupVerifier.MaxTx = rollupVerifier.MaxTxs.Int64()
+		// 	newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
+		// 	rollupConstants.Verifiers = append(rollupConstants.Verifiers,
+		// 		newRollupVerifier)
+		// }
+		var newRollupVerifier common.RollupVerifierStruct
+		newRollupVerifier.MaxTx = rollupVerifier.MaxTxs.Int64()
+		newRollupVerifier.NLevels = rollupVerifier.NLevels.Int64()
+		rollupConstants.Verifiers = append(rollupConstants.Verifiers,
+			newRollupVerifier)
 		return common.Wrap(err)
 	}); err != nil {
 		return nil, common.Wrap(err)
@@ -356,7 +361,7 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 // RollupLastForgedBatch is the interface to call the smart contract function
 func (c *RollupClient) RollupLastForgedBatch() (lastForgedBatch int64, err error) {
 	if err := c.client.Call(func(ec *ethclient.Client) error {
-		_lastForgedBatch, err := c.tokamak.LastForgedBatch(c.opts)
+		_lastForgedBatch, err := c.sybil.LastForgedBatch(c.opts)
 		lastForgedBatch = int64(_lastForgedBatch)
 		return common.Wrap(err)
 	}); err != nil {
@@ -376,12 +381,12 @@ var (
 		"WithdrawEvent(uint48,uint32,bool)"))
 	logSYBUpdateBucketWithdraw = crypto.Keccak256Hash([]byte(
 		"UpdateBucketWithdraw(uint8,uint256,uint256)"))
-	logSYBUpdateBucketsParameters = crypto.Keccak256Hash([]byte(
-		"UpdateBucketsParameters(uint256[])"))
+	// logSYBUpdateBucketsParameters = crypto.Keccak256Hash([]byte(
+	// 	"UpdateBucketsParameters(uint256[])"))
 	logSYBSafeMode = crypto.Keccak256Hash([]byte(
 		"SafeMode()"))
 	logSYBInitialize = crypto.Keccak256Hash([]byte(
-		"InitializeSYBEvent(uint8,uint256,uint64)"))
+		"Initialize(uint8)"))
 )
 
 // RollupEventsByBlock returns the events in a block that happened in the

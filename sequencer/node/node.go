@@ -251,6 +251,9 @@ func NewNode( /*mode Mode, */ cfg *config.Node, version string) (*Node, error) {
 		"addr", cfg.Coordinator.ForgerAddress)
 	client, err := eth.NewClient(ethClient, forgerAccount, keyStore, &eth.ClientConfig{
 		Ethereum: ethCfg,
+		Rollup: eth.RollupConfig{
+			Address: cfg.SmartContracts.Rollup,
+		},
 	})
 	if err != nil {
 		return nil, common.Wrap(err)
