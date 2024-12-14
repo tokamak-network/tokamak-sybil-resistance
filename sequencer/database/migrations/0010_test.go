@@ -25,9 +25,17 @@ func (m migrationTest0010) InsertData(db *sqlx.DB) error {
 	INSERT INTO block (eth_block_num, "timestamp", hash)
 	VALUES(206, '2021-08-16 10:34:42.000', decode('29F4F4128E6E8165DB13A1638C9C0B52B759B8FAEA9F339754D10F0050F3ACA2','hex'));
 
-	INSERT INTO batch (item_id, batch_num, eth_block_num, forger_addr, state_root, num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, eth_tx_hash)
+	INSERT INTO batch (item_id, batch_num, eth_block_num, forger_addr, 
+	account_root, 
+	vouch_root, 
+	score_root, 
+	num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, eth_tx_hash)
 	VALUES(6, 6, 197, decode('DCC5DD922FB1D0FD0C450A0636A8CE827521F0ED','hex'), decode('7B7D0A','hex'), decode('5B5D0A','hex'), 18824406808947086769639114603381416975270151877490721532469555446804684467592, 1, 256, 0, 5, 2, 0, decode('21BCAEC5472E6F578A5938516A76B438AF7D1739CB10C65A86D5F0FCF19A514F','hex'));
-	INSERT INTO batch (item_id, batch_num, eth_block_num, forger_addr, state_root, num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, eth_tx_hash)
+	INSERT INTO batch (item_id, batch_num, eth_block_num, forger_addr, 
+	account_root, 
+	vouch_root, 
+	score_root, 
+	num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, eth_tx_hash)
 	VALUES(7, 7, 206, decode('DCC5DD922FB1D0FD0C450A0636A8CE827521F0ED','hex'), decode('7B7D0A','hex'), decode('5B5D0A','hex'), 7234362616256345251637054085980477919716486801577186942795287784595347908748, 1, 257, 0, 6, 3, 0, decode('7BEFD7FEE85583F26C236BAF3DAA98D0C35E60F5DBCF53865230B067ABFD31E1','hex'));
 
 	INSERT INTO token (item_id, token_id, eth_block_num, eth_addr, "name", symbol, decimals, usd, usd_update)

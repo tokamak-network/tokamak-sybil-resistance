@@ -33,8 +33,10 @@ func NewQueueStruct() *QueueStruct {
 
 // RollupState represents the state of the Rollup in the Smart Contract
 type RollupState struct {
-	StateRoot *big.Int
-	ExitRoots []*big.Int
+	AccountRoot *big.Int
+	VouchRoot   *big.Int
+	ScoreRoot   *big.Int
+	ExitRoots   []*big.Int
 	// ExitNullifierMap       map[[256 / 8]byte]bool
 	ExitNullifierMap       map[int64]map[int64]bool // batchNum -> idx -> bool
 	MapL1TxQueue           map[int64]*QueueStruct
@@ -169,7 +171,9 @@ func NewRollupEvents() RollupEvents {
 // RollupForgeBatchArgs are the arguments to the ForgeBatch function in the Rollup Smart Contract
 type RollupForgeBatchArgs struct {
 	NewLastIdx            int64
-	NewStRoot             *big.Int
+	NewAccountRoot        *big.Int
+	NewScoreRoot          *big.Int
+	NewVouchRoot          *big.Int
 	NewExitRoot           *big.Int
 	L1UserTxs             []common.L1Tx
 	L1CoordinatorTxs      []common.L1Tx
@@ -187,7 +191,9 @@ type RollupForgeBatchArgs struct {
 // RollupForgeBatchArgsAux are the arguments to the ForgeBatch function in the Rollup Smart Contract
 type rollupForgeBatchArgsAux struct {
 	NewLastIdx             *big.Int
-	NewStRoot              *big.Int
+	NewAccountRoot         *big.Int
+	NewVouchRoot           *big.Int
+	NewScoreRoot           *big.Int
 	NewExitRoot            *big.Int
 	EncodedL1CoordinatorTx []byte
 	L1L2TxsData            []byte
@@ -328,9 +334,9 @@ func (c *RollupClient) RollupConstants() (rollupConstants *common.RollupConstant
 		}
 		rollupConstants.AbsoluteMaxL1L2BatchTimeout = int64(absoluteMaxL1L2BatchTimeout)
 		// rollupConstants.TokenHEZ, err = c.tokamak.TokenHEZ(c.opts)
-		if err != nil {
-			return common.Wrap(err)
-		}
+		// if err != nil {
+		// 	return common.Wrap(err)
+		// }
 		rollupVerifier, err := c.sybil.RollupVerifiers(c.opts, big.NewInt(0))
 		if err != nil {
 			return common.Wrap(err)
@@ -587,7 +593,9 @@ func (c *RollupClient) RollupForgeBatchArgs(ethTxHash ethCommon.Hash,
 		L1Batch:               aux.L1Batch,
 		NewExitRoot:           aux.NewExitRoot,
 		NewLastIdx:            aux.NewLastIdx.Int64(),
-		NewStRoot:             aux.NewStRoot,
+		NewAccountRoot:        aux.NewAccountRoot,
+		NewVouchRoot:          aux.NewVouchRoot,
+		NewScoreRoot:          aux.NewScoreRoot,
 		ProofA:                aux.ProofA,
 		ProofB:                aux.ProofB,
 		ProofC:                aux.ProofC,

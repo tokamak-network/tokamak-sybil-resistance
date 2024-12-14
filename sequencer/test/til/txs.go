@@ -22,12 +22,10 @@ func newBatchData(batchNum int) common.BatchData {
 		Batch: common.Batch{
 			BatchNum: common.BatchNum(batchNum),
 
-			// TODO: implement
-			StateRoot: big.NewInt(0),
-			// AccountStateRoot: big.NewInt(0),
-			// VouchStateRoot:   big.NewInt(0),
-			// ScoreStateRoot:   big.NewInt(0),
-			ExitRoot: big.NewInt(0),
+			AccountRoot: big.NewInt(0),
+			VouchRoot:   big.NewInt(0),
+			ScoreRoot:   big.NewInt(0),
+			ExitRoot:    big.NewInt(0),
 			// CollectedFees:      make(map[common.TokenID]*big.Int),
 		},
 	}

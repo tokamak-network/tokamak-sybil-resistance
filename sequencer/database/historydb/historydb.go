@@ -143,7 +143,9 @@ func (hdb *HistoryDB) GetLastBatch() (*common.Batch, error) {
 	var batch common.Batch
 	err := meddler.QueryRow(
 		hdb.dbRead, &batch, `SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr,
-		batch.state_root,
+		batch.account_root,
+		batch.vouch_root,
+		batch.score_root,
 		batch.num_accounts, batch.last_idx, batch.exit_root, batch.forge_l1_txs_num,
 		batch.slot_num, batch.total_fees_usd, batch.gas_price, batch.gas_used, batch.ether_price_usd
 		FROM batch ORDER BY batch_num DESC LIMIT 1;`,
@@ -207,7 +209,7 @@ func (hdb *HistoryDB) GetAllBatches() ([]common.Batch, error) {
 	err := meddler.QueryAll(
 		hdb.dbRead, &batches,
 		`SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr,
-		batch.state_root, batch.num_accounts, batch.last_idx, batch.exit_root,
+		batch.account_root, batch.vouch_root, batch.score_root, batch.num_accounts, batch.last_idx, batch.exit_root,
 		 batch.forge_l1_txs_num, batch.slot_num, batch.total_fees_usd, batch.eth_tx_hash FROM batch
 		 ORDER BY item_id;`,
 	)
@@ -220,7 +222,7 @@ func (hdb *HistoryDB) GetBatches(from, to common.BatchNum) ([]common.Batch, erro
 	err := meddler.QueryAll(
 		hdb.dbRead, &batches,
 		`SELECT batch_num, eth_block_num, forger_addr,
-		state_root, num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, gas_price, gas_used, ether_price_usd 
+		account_root, vouch_root, score_root, num_accounts, last_idx, exit_root, forge_l1_txs_num, slot_num, total_fees_usd, gas_price, gas_used, ether_price_usd 
 		FROM batch WHERE $1 <= batch_num AND batch_num < $2 ORDER BY batch_num;`,
 		from, to,
 	)
@@ -250,7 +252,9 @@ func (hdb *HistoryDB) GetBatch(batchNum common.BatchNum) (*common.Batch, error) 
 	var batch common.Batch
 	err := meddler.QueryRow(
 		hdb.dbRead, &batch, `SELECT batch.batch_num, batch.eth_block_num, batch.forger_addr,
-		batch.state_root,
+		batch.account_root,
+		batch.score_root,
+		batch.vouch_root,
 		batch.num_accounts, batch.last_idx, batch.exit_root, batch.forge_l1_txs_num,
 		batch.slot_num, batch.total_fees_usd, batch.gas_price, batch.gas_used, batch.ether_price_usd
 		FROM batch WHERE batch_num = $1;`,

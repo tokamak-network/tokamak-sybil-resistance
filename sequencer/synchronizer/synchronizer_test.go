@@ -386,20 +386,39 @@ func TestSyncGeneral(t *testing.T) {
 	// require.Equal(t, 2, len(blocks[i].Rollup.Batches[0].L1CoordinatorTxs))
 
 	// Set StateRoots for batches manually (til doesn't set it)
-	blocks[i].Rollup.Batches[0].Batch.StateRoot =
+	blocks[i].Rollup.Batches[0].Batch.AccountRoot =
 		newBigInt("11432094872416618651837327395264042968926668786266585816625577088890451620254")
-	blocks[i].Rollup.Batches[1].Batch.StateRoot =
+	blocks[i].Rollup.Batches[0].Batch.VouchRoot =
+		newBigInt("11432094872416618651837327395264042968926668786266585816625577088890451620254")
+	blocks[i].Rollup.Batches[0].Batch.ScoreRoot =
+		newBigInt("11432094872416618651837327395264042968926668786266585816625577088890451620254")
+
+	blocks[i].Rollup.Batches[1].Batch.AccountRoot =
 		newBigInt("16914212635847451457076355431350059348585556180740555407203882688922702410093")
-	// blocks 1 (blockNum=3)
+	blocks[i].Rollup.Batches[1].Batch.VouchRoot =
+		newBigInt("16914212635847451457076355431350059348585556180740555407203882688922702410093")
+	blocks[i].Rollup.Batches[1].Batch.ScoreRoot =
+		newBigInt("16914212635847451457076355431350059348585556180740555407203882688922702410093")
+
+		// blocks 1 (blockNum=3)
 	i = 1
 	require.Equal(t, 3, int(blocks[i].Block.Num))
 	require.Equal(t, 5, len(blocks[i].Rollup.L1UserTxs))
 	require.Equal(t, 2, len(blocks[i].Rollup.Batches))
 	// require.Equal(t, 5, len(blocks[i].Rollup.Batches[0].L2Txs))
 	// Set StateRoots for batches manually (til doesn't set it)
-	blocks[i].Rollup.Batches[0].Batch.StateRoot =
+	blocks[i].Rollup.Batches[0].Batch.AccountRoot =
 		newBigInt("13535760140937349829640752733057594576151546047374619177689224612061148090678")
-	blocks[i].Rollup.Batches[1].Batch.StateRoot =
+	blocks[i].Rollup.Batches[0].Batch.VouchRoot =
+		newBigInt("13535760140937349829640752733057594576151546047374619177689224612061148090678")
+	blocks[i].Rollup.Batches[0].Batch.ScoreRoot =
+		newBigInt("13535760140937349829640752733057594576151546047374619177689224612061148090678")
+
+	blocks[i].Rollup.Batches[1].Batch.AccountRoot =
+		newBigInt("19413739476363469870744893742469056615496274423228302914851564791727474664804")
+	blocks[i].Rollup.Batches[1].Batch.VouchRoot =
+		newBigInt("19413739476363469870744893742469056615496274423228302914851564791727474664804")
+	blocks[i].Rollup.Batches[1].Batch.ScoreRoot =
 		newBigInt("19413739476363469870744893742469056615496274423228302914851564791727474664804")
 
 	err = tc.FillBlocksExtra(blocks, &tilCfgExtra)

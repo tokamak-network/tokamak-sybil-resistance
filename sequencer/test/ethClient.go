@@ -185,7 +185,9 @@ func NewClient(l bool, timer Timer, addr *ethCommon.Address, setup *ClientSetup)
 	blockCurrent := &Block{
 		Rollup: &RollupBlock{
 			State: eth.RollupState{
-				StateRoot:              big.NewInt(0),
+				AccountRoot:            big.NewInt(0),
+				VouchRoot:              big.NewInt(0),
+				ScoreRoot:              big.NewInt(0),
 				ExitRoots:              make([]*big.Int, 1),
 				ExitNullifierMap:       make(map[int64]map[int64]bool),
 				MapL1TxQueue:           mapL1TxQueue,
@@ -713,7 +715,9 @@ func (c *Client) CtlAddBatch(args *eth.RollupForgeBatchArgs) {
 func (c *Client) addBatch(args *eth.RollupForgeBatchArgs) (*types.Transaction, error) {
 	nextBlock := c.nextBlock()
 	r := nextBlock.Rollup
-	r.State.StateRoot = args.NewStRoot
+	r.State.AccountRoot = args.NewAccountRoot
+	r.State.VouchRoot = args.NewVouchRoot
+	r.State.ScoreRoot = args.NewScoreRoot
 	if args.NewLastIdx < r.State.CurrentIdx {
 		return nil, common.Wrap(fmt.Errorf("args.NewLastIdx < r.State.CurrentIdx"))
 	}
@@ -851,8 +855,9 @@ func (c *Client) CtlAddBlocks(blocks []common.BlockData) (err error) {
 			if _, err := c.RollupForgeBatch(&eth.RollupForgeBatchArgs{
 				NewLastIdx: batch.Batch.LastIdx,
 
-				// TODO: add AccountStateRoot, VouchStateRoot, ScoreStateRoot to Rollup
-				NewStRoot:             batch.Batch.StateRoot,
+				NewAccountRoot:        batch.Batch.AccountRoot,
+				NewVouchRoot:          batch.Batch.VouchRoot,
+				NewScoreRoot:          batch.Batch.ScoreRoot,
 				NewExitRoot:           batch.Batch.ExitRoot,
 				L1CoordinatorTxs:      batch.L1CoordinatorTxs,
 				L1CoordinatorTxsAuths: auths,

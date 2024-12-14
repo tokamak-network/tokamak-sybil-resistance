@@ -124,7 +124,9 @@ type BatchAPI struct {
 	CollectedFeesDB  map[common.TokenID]*big.Int `json:"-" meddler:"fees_collected,json"`
 	CollectedFeesAPI apitypes.CollectedFeesAPI   `json:"collectedFees" meddler:"-"`
 	TotalFeesUSD     *float64                    `json:"historicTotalCollectedFeesUSD" meddler:"total_fees_usd"`
-	StateRoot        apitypes.BigIntStr          `json:"stateRoot" meddler:"state_root"`
+	AccountRoot      apitypes.BigIntStr          `json:"accountRoot" meddler:"account_root"`
+	VouchRoot        apitypes.BigIntStr          `json:"vouchRoot" meddler:"vouch_root"`
+	ScoreRoot        apitypes.BigIntStr          `json:"scoreRoot" meddler:"score_root"`
 	NumAccounts      int                         `json:"numAccounts" meddler:"num_accounts"`
 	ExitRoot         apitypes.BigIntStr          `json:"exitRoot" meddler:"exit_root"`
 	ForgeL1TxsNum    *int64                      `json:"forgeL1TransactionsNum" meddler:"forge_l1_txs_num"`
