@@ -100,24 +100,19 @@ func (s *StatsHolder) UpdateSync(lastBlock *common.Block, lastBatch *common.Batc
 func (s *StatsHolder) CopyStats() *Stats {
 	s.rw.RLock()
 	sCopy := s.Stats
-	if s.Sync.LastBatch.StateRoot != nil {
-		sCopy.Sync.LastBatch.StateRoot =
-			common.CopyBigInt(s.Sync.LastBatch.StateRoot)
-	}
 
-	// TODO: implement
-	// if s.Sync.LastBatch.AccountStateRoot != nil {
-	// 	sCopy.Sync.LastBatch.AccountStateRoot =
-	// 		common.CopyBigInt(s.Sync.LastBatch.AccountStateRoot)
-	// }
-	// if s.Sync.LastBatch.VouchStateRoot != nil {
-	// 	sCopy.Sync.LastBatch.VouchStateRoot =
-	// 		common.CopyBigInt(s.Sync.LastBatch.VouchStateRoot)
-	// }
-	// if s.Sync.LastBatch.ScoreStateRoot != nil {
-	// 	sCopy.Sync.LastBatch.ScoreStateRoot =
-	// 		common.CopyBigInt(s.Sync.LastBatch.ScoreStateRoot)
-	// }
+	if s.Sync.LastBatch.AccountRoot != nil {
+		sCopy.Sync.LastBatch.AccountRoot =
+			common.CopyBigInt(s.Sync.LastBatch.AccountRoot)
+	}
+	if s.Sync.LastBatch.VouchRoot != nil {
+		sCopy.Sync.LastBatch.VouchRoot =
+			common.CopyBigInt(s.Sync.LastBatch.VouchRoot)
+	}
+	if s.Sync.LastBatch.ScoreRoot != nil {
+		sCopy.Sync.LastBatch.ScoreRoot =
+			common.CopyBigInt(s.Sync.LastBatch.ScoreRoot)
+	}
 	s.rw.RUnlock()
 	return &sCopy
 }
@@ -807,8 +802,9 @@ func (s *Synchronizer) rollupSync(ethBlock *common.Block) (*common.RollupData, e
 			EthBlockNum: blockNum,
 			ForgerAddr:  *sender,
 
-			// TODO: add AccountStateRoot, VouchStateRoot, ScoreStateRoot to Rollup
-			StateRoot:   forgeBatchArgs.NewStRoot,
+			AccountRoot: forgeBatchArgs.NewAccountRoot,
+			VouchRoot:   forgeBatchArgs.NewVouchRoot,
+			ScoreRoot:   forgeBatchArgs.NewScoreRoot,
 			NumAccounts: len(batchData.CreatedAccounts),
 			LastIdx:     forgeBatchArgs.NewLastIdx,
 			ExitRoot:    forgeBatchArgs.NewExitRoot,

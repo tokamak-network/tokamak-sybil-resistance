@@ -18,15 +18,13 @@ type Batch struct {
 	EthBlockNum int64             `meddler:"eth_block_num"`
 	ForgerAddr  ethCommon.Address `meddler:"forger_addr"`
 
-	// TODO: implement
-	StateRoot *big.Int `meddler:"state_root,bigint"`
-	// AccountStateRoot *big.Int `meddler:"state_root,bigint"`
-	// VouchStateRoot   *big.Int `meddler:"state_root,bigint"`
-	// ScoreStateRoot   *big.Int `meddler:"state_root,bigint"`
+	AccountRoot *big.Int `meddler:"account_root,bigint"`
+	VouchRoot   *big.Int `meddler:"vouch_root,bigint"`
+	ScoreRoot   *big.Int `meddler:"score_root,bigint"`
+	ExitRoot    *big.Int `meddler:"exit_root,bigint"`
 
 	NumAccounts   int      `meddler:"num_accounts"`
 	LastIdx       int64    `meddler:"last_idx"`
-	ExitRoot      *big.Int `meddler:"exit_root,bigint"`
 	GasUsed       uint64   `meddler:"gas_used"`
 	GasPrice      *big.Int `meddler:"gas_price,bigint"`
 	EtherPriceUSD float64  `meddler:"ether_price_usd"`

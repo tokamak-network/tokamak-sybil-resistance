@@ -17,7 +17,7 @@ func (hdb *HistoryDB) getBatchAPI(d meddler.DB, batchNum common.BatchNum) (*Batc
 	if err := meddler.QueryRow(
 		d, batch,
 		`SELECT batch.item_id, batch.batch_num, batch.eth_block_num,
-		batch.forger_addr, batch.state_root, batch.num_accounts, batch.exit_root, batch.forge_l1_txs_num,
+		batch.forger_addr, batch.account_root, batch.score_root, batch.vouch_root, batch.num_accounts, batch.exit_root, batch.forge_l1_txs_num,
 		COALESCE(batch.eth_tx_hash, DECODE('0000000000000000000000000000000000000000000000000000000000000000', 'hex')) as eth_tx_hash,
 		block.timestamp, block.hash, COALESCE ((SELECT COUNT(*) FROM tx WHERE batch_num = batch.batch_num), 0) AS forged_txs
 	    FROM batch INNER JOIN block ON batch.eth_block_num = block.eth_block_num
